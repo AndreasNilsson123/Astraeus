@@ -33,7 +33,12 @@ void World::shutdown() {
     std::cout << "[World] Shutting down" << std::endl;
     
     transforms_.clear();
+    renderables_.clear();
+    colors_.clear();
+    trails_.clear();
+    labels_.clear();
     active_entities_.clear();
+    renderable_entities_cache_.clear();
     next_entity_id_ = 1;
     
     is_initialized_ = false;
@@ -54,13 +59,23 @@ void World::destroy_entity(uint32_t entity_id) {
         return;
     }
 
-    // Remove transform
+    // Remove all components
     transforms_.erase(entity_id);
+    renderables_.erase(entity_id);
+    colors_.erase(entity_id);
+    trails_.erase(entity_id);
+    labels_.erase(entity_id);
     
     // Remove from active list
     auto it = std::find(active_entities_.begin(), active_entities_.end(), entity_id);
     if (it != active_entities_.end()) {
         active_entities_.erase(it);
+    }
+    
+    // Remove from renderable cache
+    auto rit = std::find(renderable_entities_cache_.begin(), renderable_entities_cache_.end(), entity_id);
+    if (rit != renderable_entities_cache_.end()) {
+        renderable_entities_cache_.erase(rit);
     }
 }
 
@@ -112,6 +127,131 @@ void World::set_camera_projection(float fov_degrees, float near_plane, float far
 
 void World::update_camera(float aspect_ratio) {
     camera_.update_matrices(aspect_ratio);
+}
+
+void World::set_entity_renderable(uint32_t entity_id, bool visible) {
+    if (entity_id == 0) {
+        return;
+    }
+    
+    auto it = renderables_.find(entity_id);
+    if (it != renderables_.end()) {
+        it->second.visible = visible;
+    } else {
+        renderables_[entity_id] = Renderable();
+        renderables_[entity_id].visible = visible;
+        // Update cache
+        if (visible) {
+            renderable_entities_cache_.push_back(entity_id);
+        }
+    }
+}
+
+const Renderable* World::get_entity_renderable(uint32_t entity_id) const {
+    if (entity_id == 0) {
+        return nullptr;
+    }
+    
+    auto it = renderables_.find(entity_id);
+    if (it != renderables_.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+void World::set_entity_color(uint32_t entity_id, float r, float g, float b, float a) {
+    if (entity_id == 0) {
+        return;
+    }
+    
+    colors_[entity_id] = Color(r, g, b, a);
+}
+
+const Color* World::get_entity_color(uint32_t entity_id) const {
+    if (entity_id == 0) {
+        return nullptr;
+    }
+    
+    auto it = colors_.find(entity_id);
+    if (it != colors_.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+void World::set_entity_trail(uint32_t entity_id, uint32_t max_points) {
+    if (entity_id == 0) {
+        return;
+    }
+    
+    trails_[entity_id] = TrackTrail(max_points);
+}
+
+const TrackTrail* World::get_entity_trail(uint32_t entity_id) const {
+    if (entity_id == 0) {
+        return nullptr;
+    }
+    
+    auto it = trails_.find(entity_id);
+    if (it != trails_.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+void World::add_entity_trail_point(uint32_t entity_id, float x, float y, float z) {
+    if (entity_id == 0) {
+        return;
+    }
+    
+    auto it = trails_.find(entity_id);
+    if (it != trails_.end()) {
+        it->second.add_point(x, y, z);
+    }
+}
+
+void World::set_entity_label(uint32_t entity_id, uint32_t label_id) {
+    if (entity_id == 0) {
+        return;
+    }
+    
+    labels_[entity_id] = LabelRef(label_id);
+}
+
+const LabelRef* World::get_entity_label(uint32_t entity_id) const {
+    if (entity_id == 0) {
+        return nullptr;
+    }
+    
+    auto it = labels_.find(entity_id);
+    if (it != labels_.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+void World::apply_entity_snapshot(uint32_t entity_id, float pos_x, float pos_y, float pos_z) {
+    if (entity_id == 0) {
+        return;
+    }
+    
+    // Update transform
+    auto trans_it = transforms_.find(entity_id);
+    if (trans_it != transforms_.end()) {
+        trans_it->second.pos_x = pos_x;
+        trans_it->second.pos_y = pos_y;
+        trans_it->second.pos_z = pos_z;
+        
+        // Update trail if it exists
+        auto trail_it = trails_.find(entity_id);
+        if (trail_it != trails_.end()) {
+            trail_it->second.add_point(pos_x, pos_y, pos_z);
+        }
+    }
+}
+
+const std::vector<uint32_t>& World::get_renderable_entities() const {
+    return renderable_entities_cache_;
 }
 
 } // namespace astraeus

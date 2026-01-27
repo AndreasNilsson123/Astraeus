@@ -27,6 +27,8 @@ set(ENGINE_SOURCES
     engine/renderer/passes/ClearPass.cpp
     engine/renderer/passes/GridPass.cpp
     engine/renderer/passes/AxesPass.cpp
+    engine/renderer/passes/PointSpritePass.cpp
+    engine/renderer/passes/TrailPass.cpp
     engine/scene/World.cpp
     engine/scene/Camera.cpp
     engine/ingest/IngestManager.cpp
@@ -43,6 +45,8 @@ set(ENGINE_HEADERS
     engine/renderer/passes/ClearPass.hpp
     engine/renderer/passes/GridPass.hpp
     engine/renderer/passes/AxesPass.hpp
+    engine/renderer/passes/PointSpritePass.hpp
+    engine/renderer/passes/TrailPass.hpp
     engine/scene/World.hpp
     engine/scene/Camera.hpp
     engine/ingest/IngestManager.hpp
@@ -65,9 +69,8 @@ target_include_directories(astraeus_engine
         $<INSTALL_INTERFACE:include>
 )
 
-# Find and link OpenGL and EGL
-find_package(OpenGL REQUIRED)
-target_link_libraries(astraeus_engine PRIVATE OpenGL::GL OpenGL::OpenGL EGL)
+# Link OpenGL and EGL directly (for headless rendering)
+target_link_libraries(astraeus_engine PRIVATE GL EGL)
 
 # Compiler flags
 if(MSVC)
