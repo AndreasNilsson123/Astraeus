@@ -120,6 +120,23 @@ void GLRenderDevice::begin_frame() {
 }
 
 void GLRenderDevice::end_frame() {
+    // Unmap PBOs before readback
+    if (color_pbo_ != 0) {
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);
+        if (color_mapped_ptr_) {
+            glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+            color_mapped_ptr_ = nullptr;
+        }
+    }
+    
+    if (id_pbo_ != 0) {
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, id_pbo_);
+        if (id_mapped_ptr_) {
+            glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+            id_mapped_ptr_ = nullptr;
+        }
+    }
+
     // Readback to PBOs for zero-copy access from Java
     // Bind color texture readback
     glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);
@@ -131,11 +148,19 @@ void GLRenderDevice::end_frame() {
     glBindTexture(GL_TEXTURE_2D, id_texture_);
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
 
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
     // Finish GPU work
     glFinish();
+
+    // Remap PBOs for reading
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);
+    color_mapped_ptr_ = glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+    
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, id_pbo_);
+    id_mapped_ptr_ = glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+    
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
     // Calculate frame time
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -530,20 +555,18 @@ void GLRenderDevice::create_framebuffers() {
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // Create PBOs for readback (persistent mapping)
+    // Create PBOs for readback (will be mapped after first frame)
     uint32_t color_buffer_size = width_ * height_ * 4; // RGBA8
     uint32_t id_buffer_size = width_ * height_ * 4; // R32UI
 
     glGenBuffers(1, &color_pbo_);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);
     glBufferData(GL_PIXEL_PACK_BUFFER, color_buffer_size, nullptr, GL_STREAM_READ);
-    color_mapped_ptr_ = glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
     set_object_label(GL_BUFFER, color_pbo_, "ColorPBO");
 
     glGenBuffers(1, &id_pbo_);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, id_pbo_);
     glBufferData(GL_PIXEL_PACK_BUFFER, id_buffer_size, nullptr, GL_STREAM_READ);
-    id_mapped_ptr_ = glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
     set_object_label(GL_BUFFER, id_pbo_, "IDPBO");
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);

@@ -95,12 +95,20 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Build examples if requested
 if(ASTRAEUS_BUILD_EXAMPLES)
+    # Simple example
     add_executable(simple_example examples/simple_example.c)
     target_link_libraries(simple_example PRIVATE astraeus_engine)
     target_include_directories(simple_example PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     set_target_properties(simple_example PROPERTIES LINKER_LANGUAGE CXX)
     
-    install(TARGETS simple_example
+    # Render example (with PNG output)
+    find_package(PNG REQUIRED)
+    add_executable(render_example examples/render_example.c)
+    target_link_libraries(render_example PRIVATE astraeus_engine PNG::PNG)
+    target_include_directories(render_example PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    set_target_properties(render_example PROPERTIES LINKER_LANGUAGE CXX)
+    
+    install(TARGETS simple_example render_example
         RUNTIME DESTINATION bin
     )
 endif()

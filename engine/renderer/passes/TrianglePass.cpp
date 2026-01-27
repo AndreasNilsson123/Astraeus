@@ -16,10 +16,15 @@ layout (location = 1) in vec3 aColor;
 
 out vec3 vertexColor;
 
-uniform mat4 uTransform;
+uniform float uRotation;
 
 void main() {
-    gl_Position = uTransform * vec4(aPos, 1.0);
+    // Apply 2D rotation in clip space
+    float c = cos(uRotation);
+    float s = sin(uRotation);
+    mat2 rotation = mat2(c, s, -s, c);
+    vec2 rotatedPos = rotation * aPos.xy;
+    gl_Position = vec4(rotatedPos, 0.0, 1.0);
     vertexColor = aColor;
 }
 )";
@@ -83,42 +88,39 @@ void TrianglePass::execute(RenderDevice* device, World* world) {
 
     gl_device_->push_debug_group("TrianglePass");
 
-    // Enable depth testing
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
+    // Disable face culling
+    glDisable(GL_CULL_FACE);
+    
+    // Disable depth testing for this simple test
+    glDisable(GL_DEPTH_TEST);
 
-    // Bind shader
+    // Bind shader FIRST before setting uniforms
     gl_device_->bind_shader(shader_);
+    
+    // Clear any previous errors
+    while (glGetError() != GL_NO_ERROR);
 
     // Update rotation
-    rotation_angle_ += 0.01f;
+    rotation_angle_ += 0.02f;
     if (rotation_angle_ > 6.28318530718f) { // 2*PI
         rotation_angle_ -= 6.28318530718f;
     }
 
-    // Create simple rotation matrix
-    float cos_angle = std::cos(rotation_angle_);
-    float sin_angle = std::sin(rotation_angle_);
-    
-    float transform[16] = {
-        cos_angle, sin_angle, 0.0f, 0.0f,
-        -sin_angle, cos_angle, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-    };
-
-    // Set uniforms
-    gl_device_->set_uniform_mat4(shader_, "uTransform", transform);
+    // Set uniforms - check if they exist
+    GLint rotation_loc = glGetUniformLocation(shader_.gl_program, "uRotation");
+    if (rotation_loc != -1) {
+        glUniform1f(rotation_loc, rotation_angle_);
+    }
     
     GLint entity_id_loc = glGetUniformLocation(shader_.gl_program, "uEntityID");
-    glUniform1ui(entity_id_loc, 1); // Entity ID = 1 for the triangle
+    if (entity_id_loc != -1) {
+        glUniform1ui(entity_id_loc, 1); // Entity ID = 1 for the triangle
+    }
 
     // Draw triangle
     glBindVertexArray(vao_);
     gl_device_->draw_arrays(GL_TRIANGLES, 0, 3);
     glBindVertexArray(0);
-
-    glDisable(GL_DEPTH_TEST);
 
     gl_device_->pop_debug_group();
 }
