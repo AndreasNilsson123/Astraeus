@@ -23,6 +23,9 @@ set(ENGINE_SOURCES
     engine/core/EngineContext.cpp
     engine/renderer/RenderDevice.cpp
     engine/renderer/RenderGraph.cpp
+    engine/renderer/opengl/GLRenderDevice.cpp
+    engine/renderer/passes/ClearPass.cpp
+    engine/renderer/passes/TrianglePass.cpp
     engine/scene/World.cpp
     engine/ingest/IngestManager.cpp
     engine/assets/AssetManager.cpp
@@ -34,6 +37,9 @@ set(ENGINE_HEADERS
     engine/core/EngineContext.hpp
     engine/renderer/RenderDevice.hpp
     engine/renderer/RenderGraph.hpp
+    engine/renderer/opengl/GLRenderDevice.hpp
+    engine/renderer/passes/ClearPass.hpp
+    engine/renderer/passes/TrianglePass.hpp
     engine/scene/World.hpp
     engine/ingest/IngestManager.hpp
     engine/assets/AssetManager.hpp
@@ -54,6 +60,10 @@ target_include_directories(astraeus_engine
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine>
         $<INSTALL_INTERFACE:include>
 )
+
+# Find and link OpenGL and EGL
+find_package(OpenGL REQUIRED)
+target_link_libraries(astraeus_engine PRIVATE OpenGL::GL OpenGL::OpenGL EGL)
 
 # Compiler flags
 if(MSVC)
@@ -85,12 +95,20 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Build examples if requested
 if(ASTRAEUS_BUILD_EXAMPLES)
+    # Simple example
     add_executable(simple_example examples/simple_example.c)
     target_link_libraries(simple_example PRIVATE astraeus_engine)
     target_include_directories(simple_example PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     set_target_properties(simple_example PROPERTIES LINKER_LANGUAGE CXX)
     
-    install(TARGETS simple_example
+    # Render example (with PNG output)
+    find_package(PNG REQUIRED)
+    add_executable(render_example examples/render_example.c)
+    target_link_libraries(render_example PRIVATE astraeus_engine PNG::PNG)
+    target_include_directories(render_example PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    set_target_properties(render_example PROPERTIES LINKER_LANGUAGE CXX)
+    
+    install(TARGETS simple_example render_example
         RUNTIME DESTINATION bin
     )
 endif()

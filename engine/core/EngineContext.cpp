@@ -1,6 +1,9 @@
 #include "EngineContext.hpp"
 #include "../renderer/RenderDevice.hpp"
+#include "../renderer/opengl/GLRenderDevice.hpp"
 #include "../renderer/RenderGraph.hpp"
+#include "../renderer/passes/ClearPass.hpp"
+#include "../renderer/passes/TrianglePass.hpp"
 #include "../scene/World.hpp"
 #include "../ingest/IngestManager.hpp"
 #include "../assets/AssetManager.hpp"
@@ -30,14 +33,14 @@ bool EngineContext::initialize() {
     std::cout << "[Astraeus] Initializing engine..." << std::endl;
 
     try {
-        // Initialize render device
+        // Initialize render device (use GL backend)
         RenderDevice::Config render_config;
         render_config.width = config_.initial_width;
         render_config.height = config_.initial_height;
         render_config.enable_validation = config_.enable_validation;
         render_config.enable_debug = config_.enable_debug_output;
         
-        render_device_ = std::make_unique<RenderDevice>(render_config);
+        render_device_ = std::make_unique<GLRenderDevice>(render_config);
         if (!render_device_->initialize()) {
             std::cerr << "[Astraeus] Failed to initialize render device" << std::endl;
             return false;
@@ -47,9 +50,13 @@ bool EngineContext::initialize() {
         world_ = std::make_unique<World>();
         world_->initialize();
 
-        // Initialize render graph
+        // Initialize render graph with passes
         render_graph_ = std::make_unique<RenderGraph>(render_device_.get(), world_.get());
         render_graph_->initialize();
+        
+        // Add render passes
+        render_graph_->add_pass(std::make_unique<ClearPass>());
+        render_graph_->add_pass(std::make_unique<TrianglePass>());
 
         // Initialize ingest manager
         ingest_manager_ = std::make_unique<IngestManager>(world_.get());
