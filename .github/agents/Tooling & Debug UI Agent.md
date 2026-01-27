@@ -1,3 +1,9 @@
+---
+name: Tooling & Debug UI Agent
+description: Build professional tooling panels for inspecting engine state and telemetry.
+---
+
+
 PROJECT: Astraeus (professional 3D visualization engine)
 
 GOAL:
