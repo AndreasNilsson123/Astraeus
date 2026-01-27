@@ -117,6 +117,14 @@ void EngineContext::resize_viewport(uint32_t width, uint32_t height) {
     }
 }
 
+bool EngineContext::configure_readback(const ReadbackConfig* color_config, 
+                                        const ReadbackConfig* id_config) {
+    if (render_device_) {
+        return render_device_->configure_readback(color_config, id_config);
+    }
+    return false;
+}
+
 void EngineContext::get_frame_stats(FrameStats& out_stats) const {
     out_stats.frame_number = frame_count_;
     out_stats.delta_time_ms = current_delta_time_ * 1000.0;

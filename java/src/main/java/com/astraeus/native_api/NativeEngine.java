@@ -92,8 +92,9 @@ public class NativeEngine implements AutoCloseable {
     
     /**
      * Resize the viewport.
-     * @param width New width
-     * @param height New height
+     * IMPORTANT: This only changes the viewport region, NOT the backing buffer size.
+     * @param width New viewport width
+     * @param height New viewport height
      */
     public void resizeViewport(int width, int height) {
         checkClosed();
@@ -102,6 +103,143 @@ public class NativeEngine implements AutoCloseable {
         } catch (Throwable e) {
             throw new RuntimeException("Failed to resize viewport", e);
         }
+    }
+    
+    /**
+     * Configure readback buffers with fixed backing size.
+     * Must be called before first frame to set maximum buffer sizes.
+     * @param maxWidth Maximum expected viewport width
+     * @param maxHeight Maximum expected viewport height
+     * @param enableDoubleBuffer Enable double-buffered readback (safer, slightly slower)
+     */
+    public void configureReadback(int maxWidth, int maxHeight, boolean enableDoubleBuffer) {
+        checkClosed();
+        try {
+            // Allocate ReadbackConfig structs
+            MemorySegment colorConfig = arena.allocate(EngineBindings.READBACK_CONFIG_LAYOUT);
+            MemorySegment idConfig = arena.allocate(EngineBindings.READBACK_CONFIG_LAYOUT);
+            
+            // Get field handles
+            VarHandle maxWidthHandle = EngineBindings.READBACK_CONFIG_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("max_width"));
+            VarHandle maxHeightHandle = EngineBindings.READBACK_CONFIG_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("max_height"));
+            VarHandle formatHandle = EngineBindings.READBACK_CONFIG_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("format"));
+            VarHandle doubleBufferHandle = EngineBindings.READBACK_CONFIG_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("enable_double_buffer"));
+            
+            // Configure color buffer (BGRA8 format)
+            maxWidthHandle.set(colorConfig, 0L, maxWidth);
+            maxHeightHandle.set(colorConfig, 0L, maxHeight);
+            formatHandle.set(colorConfig, 0L, EngineBindings.PIXEL_FORMAT_BGRA8);
+            doubleBufferHandle.set(colorConfig, 0L, enableDoubleBuffer);
+            
+            // Configure ID buffer (R32UI format)
+            maxWidthHandle.set(idConfig, 0L, maxWidth);
+            maxHeightHandle.set(idConfig, 0L, maxHeight);
+            formatHandle.set(idConfig, 0L, EngineBindings.PIXEL_FORMAT_R32UI);
+            doubleBufferHandle.set(idConfig, 0L, enableDoubleBuffer);
+            
+            // Call native function
+            boolean success = (boolean) EngineBindings.CONFIGURE_READBACK.invoke(
+                engineHandle, colorConfig, idConfig);
+            
+            if (!success) {
+                throw new RuntimeException("Failed to configure readback buffers");
+            }
+            
+            System.out.println("[NativeEngine] Readback configured: " + maxWidth + "x" + 
+                             maxHeight + " (double_buffer=" + enableDoubleBuffer + ")");
+            
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to configure readback", e);
+        }
+    }
+    
+    /**
+     * Get the color buffer view for rendering.
+     * The returned PixelBufferView has a stable data pointer that never changes.
+     * Only the viewport dimensions (width/height) change on resize.
+     */
+    public PixelBufferView getColorBuffer() {
+        checkClosed();
+        try {
+            MemorySegment viewStruct = (MemorySegment) EngineBindings.GET_COLOR_BUFFER.invoke(engineHandle);
+            return new PixelBufferView(viewStruct);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to get color buffer", e);
+        }
+    }
+    
+    /**
+     * Get the ID buffer view for picking.
+     * The returned PixelBufferView has a stable data pointer that never changes.
+     * Only the viewport dimensions (width/height) change on resize.
+     */
+    public PixelBufferView getIdBuffer() {
+        checkClosed();
+        try {
+            MemorySegment viewStruct = (MemorySegment) EngineBindings.GET_ID_BUFFER.invoke(engineHandle);
+            return new PixelBufferView(viewStruct);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to get ID buffer", e);
+        }
+    }
+    
+    /**
+     * Wrapper for PixelBufferView struct.
+     * Provides safe access to backing buffer without memory hazards.
+     */
+    public static class PixelBufferView {
+        private final MemorySegment data;
+        private final int width;
+        private final int height;
+        private final int stride;
+        private final int format;
+        private final int maxBackingWidth;
+        private final int maxBackingHeight;
+        private final int maxBackingSize;
+        
+        public PixelBufferView(MemorySegment structSegment) {
+            VarHandle dataHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("data"));
+            VarHandle widthHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("width"));
+            VarHandle heightHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("height"));
+            VarHandle strideHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("stride"));
+            VarHandle formatHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("format"));
+            VarHandle maxWidthHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("max_backing_width"));
+            VarHandle maxHeightHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("max_backing_height"));
+            VarHandle maxSizeHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("max_backing_size"));
+            
+            MemorySegment dataPtr = (MemorySegment) dataHandle.get(structSegment, 0L);
+            this.width = (int) widthHandle.get(structSegment, 0L);
+            this.height = (int) heightHandle.get(structSegment, 0L);
+            this.stride = (int) strideHandle.get(structSegment, 0L);
+            this.format = (int) formatHandle.get(structSegment, 0L);
+            this.maxBackingWidth = (int) maxWidthHandle.get(structSegment, 0L);
+            this.maxBackingHeight = (int) maxHeightHandle.get(structSegment, 0L);
+            this.maxBackingSize = (int) maxSizeHandle.get(structSegment, 0L);
+            
+            // Reinterpret data pointer to access full backing buffer
+            this.data = dataPtr.reinterpret(maxBackingSize);
+        }
+        
+        public MemorySegment getData() { return data; }
+        public int getWidth() { return width; }
+        public int getHeight() { return height; }
+        public int getStride() { return stride; }
+        public int getFormat() { return format; }
+        public int getMaxBackingWidth() { return maxBackingWidth; }
+        public int getMaxBackingHeight() { return maxBackingHeight; }
+        public int getMaxBackingSize() { return maxBackingSize; }
     }
     
     /**
