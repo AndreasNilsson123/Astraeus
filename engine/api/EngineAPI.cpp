@@ -130,23 +130,23 @@ void astraeus_get_frame_stats(EngineHandle engine, FrameStats* out_stats) {
 void astraeus_get_color_buffer(EngineHandle engine, PixelBufferView* out_view) {
     if (!out_view) return;
 
-    *out_view = {nullptr, 0, 0, 0, 0, 0, 0, 0};
+    // Initialize to defaults with RGBA8 format
+    *out_view = {nullptr, 0, 0, 0, PIXEL_FORMAT_RGBA8, 0, 0, 0};
 
     if (!astraeus_is_valid(engine)) return;
 
     engine->context->get_color_buffer_view(*out_view);
 }
 
-
-PixelBufferView astraeus_get_id_buffer(EngineHandle engine) {
-    PixelBufferView view = {nullptr, 0, 0, 0, PIXEL_FORMAT_R32UI, 0, 0, 0};
+void astraeus_get_id_buffer(EngineHandle engine, PixelBufferView* out_view) {
+    if (!out_view) return;
     
-    if (!astraeus_is_valid(engine)) {
-        return view;
-    }
+    // Initialize to defaults with ID buffer format
+    *out_view = {nullptr, 0, 0, 0, PIXEL_FORMAT_R32UI, 0, 0, 0};
     
-    engine->context->get_id_buffer_view(view);
-    return view;
+    if (!astraeus_is_valid(engine)) return;
+    
+    engine->context->get_id_buffer_view(*out_view);
 }
 
 // =============================================================================

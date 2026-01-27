@@ -165,7 +165,21 @@ public class NativeEngine implements AutoCloseable {
     public PixelBufferView getColorBuffer() {
         checkClosed();
         try {
-            MemorySegment viewStruct = (MemorySegment) EngineBindings.GET_COLOR_BUFFER.invoke(engineHandle);
+            // Allocate memory for out-parameter
+            MemorySegment viewStruct = arena.allocate(EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT);
+            
+            // Call native function with out-parameter
+            EngineBindings.GET_COLOR_BUFFER.invoke(engineHandle, viewStruct);
+            
+            // Validate the result before creating PixelBufferView
+            VarHandle dataHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("data"));
+            MemorySegment dataPtr = (MemorySegment) dataHandle.get(viewStruct, 0L);
+            
+            if (dataPtr == null || dataPtr.equals(MemorySegment.NULL)) {
+                throw new RuntimeException("Failed to get color buffer: invalid data pointer");
+            }
+            
             return new PixelBufferView(viewStruct);
         } catch (Throwable e) {
             throw new RuntimeException("Failed to get color buffer", e);
@@ -180,7 +194,21 @@ public class NativeEngine implements AutoCloseable {
     public PixelBufferView getIdBuffer() {
         checkClosed();
         try {
-            MemorySegment viewStruct = (MemorySegment) EngineBindings.GET_ID_BUFFER.invoke(engineHandle);
+            // Allocate memory for out-parameter
+            MemorySegment viewStruct = arena.allocate(EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT);
+            
+            // Call native function with out-parameter
+            EngineBindings.GET_ID_BUFFER.invoke(engineHandle, viewStruct);
+            
+            // Validate the result before creating PixelBufferView
+            VarHandle dataHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("data"));
+            MemorySegment dataPtr = (MemorySegment) dataHandle.get(viewStruct, 0L);
+            
+            if (dataPtr == null || dataPtr.equals(MemorySegment.NULL)) {
+                throw new RuntimeException("Failed to get ID buffer: invalid data pointer");
+            }
+            
             return new PixelBufferView(viewStruct);
         } catch (Throwable e) {
             throw new RuntimeException("Failed to get ID buffer", e);

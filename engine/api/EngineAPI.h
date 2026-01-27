@@ -184,17 +184,17 @@ ASTRAEUS_API void astraeus_get_frame_stats(EngineHandle engine, FrameStats* out_
  * Get a view of the color buffer for readback (zero-copy).
  * Buffer is valid until next frame.
  * @param engine Engine handle
- * @return Pixel buffer view
+ * @param out_view Output pixel buffer view (must not be NULL)
  */
-ASTRAEUS_API PixelBufferView astraeus_get_color_buffer(EngineHandle engine);
+ASTRAEUS_API void astraeus_get_color_buffer(EngineHandle engine, PixelBufferView* out_view);
 
 /**
  * Get a view of the ID buffer for picking (zero-copy).
  * Buffer is valid until next frame.
  * @param engine Engine handle
- * @return Pixel buffer view
+ * @param out_view Output pixel buffer view (must not be NULL)
  */
-ASTRAEUS_API PixelBufferView astraeus_get_id_buffer(EngineHandle engine);
+ASTRAEUS_API void astraeus_get_id_buffer(EngineHandle engine, PixelBufferView* out_view);
 
 // =============================================================================
 // SCENE MANAGEMENT
