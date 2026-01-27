@@ -124,8 +124,8 @@ public class ResizeStressTest extends Application {
         
         fpsLabel = new Label("FPS: 0.0");
         resizeCountLabel = new Label("Resizes: 0");
-        Label maxSizeLabel = new Label("Max: " + viewport.getMaxWidth() + "x" + 
-                                        viewport.getMaxHeight());
+        Label maxSizeLabel = new Label("Max: " + viewport.getViewportMaxWidth() + "x" +
+                                        viewport.getViewportMaxHeight());
         
         statusBar.getChildren().addAll(fpsLabel, resizeCountLabel, maxSizeLabel);
         
@@ -175,8 +175,8 @@ public class ResizeStressTest extends Application {
         updateStatus("STRESS TEST RUNNING - Rapid random resizing...");
         
         System.out.println("\n=== STRESS TEST STARTED ===");
-        System.out.println("Max dimensions: " + viewport.getMaxWidth() + "x" + 
-                         viewport.getMaxHeight());
+        System.out.println("Max dimensions: " + viewport.getViewportMaxWidth() + "x" +
+                         viewport.getViewportMaxHeight());
     }
     
     private void stopStressTest() {
@@ -201,8 +201,8 @@ public class ResizeStressTest extends Application {
     private void performRandomResize() {
         // Random dimensions within max bounds
         int minDim = 640;
-        int maxW = viewport.getMaxWidth();
-        int maxH = viewport.getMaxHeight();
+        int maxW = viewport.getViewportMaxWidth();
+        int maxH = viewport.getViewportMaxHeight();
         
         // Ensure we have valid range (max must be > min)
         if (maxW <= minDim || maxH <= minDim) {

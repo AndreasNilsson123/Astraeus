@@ -180,14 +180,14 @@ public class FxViewport extends Pane {
     /**
      * Get maximum backing buffer width.
      */
-    public int getMaxWidth() {
+    public int getViewportMaxWidth() {
         return maxWidth;
     }
-    
+
     /**
      * Get maximum backing buffer height.
      */
-    public int getMaxHeight() {
+    public int getViewportMaxHeight() {
         return maxHeight;
     }
     

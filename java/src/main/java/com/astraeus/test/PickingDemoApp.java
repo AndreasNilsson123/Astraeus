@@ -278,4 +278,10 @@ public class PickingDemoApp extends Application {
     public static void main(String[] args) {
         launch(args);
     }
+
+    static class Starter {
+        public static void main(String[] args) {
+            PickingDemoApp.main(args);
+        }
+    }
 }

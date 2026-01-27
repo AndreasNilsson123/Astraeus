@@ -161,4 +161,10 @@ public class AstraeusApp extends Application {
     public static void main(String[] args) {
         launch(args);
     }
+
+    static class Starter {
+        public static void main(String[] args) {
+            AstraeusApp.main(args);
+        }
+    }
 }
