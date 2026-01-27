@@ -21,6 +21,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(ENGINE_SOURCES
     engine/api/EngineAPI.cpp
     engine/core/EngineContext.cpp
+    engine/core/Telemetry.cpp
     engine/renderer/RenderDevice.cpp
     engine/renderer/RenderGraph.cpp
     engine/renderer/opengl/GLRenderDevice.cpp
@@ -45,6 +46,7 @@ set(ENGINE_SOURCES
 set(ENGINE_HEADERS
     engine/api/EngineAPI.h
     engine/core/EngineContext.hpp
+    engine/core/Telemetry.hpp
     engine/renderer/RenderDevice.hpp
     engine/renderer/RenderGraph.hpp
     engine/renderer/opengl/GLRenderDevice.hpp
@@ -147,7 +149,13 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     target_link_libraries(ingest_demo PRIVATE astraeus_engine pthread)
     target_include_directories(ingest_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     
-    install(TARGETS simple_example entity_visualization_test ingest_demo
+    # Telemetry test (Task C1)
+    add_executable(telemetry_test examples/telemetry_test.c)
+    target_link_libraries(telemetry_test PRIVATE astraeus_engine)
+    target_include_directories(telemetry_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    set_target_properties(telemetry_test PROPERTIES LINKER_LANGUAGE CXX)
+    
+    install(TARGETS simple_example entity_visualization_test ingest_demo telemetry_test
         RUNTIME DESTINATION bin
     )
 endif()

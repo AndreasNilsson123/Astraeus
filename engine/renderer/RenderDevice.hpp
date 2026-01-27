@@ -22,6 +22,7 @@ public:
 
     struct Stats {
         double render_time_ms = 0.0;
+        double gpu_time_ms = 0.0;
         uint32_t draw_calls = 0;
         uint32_t triangle_count = 0;
     };

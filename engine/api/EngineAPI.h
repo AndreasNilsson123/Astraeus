@@ -36,6 +36,7 @@ typedef struct {
     uint64_t frame_number;
     double delta_time_ms;
     double render_time_ms;
+    double gpu_time_ms;        // GPU frame time in milliseconds
     uint32_t draw_calls;
     uint32_t triangle_count;
     uint32_t entity_count;
@@ -319,6 +320,50 @@ void astraeus_set_camera(EngineHandle engine,
  * @param far_plane Far clipping plane
  */
 void astraeus_set_camera_projection(EngineHandle engine, float fov_degrees, float near_plane, float far_plane);
+
+// =============================================================================
+// TELEMETRY
+// =============================================================================
+
+/**
+ * Enable or disable telemetry collection at runtime.
+ * When disabled, telemetry has zero overhead.
+ * Telemetry is disabled by default.
+ * @param engine Engine handle
+ * @param enabled true to enable, false to disable
+ */
+void astraeus_set_telemetry_enabled(EngineHandle engine, bool enabled);
+
+/**
+ * Check if telemetry is currently enabled.
+ * @param engine Engine handle
+ * @return true if enabled, false otherwise
+ */
+bool astraeus_is_telemetry_enabled(EngineHandle engine);
+
+/**
+ * Per-pass telemetry data structure.
+ */
+typedef struct {
+    char pass_name[64];
+    double duration_ms;
+} PassTelemetry;
+
+/**
+ * Get the number of render passes in the current frame.
+ * @param engine Engine handle
+ * @return Number of passes
+ */
+uint32_t astraeus_get_pass_count(EngineHandle engine);
+
+/**
+ * Get telemetry data for a specific render pass.
+ * @param engine Engine handle
+ * @param pass_index Index of the pass (0 to astraeus_get_pass_count()-1)
+ * @param out_telemetry Output pass telemetry data
+ * @return true if successful, false if invalid index
+ */
+bool astraeus_get_pass_telemetry(EngineHandle engine, uint32_t pass_index, PassTelemetry* out_telemetry);
 
 #ifdef __cplusplus
 }

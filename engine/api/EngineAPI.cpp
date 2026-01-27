@@ -272,3 +272,40 @@ void astraeus_apply_entity_snapshot(EngineHandle engine, uint32_t entity_id,
     
     engine->context->apply_entity_snapshot(entity_id, pos_x, pos_y, pos_z);
 }
+
+// =============================================================================
+// TELEMETRY
+// =============================================================================
+
+void astraeus_set_telemetry_enabled(EngineHandle engine, bool enabled) {
+    if (!astraeus_is_valid(engine)) {
+        return;
+    }
+    
+    engine->context->set_telemetry_enabled(enabled);
+}
+
+bool astraeus_is_telemetry_enabled(EngineHandle engine) {
+    if (!astraeus_is_valid(engine)) {
+        return false;
+    }
+    
+    return engine->context->is_telemetry_enabled();
+}
+
+uint32_t astraeus_get_pass_count(EngineHandle engine) {
+    if (!astraeus_is_valid(engine)) {
+        return 0;
+    }
+    
+    return engine->context->get_pass_count();
+}
+
+bool astraeus_get_pass_telemetry(EngineHandle engine, uint32_t pass_index, PassTelemetry* out_telemetry) {
+    if (!astraeus_is_valid(engine) || !out_telemetry) {
+        return false;
+    }
+    
+    return engine->context->get_pass_telemetry(pass_index, *out_telemetry);
+}
+

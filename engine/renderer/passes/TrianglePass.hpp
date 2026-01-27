@@ -17,6 +17,7 @@ public:
     bool initialize(RenderDevice* device) override;
     void execute(RenderDevice* device, World* world) override;
     void on_resize(uint32_t width, uint32_t height) override;
+    const char* get_name() const override { return "TrianglePass"; }
 
 private:
     void create_geometry();

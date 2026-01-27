@@ -1,13 +1,15 @@
 #include "RenderGraph.hpp"
 #include "RenderDevice.hpp"
 #include "../scene/World.hpp"
+#include "../core/Telemetry.hpp"
 #include <iostream>
 
 namespace astraeus {
 
-RenderGraph::RenderGraph(RenderDevice* device, World* world)
+RenderGraph::RenderGraph(RenderDevice* device, World* world, TelemetrySystem* telemetry)
     : device_(device)
     , world_(world)
+    , telemetry_(telemetry)
     , is_initialized_(false)
 {
 }
@@ -41,9 +43,20 @@ void RenderGraph::shutdown() {
 }
 
 void RenderGraph::execute() {
-    // Execute all passes in order
+    // Execute all passes in order, with telemetry timing
     for (auto& pass : passes_) {
+        // Begin pass timing
+        if (telemetry_) {
+            telemetry_->begin_pass(pass->get_name());
+        }
+        
+        // Execute the pass
         pass->execute(device_, world_);
+        
+        // End pass timing
+        if (telemetry_) {
+            telemetry_->end_pass();
+        }
     }
 }
 

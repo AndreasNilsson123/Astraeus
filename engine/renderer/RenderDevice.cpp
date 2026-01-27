@@ -72,11 +72,13 @@ void RenderDevice::shutdown() {
 void RenderDevice::begin_frame() {
     stats_.draw_calls = 0;
     stats_.triangle_count = 0;
+    stats_.gpu_time_ms = 0.0;
 }
 
 void RenderDevice::end_frame() {
     // TODO: Present frame
     stats_.render_time_ms = 16.67; // Placeholder ~60fps
+    stats_.gpu_time_ms = 15.0; // Placeholder GPU time (slightly less than render time)
     
     // Swap double buffers if enabled
     if (color_backing_.double_buffered) {

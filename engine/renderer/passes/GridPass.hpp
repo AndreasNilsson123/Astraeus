@@ -18,6 +18,7 @@ public:
     bool initialize(RenderDevice* device) override;
     void execute(RenderDevice* device, World* world) override;
     void on_resize(uint32_t width, uint32_t height) override;
+    const char* get_name() const override { return "GridPass"; }
 
     // Configuration
     void set_grid_size(float size) { grid_size_ = size; }

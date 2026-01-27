@@ -94,6 +94,7 @@ public class EngineBindings {
         ValueLayout.JAVA_LONG.withName("frame_number"),
         ValueLayout.JAVA_DOUBLE.withName("delta_time_ms"),
         ValueLayout.JAVA_DOUBLE.withName("render_time_ms"),
+        ValueLayout.JAVA_DOUBLE.withName("gpu_time_ms"),
         ValueLayout.JAVA_INT.withName("draw_calls"),
         ValueLayout.JAVA_INT.withName("triangle_count"),
         ValueLayout.JAVA_INT.withName("entity_count"),
@@ -123,6 +124,21 @@ public class EngineBindings {
         ValueLayout.JAVA_FLOAT.withName("world_z"),
         ValueLayout.JAVA_BOOLEAN.withName("hit"),
         MemoryLayout.paddingLayout(3) // Padding for alignment
+    );
+    
+    /**
+     * Memory layout for PassTelemetry struct.
+     * 
+     * Layout breakdown (C struct):
+     * - CHAR[64] (pass_name): 64 bytes
+     * - DOUBLE (duration_ms): 8 bytes (total 72)
+     * 
+     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
+     * In production, consider generating layouts from native headers or using jextract.
+     */
+    public static final StructLayout PASS_TELEMETRY_LAYOUT = MemoryLayout.structLayout(
+        MemoryLayout.sequenceLayout(64, ValueLayout.JAVA_BYTE).withName("pass_name"),
+        ValueLayout.JAVA_DOUBLE.withName("duration_ms")
     );
     
     // Function descriptors (C ABI signatures)
@@ -189,6 +205,33 @@ public class EngineBindings {
         ValueLayout.JAVA_INT      // param: screen_y
     );
     
+    private static final FunctionDescriptor GET_FRAME_STATS_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,      // param: EngineHandle
+        ValueLayout.ADDRESS       // param: FrameStats* (output)
+    );
+    
+    private static final FunctionDescriptor SET_TELEMETRY_ENABLED_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,      // param: EngineHandle
+        ValueLayout.JAVA_BOOLEAN  // param: enabled
+    );
+    
+    private static final FunctionDescriptor IS_TELEMETRY_ENABLED_DESC = FunctionDescriptor.of(
+        ValueLayout.JAVA_BOOLEAN, // return: bool
+        ValueLayout.ADDRESS       // param: EngineHandle
+    );
+    
+    private static final FunctionDescriptor GET_PASS_COUNT_DESC = FunctionDescriptor.of(
+        ValueLayout.JAVA_INT,     // return: pass count
+        ValueLayout.ADDRESS       // param: EngineHandle
+    );
+    
+    private static final FunctionDescriptor GET_PASS_TELEMETRY_DESC = FunctionDescriptor.of(
+        ValueLayout.JAVA_BOOLEAN, // return: success
+        ValueLayout.ADDRESS,      // param: EngineHandle
+        ValueLayout.JAVA_INT,     // param: pass_index
+        ValueLayout.ADDRESS       // param: PassTelemetry* (output)
+    );
+    
     // Method handles
     public static final MethodHandle CREATE_ENGINE;
     public static final MethodHandle DESTROY_ENGINE;
@@ -202,6 +245,11 @@ public class EngineBindings {
     public static final MethodHandle CREATE_ENTITY;
     public static final MethodHandle DESTROY_ENTITY;
     public static final MethodHandle PICK;
+    public static final MethodHandle GET_FRAME_STATS;
+    public static final MethodHandle SET_TELEMETRY_ENABLED;
+    public static final MethodHandle IS_TELEMETRY_ENABLED;
+    public static final MethodHandle GET_PASS_COUNT;
+    public static final MethodHandle GET_PASS_TELEMETRY;
     
     static {
         try {
@@ -268,6 +316,31 @@ public class EngineBindings {
             PICK = LINKER.downcallHandle(
                 LIBRARY.find("astraeus_pick").orElseThrow(),
                 PICK_DESC
+            );
+            
+            GET_FRAME_STATS = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_get_frame_stats").orElseThrow(),
+                GET_FRAME_STATS_DESC
+            );
+            
+            SET_TELEMETRY_ENABLED = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_set_telemetry_enabled").orElseThrow(),
+                SET_TELEMETRY_ENABLED_DESC
+            );
+            
+            IS_TELEMETRY_ENABLED = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_is_telemetry_enabled").orElseThrow(),
+                IS_TELEMETRY_ENABLED_DESC
+            );
+            
+            GET_PASS_COUNT = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_get_pass_count").orElseThrow(),
+                GET_PASS_COUNT_DESC
+            );
+            
+            GET_PASS_TELEMETRY = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_get_pass_telemetry").orElseThrow(),
+                GET_PASS_TELEMETRY_DESC
             );
             
         } catch (Exception e) {

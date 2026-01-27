@@ -302,6 +302,100 @@ public class NativeEngine implements AutoCloseable {
         }
     }
     
+    /**
+     * Get frame statistics.
+     * Use the provided FrameStatsView to avoid per-frame allocations.
+     * 
+     * @param statsView Reusable FrameStatsView to populate with data
+     */
+    public void getFrameStats(FrameStatsView statsView) {
+        checkClosed();
+        try {
+            // Allocate temporary struct for output
+            MemorySegment statsStruct = arena.allocate(EngineBindings.FRAME_STATS_LAYOUT);
+            
+            // Call native function to populate struct
+            EngineBindings.GET_FRAME_STATS.invoke(engineHandle, statsStruct);
+            
+            // Refresh the view with the data
+            statsView.refresh(statsStruct);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to get frame stats", e);
+        }
+    }
+    
+    /**
+     * Enable or disable telemetry collection.
+     * When disabled, telemetry has zero overhead.
+     * 
+     * @param enabled true to enable, false to disable
+     */
+    public void setTelemetryEnabled(boolean enabled) {
+        checkClosed();
+        try {
+            EngineBindings.SET_TELEMETRY_ENABLED.invoke(engineHandle, enabled);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to set telemetry enabled", e);
+        }
+    }
+    
+    /**
+     * Check if telemetry is currently enabled.
+     * 
+     * @return true if enabled, false otherwise
+     */
+    public boolean isTelemetryEnabled() {
+        checkClosed();
+        try {
+            return (boolean) EngineBindings.IS_TELEMETRY_ENABLED.invoke(engineHandle);
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Get the number of render passes in the current frame.
+     * 
+     * @return Number of passes
+     */
+    public int getPassCount() {
+        checkClosed();
+        try {
+            return (int) EngineBindings.GET_PASS_COUNT.invoke(engineHandle);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to get pass count", e);
+        }
+    }
+    
+    /**
+     * Get telemetry data for a specific render pass.
+     * Use the provided PassTelemetryView to avoid per-frame allocations.
+     * 
+     * @param passIndex Index of the pass (0 to getPassCount()-1)
+     * @param telemetryView Reusable PassTelemetryView to populate with data
+     * @return true if successful, false if invalid index
+     */
+    public boolean getPassTelemetry(int passIndex, PassTelemetryView telemetryView) {
+        checkClosed();
+        try {
+            // Allocate temporary struct for output
+            MemorySegment telemetryStruct = arena.allocate(EngineBindings.PASS_TELEMETRY_LAYOUT);
+            
+            // Call native function to populate struct
+            boolean success = (boolean) EngineBindings.GET_PASS_TELEMETRY.invoke(
+                engineHandle, passIndex, telemetryStruct);
+            
+            if (success) {
+                // Refresh the view with the data
+                telemetryView.refresh(telemetryStruct);
+            }
+            
+            return success;
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to get pass telemetry", e);
+        }
+    }
+    
     private void checkClosed() {
         if (closed) {
             throw new IllegalStateException("Engine has been closed");

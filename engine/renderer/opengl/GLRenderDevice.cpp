@@ -48,6 +48,8 @@ GLRenderDevice::GLRenderDevice(const Config& config)
     , id_pbo_(0)
     , color_mapped_ptr_(nullptr)
     , id_mapped_ptr_(nullptr)
+    , gpu_time_query_(0)
+    , gpu_queries_available_(false)
     , has_khr_debug_(false)
     , debug_output_enabled_(false)
 {
@@ -82,6 +84,20 @@ bool GLRenderDevice::initialize() {
         setup_debug_output();
     }
 
+    // Check for GPU timing query support (GL_TIME_ELAPSED)
+    // Note: OpenGL 3.3+ core profile has timer queries by default
+    GLint num_extensions = 0;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
+    
+    gpu_queries_available_ = true;  // Assume available in GL 3.3+ core
+    
+    if (gpu_queries_available_) {
+        glGenQueries(1, &gpu_time_query_);
+        std::cout << "[GLRenderDevice] GPU timing queries available" << std::endl;
+    } else {
+        std::cout << "[GLRenderDevice] GPU timing queries not available" << std::endl;
+    }
+
     // Create framebuffers for offscreen rendering
     create_framebuffers();
 
@@ -102,6 +118,12 @@ void GLRenderDevice::shutdown() {
 
     std::cout << "[GLRenderDevice] Shutting down" << std::endl;
 
+    // Delete GPU timing query
+    if (gpu_time_query_ != 0) {
+        glDeleteQueries(1, &gpu_time_query_);
+        gpu_time_query_ = 0;
+    }
+
     destroy_framebuffers();
     destroy_offscreen_context();
 
@@ -114,12 +136,22 @@ void GLRenderDevice::begin_frame() {
     stats_.draw_calls = 0;
     stats_.triangle_count = 0;
 
+    // Start GPU timing query
+    if (gpu_queries_available_ && gpu_time_query_ != 0) {
+        glBeginQuery(GL_TIME_ELAPSED, gpu_time_query_);
+    }
+
     // Bind main framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, main_fbo_);
     glViewport(0, 0, width_, height_);
 }
 
 void GLRenderDevice::end_frame() {
+    // End GPU timing query
+    if (gpu_queries_available_ && gpu_time_query_ != 0) {
+        glEndQuery(GL_TIME_ELAPSED);
+    }
+
     // Unmap PBOs before readback
     if (color_pbo_ != 0) {
         glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);
@@ -152,6 +184,15 @@ void GLRenderDevice::end_frame() {
 
     // Finish GPU work
     glFinish();
+
+    // Get GPU timing query result
+    if (gpu_queries_available_ && gpu_time_query_ != 0) {
+        GLuint64 gpu_time_ns = 0;
+        glGetQueryObjectui64v(gpu_time_query_, GL_QUERY_RESULT, &gpu_time_ns);
+        stats_.gpu_time_ms = gpu_time_ns / 1000000.0;  // Convert nanoseconds to milliseconds
+    } else {
+        stats_.gpu_time_ms = 0.0;
+    }
 
     // Remap PBOs for reading
     glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);

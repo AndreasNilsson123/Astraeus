@@ -1,4 +1,5 @@
 #include "EngineContext.hpp"
+#include "Telemetry.hpp"
 #include "../renderer/RenderDevice.hpp"
 #include "../renderer/opengl/GLRenderDevice.hpp"
 #include "../renderer/RenderGraph.hpp"
@@ -10,6 +11,7 @@
 #include "../assets/AssetManager.hpp"
 #include "../api/EngineAPI.h"
 #include <iostream>
+#include <cstring>
 
 namespace astraeus {
 
@@ -34,6 +36,9 @@ bool EngineContext::initialize() {
     std::cout << "[Astraeus] Initializing engine..." << std::endl;
 
     try {
+        // Initialize telemetry system first (disabled by default)
+        telemetry_ = std::make_unique<TelemetrySystem>(120);  // Store last 120 frames
+
         // Initialize render device (use GL backend)
         RenderDevice::Config render_config;
         render_config.width = config_.initial_width;
@@ -52,7 +57,7 @@ bool EngineContext::initialize() {
         world_->initialize();
 
         // Initialize render graph with passes
-        render_graph_ = std::make_unique<RenderGraph>(render_device_.get(), world_.get());
+        render_graph_ = std::make_unique<RenderGraph>(render_device_.get(), world_.get(), telemetry_.get());
         render_graph_->initialize();
         
         // Add render passes: Clear, Grid, Axes
@@ -91,6 +96,7 @@ void EngineContext::shutdown() {
     render_graph_.reset();
     world_.reset();
     render_device_.reset();
+    telemetry_.reset();
 
     is_initialized_ = false;
     std::cout << "[Astraeus] Engine shutdown complete" << std::endl;
@@ -99,6 +105,11 @@ void EngineContext::shutdown() {
 void EngineContext::begin_frame(double delta_time) {
     current_delta_time_ = delta_time;
     total_time_ += delta_time;
+    
+    // Begin telemetry frame
+    if (telemetry_) {
+        telemetry_->begin_frame();
+    }
     
     if (render_device_) {
         render_device_->begin_frame();
@@ -112,6 +123,12 @@ void EngineContext::end_frame() {
     
     if (render_device_) {
         render_device_->end_frame();
+    }
+    
+    // End telemetry frame with GPU timing and stats
+    if (telemetry_ && render_device_) {
+        auto stats = render_device_->get_stats();
+        telemetry_->end_frame(stats.gpu_time_ms, stats.draw_calls, stats.triangle_count);
     }
     
     frame_count_++;
@@ -141,12 +158,20 @@ void EngineContext::get_frame_stats(FrameStats& out_stats) const {
     if (render_device_) {
         auto device_stats = render_device_->get_stats();
         out_stats.render_time_ms = device_stats.render_time_ms;
+        out_stats.gpu_time_ms = device_stats.gpu_time_ms;
         out_stats.draw_calls = device_stats.draw_calls;
         out_stats.triangle_count = device_stats.triangle_count;
+    } else {
+        out_stats.render_time_ms = 0.0;
+        out_stats.gpu_time_ms = 0.0;
+        out_stats.draw_calls = 0;
+        out_stats.triangle_count = 0;
     }
     
     if (world_) {
         out_stats.entity_count = world_->get_entity_count();
+    } else {
+        out_stats.entity_count = 0;
     }
 }
 
@@ -238,6 +263,44 @@ void EngineContext::apply_entity_snapshot(uint32_t entity_id, float pos_x, float
     if (world_) {
         world_->apply_entity_snapshot(entity_id, pos_x, pos_y, pos_z);
     }
+}
+
+void EngineContext::set_telemetry_enabled(bool enabled) {
+    if (telemetry_) {
+        telemetry_->set_enabled(enabled);
+    }
+}
+
+bool EngineContext::is_telemetry_enabled() const {
+    if (telemetry_) {
+        return telemetry_->is_enabled();
+    }
+    return false;
+}
+
+uint32_t EngineContext::get_pass_count() const {
+    if (telemetry_) {
+        return telemetry_->get_pass_count();
+    }
+    return 0;
+}
+
+bool EngineContext::get_pass_telemetry(uint32_t pass_index, PassTelemetry& out_telemetry) const {
+    if (!telemetry_) {
+        return false;
+    }
+
+    const auto* pass_data = telemetry_->get_pass_telemetry(pass_index);
+    if (!pass_data) {
+        return false;
+    }
+
+    // Copy pass name (with bounds checking)
+    std::strncpy(out_telemetry.pass_name, pass_data->name.c_str(), sizeof(out_telemetry.pass_name) - 1);
+    out_telemetry.pass_name[sizeof(out_telemetry.pass_name) - 1] = '\0';  // Ensure null termination
+    out_telemetry.duration_ms = pass_data->duration_ms;
+
+    return true;
 }
 
 } // namespace astraeus

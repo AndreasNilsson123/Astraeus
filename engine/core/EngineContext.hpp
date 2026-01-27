@@ -15,6 +15,7 @@ namespace astraeus {
     class World;
     class IngestManager;
     class AssetManager;
+    class TelemetrySystem;
 }
 
 namespace astraeus {
@@ -156,10 +157,31 @@ public:
      */
     void apply_entity_snapshot(uint32_t entity_id, float pos_x, float pos_y, float pos_z);
 
+    /**
+     * Set telemetry enabled state.
+     */
+    void set_telemetry_enabled(bool enabled);
+
+    /**
+     * Check if telemetry is enabled.
+     */
+    bool is_telemetry_enabled() const;
+
+    /**
+     * Get the number of render passes.
+     */
+    uint32_t get_pass_count() const;
+
+    /**
+     * Get telemetry for a specific render pass.
+     */
+    bool get_pass_telemetry(uint32_t pass_index, PassTelemetry& out_telemetry) const;
+
     // Accessors for subsystems (internal use)
     RenderDevice* get_render_device() const { return render_device_.get(); }
     RenderGraph* get_render_graph() const { return render_graph_.get(); }
     World* get_world() const { return world_.get(); }
+    TelemetrySystem* get_telemetry() const { return telemetry_.get(); }
 
 private:
     Config config_;
@@ -171,6 +193,7 @@ private:
     std::unique_ptr<World> world_;
     std::unique_ptr<IngestManager> ingest_manager_;
     std::unique_ptr<AssetManager> asset_manager_;
+    std::unique_ptr<TelemetrySystem> telemetry_;
     
     // Frame timing
     double current_delta_time_;

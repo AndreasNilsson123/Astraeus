@@ -104,6 +104,10 @@ private:
     void* color_mapped_ptr_;
     void* id_mapped_ptr_;
 
+    // GPU timing queries
+    uint32_t gpu_time_query_;
+    bool gpu_queries_available_;
+
     // Debug support
     bool has_khr_debug_;
     bool debug_output_enabled_;
