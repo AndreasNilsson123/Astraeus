@@ -79,13 +79,13 @@ int main() {
 
     printf("Engine created successfully\n\n");
 
-    // Set up camera for a nice view of the triangle
+    // Set up camera for a nice view of the grid and axes
     printf("Configuring camera...\n");
     astraeus_set_camera(engine,
-                       0.0f, 0.0f, 3.0f,   // eye position (back from origin)
-                       0.0f, 0.0f, 0.0f,   // look-at target
-                       0.0f, 1.0f, 0.0f);  // up vector
-    astraeus_set_camera_projection(engine, 60.0f, 0.1f, 100.0f);
+                       10.0f, 10.0f, 10.0f,  // eye position (elevated view)
+                       0.0f, 0.0f, 0.0f,     // look-at target (origin)
+                       0.0f, 1.0f, 0.0f);    // up vector
+    astraeus_set_camera_projection(engine, 60.0f, 0.1f, 1000.0f);
     printf("Camera configured\n\n");
 
     // Render frames

@@ -25,8 +25,10 @@ set(ENGINE_SOURCES
     engine/renderer/RenderGraph.cpp
     engine/renderer/opengl/GLRenderDevice.cpp
     engine/renderer/passes/ClearPass.cpp
-    engine/renderer/passes/TrianglePass.cpp
+    engine/renderer/passes/GridPass.cpp
+    engine/renderer/passes/AxesPass.cpp
     engine/scene/World.cpp
+    engine/scene/Camera.cpp
     engine/ingest/IngestManager.cpp
     engine/assets/AssetManager.cpp
     engine/geometry/Mesh.cpp
@@ -39,8 +41,10 @@ set(ENGINE_HEADERS
     engine/renderer/RenderGraph.hpp
     engine/renderer/opengl/GLRenderDevice.hpp
     engine/renderer/passes/ClearPass.hpp
-    engine/renderer/passes/TrianglePass.hpp
+    engine/renderer/passes/GridPass.hpp
+    engine/renderer/passes/AxesPass.hpp
     engine/scene/World.hpp
+    engine/scene/Camera.hpp
     engine/ingest/IngestManager.hpp
     engine/assets/AssetManager.hpp
     engine/geometry/Mesh.hpp

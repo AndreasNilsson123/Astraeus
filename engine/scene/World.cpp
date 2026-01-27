@@ -100,21 +100,18 @@ const Transform* World::get_entity_transform(uint32_t entity_id) const {
 void World::set_camera(float eye_x, float eye_y, float eye_z,
                       float target_x, float target_y, float target_z,
                       float up_x, float up_y, float up_z) {
-    camera_.eye_x = eye_x;
-    camera_.eye_y = eye_y;
-    camera_.eye_z = eye_z;
-    camera_.target_x = target_x;
-    camera_.target_y = target_y;
-    camera_.target_z = target_z;
-    camera_.up_x = up_x;
-    camera_.up_y = up_y;
-    camera_.up_z = up_z;
+    camera_.set_view(eye_x, eye_y, eye_z,
+                     target_x, target_y, target_z,
+                     up_x, up_y, up_z);
 }
 
 void World::set_camera_projection(float fov_degrees, float near_plane, float far_plane) {
-    camera_.fov_degrees = fov_degrees;
-    camera_.near_plane = near_plane;
-    camera_.far_plane = far_plane;
+    // Aspect ratio will be updated in update_camera()
+    camera_.set_projection(fov_degrees, 1.0f, near_plane, far_plane);
+}
+
+void World::update_camera(float aspect_ratio) {
+    camera_.update_matrices(aspect_ratio);
 }
 
 } // namespace astraeus
