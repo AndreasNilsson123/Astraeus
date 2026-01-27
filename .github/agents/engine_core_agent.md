@@ -1,3 +1,8 @@
+---
+name: C++ Engine Core Agent
+description: Create the C++ engine core scaffolding: Engine, EngineContext, ServiceRegistry, JobSystem, Diagnostics/Telemetry, and lifecycle glue.
+---
+
 PROJECT: Astraeus (professional 3D visualization engine)
 
 GOAL:
