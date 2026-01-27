@@ -1,3 +1,8 @@
+---
+name: Java Native Integration Agent
+description: Build robust Java wrappers around the FFM bindings with correct lifetimes, error handling, and minimal allocations.
+---
+
 PROJECT: Astraeus (professional 3D visualization engine)
 
 GOAL:
