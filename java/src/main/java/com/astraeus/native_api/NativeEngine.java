@@ -165,7 +165,12 @@ public class NativeEngine implements AutoCloseable {
     public PixelBufferView getColorBuffer() {
         checkClosed();
         try {
-            MemorySegment viewStruct = (MemorySegment) EngineBindings.GET_COLOR_BUFFER.invoke(engineHandle);
+            // Allocate memory for out-parameter
+            MemorySegment viewStruct = arena.allocate(EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT);
+            
+            // Call native function with out-parameter
+            EngineBindings.GET_COLOR_BUFFER.invoke(engineHandle, viewStruct);
+            
             return new PixelBufferView(viewStruct);
         } catch (Throwable e) {
             throw new RuntimeException("Failed to get color buffer", e);
@@ -180,7 +185,12 @@ public class NativeEngine implements AutoCloseable {
     public PixelBufferView getIdBuffer() {
         checkClosed();
         try {
-            MemorySegment viewStruct = (MemorySegment) EngineBindings.GET_ID_BUFFER.invoke(engineHandle);
+            // Allocate memory for out-parameter
+            MemorySegment viewStruct = arena.allocate(EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT);
+            
+            // Call native function with out-parameter
+            EngineBindings.GET_ID_BUFFER.invoke(engineHandle, viewStruct);
+            
             return new PixelBufferView(viewStruct);
         } catch (Throwable e) {
             throw new RuntimeException("Failed to get ID buffer", e);

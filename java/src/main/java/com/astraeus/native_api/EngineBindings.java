@@ -162,14 +162,14 @@ public class EngineBindings {
         ValueLayout.ADDRESS       // param: ReadbackConfig* (id)
     );
     
-    private static final FunctionDescriptor GET_COLOR_BUFFER_DESC = FunctionDescriptor.of(
-        PIXEL_BUFFER_VIEW_LAYOUT,  // return: PixelBufferView (struct by value)
-        ValueLayout.ADDRESS        // param: EngineHandle
+    private static final FunctionDescriptor GET_COLOR_BUFFER_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,       // param: EngineHandle
+        ValueLayout.ADDRESS        // param: PixelBufferView* (out)
     );
     
-    private static final FunctionDescriptor GET_ID_BUFFER_DESC = FunctionDescriptor.of(
-        PIXEL_BUFFER_VIEW_LAYOUT,  // return: PixelBufferView (struct by value)
-        ValueLayout.ADDRESS        // param: EngineHandle
+    private static final FunctionDescriptor GET_ID_BUFFER_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,       // param: EngineHandle
+        ValueLayout.ADDRESS        // param: PixelBufferView* (out)
     );
     
     private static final FunctionDescriptor CREATE_ENTITY_DESC = FunctionDescriptor.of(
