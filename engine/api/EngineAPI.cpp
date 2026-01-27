@@ -130,8 +130,8 @@ void astraeus_get_frame_stats(EngineHandle engine, FrameStats* out_stats) {
 void astraeus_get_color_buffer(EngineHandle engine, PixelBufferView* out_view) {
     if (!out_view) return;
 
-    // Initialize to defaults
-    *out_view = {nullptr, 0, 0, 0, 0, 0, 0, 0};
+    // Initialize to defaults with RGBA8 format
+    *out_view = {nullptr, 0, 0, 0, PIXEL_FORMAT_RGBA8, 0, 0, 0};
 
     if (!astraeus_is_valid(engine)) return;
 
