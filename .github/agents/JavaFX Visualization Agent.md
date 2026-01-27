@@ -1,3 +1,8 @@
+---
+name: JavaFX Visualization Agent
+description: Create JavaFX components that display engine output and overlays without breaking native memory lifetimes.
+---
+
 PROJECT: Astraeus (professional 3D visualization engine)
 
 GOAL:
