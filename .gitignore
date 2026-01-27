@@ -1,0 +1,40 @@
+# C++ Build Artifacts
+build/
+*.o
+*.so
+*.dll
+*.dylib
+*.a
+*.lib
+*.exe
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Java Build Artifacts
+target/
+*.class
+*.jar
+!pom.xml
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+
+# Temporary Files
+/tmp/
+
+# CodeQL
+_codeql_*/
