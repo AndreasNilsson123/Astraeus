@@ -1,6 +1,7 @@
 package com.astraeus.native_api;
 
 import java.lang.foreign.*;
+import java.lang.invoke.VarHandle;
 
 /**
  * High-level Java wrapper around the native Astraeus engine.
@@ -21,13 +22,26 @@ public class NativeEngine implements AutoCloseable {
     public NativeEngine(int width, int height, boolean enableValidation) {
         this.arena = Arena.ofShared();
         
-        // Allocate and populate EngineConfig
+        // Allocate and populate EngineConfig using layout accessors
         MemorySegment config = arena.allocate(EngineBindings.ENGINE_CONFIG_LAYOUT);
-        config.set(ValueLayout.JAVA_INT, 0, width);     // initial_width
-        config.set(ValueLayout.JAVA_INT, 4, height);    // initial_height
-        config.set(ValueLayout.JAVA_BOOLEAN, 8, enableValidation); // enable_validation
-        config.set(ValueLayout.JAVA_BOOLEAN, 12, false); // enable_debug_output
-        config.set(ValueLayout.ADDRESS, 16, MemorySegment.NULL); // log_file_path
+        
+        // Use field offsets from layout for safe, platform-independent access
+        VarHandle widthHandle = EngineBindings.ENGINE_CONFIG_LAYOUT.varHandle(
+            MemoryLayout.PathElement.groupElement("initial_width"));
+        VarHandle heightHandle = EngineBindings.ENGINE_CONFIG_LAYOUT.varHandle(
+            MemoryLayout.PathElement.groupElement("initial_height"));
+        VarHandle validationHandle = EngineBindings.ENGINE_CONFIG_LAYOUT.varHandle(
+            MemoryLayout.PathElement.groupElement("enable_validation"));
+        VarHandle debugHandle = EngineBindings.ENGINE_CONFIG_LAYOUT.varHandle(
+            MemoryLayout.PathElement.groupElement("enable_debug_output"));
+        VarHandle logPathHandle = EngineBindings.ENGINE_CONFIG_LAYOUT.varHandle(
+            MemoryLayout.PathElement.groupElement("log_file_path"));
+        
+        widthHandle.set(config, 0L, width);
+        heightHandle.set(config, 0L, height);
+        validationHandle.set(config, 0L, enableValidation);
+        debugHandle.set(config, 0L, false);
+        logPathHandle.set(config, 0L, MemorySegment.NULL);
         
         try {
             // Call native function

@@ -69,8 +69,14 @@ The shared library (`libastraeus.so` on Linux, `astraeus.dll` on Windows, `libas
 
 ### Build Java Frontend
 
-**Note**: The Java FFM bindings require Java 21+ (FFM was finalized in Java 22, available as preview in Java 19-21). If you have an older Java version, the Java components will not compile. The C++ engine can still be built and used independently.
+**Important**: The Java FFM bindings require **Java 21 or later**. FFM was finalized in Java 22 and is available as a preview feature in Java 19-21. If you have Java 17 or earlier, the Java components will not compile. The C++ engine can still be built and used independently.
 
+To check your Java version:
+```bash
+java -version
+```
+
+To build the Java frontend:
 ```bash
 mvn clean package
 ```

@@ -23,7 +23,7 @@ public class EngineBindings {
     );
     
     private static final FunctionDescriptor IS_VALID_DESC = FunctionDescriptor.of(
-        ValueLayout.JAVA_BOOLEAN,  // return: bool
+        ValueLayout.JAVA_BOOLEAN,  // return: bool (C99 bool is compatible with Java boolean)
         ValueLayout.ADDRESS         // param: EngineHandle
     );
     
@@ -116,6 +116,9 @@ public class EngineBindings {
     
     /**
      * Memory layout for EngineConfig struct.
+     * 
+     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
+     * In production, consider generating layouts from native headers or using jextract.
      */
     public static final StructLayout ENGINE_CONFIG_LAYOUT = MemoryLayout.structLayout(
         ValueLayout.JAVA_INT.withName("initial_width"),
@@ -129,6 +132,9 @@ public class EngineBindings {
     
     /**
      * Memory layout for FrameStats struct.
+     * 
+     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
+     * In production, consider generating layouts from native headers or using jextract.
      */
     public static final StructLayout FRAME_STATS_LAYOUT = MemoryLayout.structLayout(
         ValueLayout.JAVA_LONG.withName("frame_number"),

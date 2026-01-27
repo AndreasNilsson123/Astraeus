@@ -308,6 +308,18 @@ Future: Use job system for parallel scene updates.
 - Bounds checking on all array accesses
 - Resource cleanup guaranteed via `AutoCloseable`
 
+### Memory Layout Portability
+
+**Important**: The Java FFM bindings use manually-defined struct layouts that may not be portable across all platforms. The current implementation assumes x64 Linux/Windows with standard alignment.
+
+For production use, consider:
+1. Using `jextract` tool to generate layouts from C headers automatically
+2. Testing on target platforms to verify layout compatibility
+3. Using runtime layout queries if available
+4. Documenting supported platforms explicitly
+
+The C API uses standard C types (`uint32_t`, `float`, etc.) which should be consistent, but padding and alignment can vary.
+
 ### Input Validation
 
 - All C API functions validate handles
