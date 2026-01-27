@@ -1,3 +1,8 @@
+---
+name: Build & Integration Agent
+description: Make the repo build reliably across dev environments, with native library packaging and Java module configuration.
+---
+
 PROJECT: Astraeus (professional 3D visualization engine)
 
 GOAL:
