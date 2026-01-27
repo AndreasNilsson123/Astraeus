@@ -121,13 +121,23 @@ target_link_libraries(astraeus_engine PRIVATE OpenGL::GL)
 if(ASTRAEUS_ENABLE_EGL)
     if(WIN32)
         # On Windows, EGL requires ANGLE or other EGL provider
-        message(STATUS "EGL enabled on Windows - make sure ANGLE or other EGL provider is available")
-        # User should set EGL library paths if needed
-        find_library(EGL_LIBRARY NAMES EGL)
+        message(STATUS "EGL enabled on Windows - searching for ANGLE or other EGL provider")
+        # Provide hints for common ANGLE installation locations
+        find_library(EGL_LIBRARY NAMES EGL libEGL
+            HINTS
+                ENV ANGLE_DIR
+                ENV EGL_DIR
+                "C:/Program Files/ANGLE"
+                "C:/angle"
+            PATH_SUFFIXES
+                lib
+                bin
+        )
         if(EGL_LIBRARY)
             target_link_libraries(astraeus_engine PRIVATE ${EGL_LIBRARY})
+            message(STATUS "Found EGL library: ${EGL_LIBRARY}")
         else()
-            message(WARNING "EGL library not found - EGL backend may not work")
+            message(WARNING "EGL library not found - EGL backend may not work. Set ANGLE_DIR or EGL_DIR environment variable to the ANGLE installation directory.")
         endif()
     else()
         # On Linux/Unix, try to find EGL via pkg-config or find_package

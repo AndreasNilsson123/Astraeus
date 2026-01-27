@@ -1,5 +1,6 @@
 #include "WGLContext.hpp"
 #include <iostream>
+#include <cstdio>  // for snprintf
 
 // Windows headers - only included in this backend implementation
 #ifdef _WIN32
@@ -33,23 +34,25 @@ bool WGLContext::initialize(uint32_t width, uint32_t height) {
     // Create a dummy window for the device context
     HINSTANCE hInstance = GetModuleHandle(nullptr);
     
+    // Use a unique window class name to avoid conflicts
+    static int instance_counter = 0;
+    char class_name[64];
+    snprintf(class_name, sizeof(class_name), "AstraeusOffscreenGL_%d", instance_counter++);
+    
     WNDCLASSA wc = {};
     wc.lpfnWndProc = DefWindowProcA;
     wc.hInstance = hInstance;
-    wc.lpszClassName = "AstraeusOffscreenGL";
+    wc.lpszClassName = class_name;
     wc.style = CS_OWNDC;
     
     if (!RegisterClassA(&wc)) {
-        DWORD error = GetLastError();
-        if (error != ERROR_CLASS_ALREADY_EXISTS) {
-            std::cerr << "[WGLContext] Failed to register window class: " << error << std::endl;
-            return false;
-        }
+        std::cerr << "[WGLContext] Failed to register window class: " << GetLastError() << std::endl;
+        return false;
     }
 
     HWND hwnd = CreateWindowExA(
         0,
-        "AstraeusOffscreenGL",
+        class_name,
         "Offscreen",
         WS_OVERLAPPEDWINDOW,
         0, 0, static_cast<int>(width_), static_cast<int>(height_),
@@ -190,13 +193,19 @@ void* WGLContext::get_proc_address(const char* name) {
     void* proc = reinterpret_cast<void*>(wglGetProcAddress(name));
     if (!proc) {
         // Try getting from opengl32.dll for core functions
-        static HMODULE opengl32 = LoadLibraryA("opengl32.dll");
+        // Note: We don't store or free this handle as the module should remain loaded
+        HMODULE opengl32 = GetModuleHandleA("opengl32.dll");
+        if (!opengl32) {
+            // If not already loaded, load it (system will manage its lifetime)
+            opengl32 = LoadLibraryA("opengl32.dll");
+        }
         if (opengl32) {
             proc = reinterpret_cast<void*>(GetProcAddress(opengl32, name));
         }
     }
     return proc;
 #else
+    (void)name;
     return nullptr;
 #endif
 }
