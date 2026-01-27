@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(Astraeus VERSION 0.1.0 LANGUAGES CXX)
+project(Astraeus VERSION 0.1.0 LANGUAGES C CXX)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -10,6 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(ASTRAEUS_BUILD_SHARED "Build shared library" ON)
 option(ASTRAEUS_ENABLE_VALIDATION "Enable validation layers" ON)
 option(ASTRAEUS_BUILD_TESTS "Build tests" OFF)
+option(ASTRAEUS_BUILD_EXAMPLES "Build examples" ON)
 
 # Output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -82,6 +83,18 @@ install(FILES engine/api/EngineAPI.h
 # Export compile commands for IDE integration
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Build examples if requested
+if(ASTRAEUS_BUILD_EXAMPLES)
+    add_executable(simple_example examples/simple_example.c)
+    target_link_libraries(simple_example PRIVATE astraeus_engine)
+    target_include_directories(simple_example PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    set_target_properties(simple_example PROPERTIES LINKER_LANGUAGE CXX)
+    
+    install(TARGETS simple_example
+        RUNTIME DESTINATION bin
+    )
+endif()
+
 # Print configuration
 message(STATUS "Astraeus Configuration:")
 message(STATUS "  Version: ${PROJECT_VERSION}")
@@ -89,3 +102,4 @@ message(STATUS "  Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Shared library: ${ASTRAEUS_BUILD_SHARED}")
 message(STATUS "  Validation: ${ASTRAEUS_ENABLE_VALIDATION}")
 message(STATUS "  Build tests: ${ASTRAEUS_BUILD_TESTS}")
+message(STATUS "  Build examples: ${ASTRAEUS_BUILD_EXAMPLES}")
