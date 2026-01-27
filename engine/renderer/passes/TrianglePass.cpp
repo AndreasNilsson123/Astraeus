@@ -8,6 +8,8 @@
 
 namespace astraeus {
 
+static constexpr float TWO_PI = 6.28318530718f;
+
 // Simple vertex and fragment shaders for the triangle
 static const char* vertex_shader_src = R"(
 #version 330 core
@@ -102,8 +104,8 @@ void TrianglePass::execute(RenderDevice* device, World* world) {
 
     // Update rotation
     rotation_angle_ += 0.02f;
-    if (rotation_angle_ > 6.28318530718f) { // 2*PI
-        rotation_angle_ -= 6.28318530718f;
+    if (rotation_angle_ > TWO_PI) {
+        rotation_angle_ -= TWO_PI;
     }
 
     // Set uniforms - check if they exist
