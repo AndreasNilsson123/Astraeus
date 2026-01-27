@@ -60,16 +60,12 @@ void WorldSync::apply_snapshot(const SnapshotView& snapshot) {
         uint32_t entity_id = entity->entity_id;
         snapshot_entities.insert(entity_id);
         
-        // Check if entity needs creation
-        bool is_new = (active_entities_.find(entity_id) == active_entities_.end());
+        // Ensure entity exists in World (creates if needed)
+        bool was_created = world_->ensure_entity(entity_id);
         
+        // Track for statistics
+        bool is_new = (active_entities_.find(entity_id) == active_entities_.end());
         if (is_new) {
-            // Create entity in World if it doesn't exist yet
-            // Note: We assume entity_id from snapshot matches World entity_id
-            // In production, you might need a mapping table
-            
-            // For now, we'll update the transform and components
-            // The entity should already exist or we create it implicitly
             active_entities_.insert(entity_id);
             entities_created_++;
         }
@@ -90,9 +86,6 @@ void WorldSync::apply_snapshot(const SnapshotView& snapshot) {
         
         // Update renderable (make visible)
         world_->set_entity_renderable(entity_id, true);
-        
-        // Update position for trail (uses apply_entity_snapshot convenience method)
-        world_->apply_entity_snapshot(entity_id, entity->pos_x, entity->pos_y, entity->pos_z);
         
         if (!is_new) {
             entities_updated_++;

@@ -108,6 +108,13 @@ public:
     uint32_t create_entity();
 
     /**
+     * Ensure entity exists with specific ID (for ingest/WorldSync).
+     * If entity doesn't exist, creates it. If it exists, does nothing.
+     * Returns true if entity was created, false if it already existed.
+     */
+    bool ensure_entity(uint32_t entity_id);
+
+    /**
      * Destroy an entity.
      */
     void destroy_entity(uint32_t entity_id);

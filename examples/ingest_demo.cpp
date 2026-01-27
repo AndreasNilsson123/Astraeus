@@ -15,6 +15,12 @@
 #include <iostream>
 #include <memory>
 
+// Forward declare internal structure
+struct AstraeusEngine {
+    std::unique_ptr<astraeus::EngineContext> context;
+    // Other members not needed for this demo
+};
+
 /**
  * Ingest Demo - Task B3
  * 
@@ -69,8 +75,15 @@ int main() {
     
     // Get internal context (C++ side)
     // Note: This is for demo purposes; production would use C API only
-    EngineContext* ctx = reinterpret_cast<EngineContext*>(engine);
+    AstraeusEngine* engine_struct = reinterpret_cast<AstraeusEngine*>(engine);
+    EngineContext* ctx = engine_struct->context.get();
     World* world = ctx->get_world();
+    
+    if (!world) {
+        fprintf(stderr, "Failed to get World from engine context\n");
+        astraeus_destroy_engine(engine);
+        return 1;
+    }
     
     // Initialize ingest components
     printf("Initializing ingest pipeline...\n");
@@ -137,7 +150,7 @@ int main() {
     printf("Starting simulation...\n");
     printf("==========================================\n\n");
     
-    // Launch ingest thread
+    // Launch ingest thread (after all initialization is complete)
     std::atomic<bool> ingest_running(true);
     std::atomic<uint64_t> ingest_frame_count(0);
     
@@ -159,6 +172,7 @@ int main() {
             
             if (!success) {
                 std::cerr << "[Ingest] Failed to decode frame " << frame << std::endl;
+                continue; // Skip this frame but continue
             }
             
             auto end_time = std::chrono::high_resolution_clock::now();
@@ -184,6 +198,9 @@ int main() {
         printf("\n[Ingest] Thread finished\n");
         ingest_running.store(false);
     });
+    
+    // Give ingest thread a moment to generate first snapshot
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
     
     // Main render loop
     printf("\n[Render] Starting render loop\n");

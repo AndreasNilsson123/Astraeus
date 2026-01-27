@@ -105,7 +105,7 @@ void DeterministicSimGenerator::generate_default_entities(uint32_t count, uint32
                 config.radius = dist_radius(rng);
                 config.speed = dist_speed(rng);
                 break;
-            case 1:
+            case 1: {
                 config.motion = SimEntityConfig::MotionType::Linear;
                 config.speed = dist_speed(rng) * 2.0f;
                 config.direction_x = dist_pos(rng);
@@ -121,6 +121,7 @@ void DeterministicSimGenerator::generate_default_entities(uint32_t count, uint32
                     config.direction_z /= len;
                 }
                 break;
+            }
             case 2:
                 config.motion = SimEntityConfig::MotionType::Figure8;
                 config.radius = dist_radius(rng);

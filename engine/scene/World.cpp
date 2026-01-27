@@ -54,6 +54,34 @@ uint32_t World::create_entity() {
     return entity_id;
 }
 
+bool World::ensure_entity(uint32_t entity_id) {
+    if (entity_id == 0) {
+        return false;
+    }
+    
+    if (!is_initialized_) {
+        std::cerr << "[World] Warning: ensure_entity called before World is initialized" << std::endl;
+        return false;
+    }
+    
+    // Check if entity already exists
+    auto it = transforms_.find(entity_id);
+    if (it != transforms_.end()) {
+        return false; // Already exists
+    }
+    
+    // Create entity with specific ID
+    transforms_[entity_id] = Transform();
+    active_entities_.push_back(entity_id);
+    
+    // Update next_entity_id if needed
+    if (entity_id >= next_entity_id_) {
+        next_entity_id_ = entity_id + 1;
+    }
+    
+    return true; // Created
+}
+
 void World::destroy_entity(uint32_t entity_id) {
     if (entity_id == 0) {
         return;
