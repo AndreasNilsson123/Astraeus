@@ -85,17 +85,35 @@ bool GLRenderDevice::initialize() {
     }
 
     // Check for GPU timing query support (GL_TIME_ELAPSED)
-    // Note: OpenGL 3.3+ core profile has timer queries by default
-    GLint num_extensions = 0;
-    glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
+    // Timer queries are available in:
+    // - OpenGL 3.3+ core profile (ARB_timer_query promoted to core)
+    // - OpenGL 3.2 with ARB_timer_query extension
+    GLint major = 0, minor = 0;
+    glGetIntegerv(GL_MAJOR_VERSION, &major);
+    glGetIntegerv(GL_MINOR_VERSION, &minor);
     
-    gpu_queries_available_ = true;  // Assume available in GL 3.3+ core
+    // GL 3.3+ always has timer query support
+    if (major > 3 || (major == 3 && minor >= 3)) {
+        gpu_queries_available_ = true;
+    } else {
+        // Check for ARB_timer_query extension in older versions
+        gpu_queries_available_ = false;
+        GLint num_extensions = 0;
+        glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
+        for (GLint i = 0; i < num_extensions; i++) {
+            const char* ext = (const char*)glGetStringi(GL_EXTENSIONS, i);
+            if (std::strcmp(ext, "GL_ARB_timer_query") == 0) {
+                gpu_queries_available_ = true;
+                break;
+            }
+        }
+    }
     
     if (gpu_queries_available_) {
         glGenQueries(1, &gpu_time_query_);
-        std::cout << "[GLRenderDevice] GPU timing queries available" << std::endl;
+        std::cout << "[GLRenderDevice] GPU timing queries available (GL " << major << "." << minor << ")" << std::endl;
     } else {
-        std::cout << "[GLRenderDevice] GPU timing queries not available" << std::endl;
+        std::cout << "[GLRenderDevice] GPU timing queries NOT available - GPU time will be 0" << std::endl;
     }
 
     // Create framebuffers for offscreen rendering

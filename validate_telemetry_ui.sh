@@ -10,9 +10,19 @@ echo "Telemetry UI Components - Validation"
 echo "=========================================="
 echo ""
 
-# Set Java 25
-export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64
-export PATH=$JAVA_HOME/bin:$PATH
+# Set Java 25 (try multiple approaches for portability)
+if [ -n "$JAVA_HOME" ]; then
+    echo "Using JAVA_HOME: $JAVA_HOME"
+elif [ -d "/usr/lib/jvm/temurin-25-jdk-amd64" ]; then
+    export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64
+    export PATH=$JAVA_HOME/bin:$PATH
+    echo "Using Java 25 from: $JAVA_HOME"
+elif command -v java &> /dev/null; then
+    echo "Using system Java: $(which java)"
+else
+    echo "Error: Java not found. Please set JAVA_HOME or install Java."
+    exit 1
+fi
 
 echo "1. Checking Java version..."
 java -version
@@ -83,3 +93,4 @@ else
     echo "=========================================="
     exit 1
 fi
+
