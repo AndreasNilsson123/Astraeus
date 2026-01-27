@@ -188,6 +188,25 @@ public class NativeEngine implements AutoCloseable {
     }
     
     /**
+     * Perform picking at screen coordinates.
+     * Returns information about the entity at the specified screen position.
+     * 
+     * @param screenX Screen X coordinate (0 = left edge)
+     * @param screenY Screen Y coordinate (0 = top edge)
+     * @return PickingView containing pick result data
+     */
+    public PickingView pick(int screenX, int screenY) {
+        checkClosed();
+        try {
+            MemorySegment resultStruct = (MemorySegment) EngineBindings.PICK.invoke(
+                engineHandle, screenX, screenY);
+            return new PickingView(resultStruct);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to perform picking", e);
+        }
+    }
+    
+    /**
      * Wrapper for PixelBufferView struct.
      * Provides safe access to backing buffer without memory hazards.
      */
