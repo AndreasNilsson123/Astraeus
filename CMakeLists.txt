@@ -32,6 +32,12 @@ set(ENGINE_SOURCES
     engine/scene/World.cpp
     engine/scene/Camera.cpp
     engine/ingest/IngestManager.cpp
+    engine/ingest/SnapshotStore.cpp
+    engine/ingest/TimeSync.cpp
+    engine/ingest/SchemaRegistry.cpp
+    engine/ingest/FixedBinaryDecoder.cpp
+    engine/ingest/WorldSync.cpp
+    engine/ingest/DeterministicSimGenerator.cpp
     engine/assets/AssetManager.cpp
     engine/geometry/Mesh.cpp
 )
@@ -50,6 +56,15 @@ set(ENGINE_HEADERS
     engine/scene/World.hpp
     engine/scene/Camera.hpp
     engine/ingest/IngestManager.hpp
+    engine/ingest/SnapshotStore.hpp
+    engine/ingest/SnapshotView.h
+    engine/ingest/TimeSync.hpp
+    engine/ingest/SchemaRegistry.hpp
+    engine/ingest/Decoder.h
+    engine/ingest/DataChannel.h
+    engine/ingest/FixedBinaryDecoder.hpp
+    engine/ingest/WorldSync.hpp
+    engine/ingest/DeterministicSimGenerator.hpp
     engine/assets/AssetManager.hpp
     engine/geometry/Mesh.hpp
 )
@@ -115,13 +130,24 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     set_target_properties(entity_visualization_test PROPERTIES LINKER_LANGUAGE CXX)
     
     # Render example (with PNG output)
-    find_package(PNG REQUIRED)
-    add_executable(render_example examples/render_example.c)
-    target_link_libraries(render_example PRIVATE astraeus_engine PNG::PNG)
-    target_include_directories(render_example PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    set_target_properties(render_example PROPERTIES LINKER_LANGUAGE CXX)
+    find_package(PNG QUIET)
+    if(PNG_FOUND)
+        add_executable(render_example examples/render_example.c)
+        target_link_libraries(render_example PRIVATE astraeus_engine PNG::PNG)
+        target_include_directories(render_example PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+        set_target_properties(render_example PROPERTIES LINKER_LANGUAGE CXX)
+        
+        install(TARGETS render_example RUNTIME DESTINATION bin)
+    else()
+        message(STATUS "PNG library not found, skipping render_example")
+    endif()
     
-    install(TARGETS simple_example entity_visualization_test render_example
+    # Ingest demo (Task B3)
+    add_executable(ingest_demo examples/ingest_demo.cpp)
+    target_link_libraries(ingest_demo PRIVATE astraeus_engine pthread)
+    target_include_directories(ingest_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    
+    install(TARGETS simple_example entity_visualization_test ingest_demo
         RUNTIME DESTINATION bin
     )
 endif()
