@@ -1,14 +1,19 @@
 package com.astraeus.rendering;
 
 import com.astraeus.native_api.NativeEngine;
+import com.astraeus.native_api.PickingView;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelBuffer;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.paint.Color;
 
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
+import java.util.function.Consumer;
 
 /**
  * JavaFX viewport component for displaying engine output.
@@ -34,6 +39,10 @@ public class FxViewport extends Pane {
     private final int maxHeight;
     private int currentWidth;
     private int currentHeight;
+    
+    private int selectedEntityId = 0;
+    private Rectangle selectionOverlay;
+    private Consumer<PickingView> onEntitySelected;
     
     /**
      * Create a new FxViewport with fixed maximum dimensions.
@@ -84,9 +93,21 @@ public class FxViewport extends Pane {
         // Add to pane
         getChildren().add(imageView);
         
+        // Create selection overlay (initially hidden)
+        selectionOverlay = new Rectangle();
+        selectionOverlay.setFill(Color.TRANSPARENT);
+        selectionOverlay.setStroke(Color.YELLOW);
+        selectionOverlay.setStrokeWidth(3);
+        selectionOverlay.setVisible(false);
+        selectionOverlay.setMouseTransparent(true);
+        getChildren().add(selectionOverlay);
+        
         // Bind image view size to pane size
         imageView.fitWidthProperty().bind(widthProperty());
         imageView.fitHeightProperty().bind(heightProperty());
+        
+        // Setup mouse click handler for picking
+        imageView.setOnMouseClicked(this::handleMouseClick);
         
         System.out.println("[FxViewport] Created with max=" + maxWidth + "x" + maxHeight + 
                          ", initial=" + initialWidth + "x" + initialHeight);
@@ -168,5 +189,90 @@ public class FxViewport extends Pane {
      */
     public int getMaxHeight() {
         return maxHeight;
+    }
+    
+    /**
+     * Set callback for entity selection events.
+     * The callback receives the PickingView result when an entity is clicked.
+     * 
+     * @param callback Consumer that receives picking results
+     */
+    public void setOnEntitySelected(Consumer<PickingView> callback) {
+        this.onEntitySelected = callback;
+    }
+    
+    /**
+     * Get the currently selected entity ID.
+     * 
+     * @return Selected entity ID (0 if none selected)
+     */
+    public int getSelectedEntityId() {
+        return selectedEntityId;
+    }
+    
+    /**
+     * Clear the current selection.
+     */
+    public void clearSelection() {
+        selectedEntityId = 0;
+        selectionOverlay.setVisible(false);
+    }
+    
+    /**
+     * Handle mouse clicks for entity picking.
+     */
+    private void handleMouseClick(MouseEvent event) {
+        try {
+            // Convert mouse coordinates to viewport coordinates
+            // The ImageView may be scaled, so we need to convert from scene coords to viewport coords
+            double sceneX = event.getX();
+            double sceneY = event.getY();
+            
+            // Calculate scale factors
+            double scaleX = currentWidth / imageView.getFitWidth();
+            double scaleY = currentHeight / imageView.getFitHeight();
+            
+            // Convert to viewport pixel coordinates
+            int viewportX = (int) (sceneX * scaleX);
+            int viewportY = (int) (sceneY * scaleY);
+            
+            // Clamp to viewport bounds
+            viewportX = Math.max(0, Math.min(viewportX, currentWidth - 1));
+            viewportY = Math.max(0, Math.min(viewportY, currentHeight - 1));
+            
+            // Perform picking
+            PickingView result = engine.pick(viewportX, viewportY);
+            
+            System.out.println("[FxViewport] Pick at (" + viewportX + ", " + viewportY + "): " + result);
+            
+            // Update selection state
+            if (result.hasValidEntity()) {
+                selectedEntityId = result.getEntityId();
+                updateSelectionOverlay(sceneX, sceneY);
+                
+                // Notify callback
+                if (onEntitySelected != null) {
+                    onEntitySelected.accept(result);
+                }
+            } else {
+                clearSelection();
+            }
+            
+        } catch (Exception e) {
+            System.err.println("[FxViewport] Error during picking: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Update the selection overlay to highlight the clicked position.
+     */
+    private void updateSelectionOverlay(double centerX, double centerY) {
+        double size = 40; // Size of selection box
+        selectionOverlay.setX(centerX - size / 2);
+        selectionOverlay.setY(centerY - size / 2);
+        selectionOverlay.setWidth(size);
+        selectionOverlay.setHeight(size);
+        selectionOverlay.setVisible(true);
     }
 }

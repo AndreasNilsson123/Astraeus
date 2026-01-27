@@ -100,6 +100,31 @@ public class EngineBindings {
         MemoryLayout.paddingLayout(4) // Padding for alignment
     );
     
+    /**
+     * Memory layout for PickResult struct.
+     * 
+     * Layout breakdown (C struct):
+     * - UINT32 (entity_id): 4 bytes
+     * - FLOAT (depth): 4 bytes (total 8)
+     * - FLOAT (world_x): 4 bytes (total 12)
+     * - FLOAT (world_y): 4 bytes (total 16)
+     * - FLOAT (world_z): 4 bytes (total 20)
+     * - BOOL (hit): 1 byte
+     * - PADDING: 3 bytes (alignment to 4-byte boundary, total 24)
+     * 
+     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
+     * In production, consider generating layouts from native headers or using jextract.
+     */
+    public static final StructLayout PICK_RESULT_LAYOUT = MemoryLayout.structLayout(
+        ValueLayout.JAVA_INT.withName("entity_id"),
+        ValueLayout.JAVA_FLOAT.withName("depth"),
+        ValueLayout.JAVA_FLOAT.withName("world_x"),
+        ValueLayout.JAVA_FLOAT.withName("world_y"),
+        ValueLayout.JAVA_FLOAT.withName("world_z"),
+        ValueLayout.JAVA_BOOLEAN.withName("hit"),
+        MemoryLayout.paddingLayout(3) // Padding for alignment
+    );
+    
     // Function descriptors (C ABI signatures)
     private static final FunctionDescriptor CREATE_ENGINE_DESC = FunctionDescriptor.of(
         ValueLayout.ADDRESS,  // return: EngineHandle*
@@ -157,6 +182,13 @@ public class EngineBindings {
         ValueLayout.JAVA_INT      // param: entity_id
     );
     
+    private static final FunctionDescriptor PICK_DESC = FunctionDescriptor.of(
+        PICK_RESULT_LAYOUT,       // return: PickResult (struct by value)
+        ValueLayout.ADDRESS,      // param: EngineHandle
+        ValueLayout.JAVA_INT,     // param: screen_x
+        ValueLayout.JAVA_INT      // param: screen_y
+    );
+    
     // Method handles
     public static final MethodHandle CREATE_ENGINE;
     public static final MethodHandle DESTROY_ENGINE;
@@ -169,6 +201,7 @@ public class EngineBindings {
     public static final MethodHandle GET_ID_BUFFER;
     public static final MethodHandle CREATE_ENTITY;
     public static final MethodHandle DESTROY_ENTITY;
+    public static final MethodHandle PICK;
     
     static {
         try {
@@ -230,6 +263,11 @@ public class EngineBindings {
             GET_ID_BUFFER = LINKER.downcallHandle(
                 LIBRARY.find("astraeus_get_id_buffer").orElseThrow(),
                 GET_ID_BUFFER_DESC
+            );
+            
+            PICK = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_pick").orElseThrow(),
+                PICK_DESC
             );
             
         } catch (Exception e) {
