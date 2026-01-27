@@ -108,6 +108,12 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     target_include_directories(simple_example PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     set_target_properties(simple_example PROPERTIES LINKER_LANGUAGE CXX)
     
+    # Entity visualization test
+    add_executable(entity_visualization_test examples/entity_visualization_test.c)
+    target_link_libraries(entity_visualization_test PRIVATE astraeus_engine)
+    target_include_directories(entity_visualization_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    set_target_properties(entity_visualization_test PROPERTIES LINKER_LANGUAGE CXX)
+    
     # Render example (with PNG output)
     find_package(PNG REQUIRED)
     add_executable(render_example examples/render_example.c)
@@ -115,7 +121,7 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     target_include_directories(render_example PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     set_target_properties(render_example PROPERTIES LINKER_LANGUAGE CXX)
     
-    install(TARGETS simple_example render_example
+    install(TARGETS simple_example entity_visualization_test render_example
         RUNTIME DESTINATION bin
     )
 endif()

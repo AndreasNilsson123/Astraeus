@@ -136,6 +136,26 @@ public:
      */
     void set_camera_projection(float fov_degrees, float near_plane, float far_plane);
 
+    /**
+     * Set entity renderable (visibility) state.
+     */
+    void set_entity_renderable(uint32_t entity_id, bool visible);
+
+    /**
+     * Set entity color.
+     */
+    void set_entity_color(uint32_t entity_id, float r, float g, float b, float a);
+
+    /**
+     * Set entity trail (enable trail rendering).
+     */
+    void set_entity_trail(uint32_t entity_id, uint32_t max_points);
+
+    /**
+     * Apply entity snapshot at time t (WorldSync entry point).
+     */
+    void apply_entity_snapshot(uint32_t entity_id, float pos_x, float pos_y, float pos_z);
+
     // Accessors for subsystems (internal use)
     RenderDevice* get_render_device() const { return render_device_.get(); }
     RenderGraph* get_render_graph() const { return render_graph_.get(); }
