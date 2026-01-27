@@ -63,6 +63,14 @@
                 <configuration>
                     <mainClass>com.astraeus.ui.AstraeusApp</mainClass>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>default-cli</id>
+                        <configuration>
+                            <mainClass>com.astraeus.test.TelemetryUIStandaloneTest</mainClass>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
