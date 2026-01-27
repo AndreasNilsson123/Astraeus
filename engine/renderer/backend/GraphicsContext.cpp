@@ -20,7 +20,7 @@ GraphicsContext* create_graphics_context() {
     return new WGLContext();
 #elif defined(ASTRAEUS_ENABLE_EGL)
     // Linux/Unix: use EGL backend
-    return new EGLContext();
+    return new EGLGraphicsContext();
 #else
     // Fallback: no backend available
     return new NullContext();

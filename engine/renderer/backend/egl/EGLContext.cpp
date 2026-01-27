@@ -8,7 +8,7 @@
 
 namespace astraeus {
 
-EGLContext::EGLContext()
+EGLGraphicsContext::EGLGraphicsContext()
     : display_(nullptr)
     , context_(nullptr)
     , surface_(nullptr)
@@ -17,11 +17,11 @@ EGLContext::EGLContext()
 {
 }
 
-EGLContext::~EGLContext() {
+EGLGraphicsContext::~EGLGraphicsContext() {
     shutdown();
 }
 
-bool EGLContext::initialize(uint32_t width, uint32_t height) {
+bool EGLGraphicsContext::initialize(uint32_t width, uint32_t height) {
     width_ = width;
     height_ = height;
 
@@ -99,7 +99,7 @@ bool EGLContext::initialize(uint32_t width, uint32_t height) {
         EGL_NONE
     };
 
-    EGLContext context = eglCreateContext(static_cast<EGLDisplay>(display_), config, EGL_NO_CONTEXT, context_attribs);
+    ::EGLContext context = eglCreateContext(static_cast<EGLDisplay>(display_), config, EGL_NO_CONTEXT, context_attribs);
     if (context == EGL_NO_CONTEXT) {
         std::cerr << "[EGLContext] Failed to create EGL context: error " << eglGetError() << std::endl;
         return false;
@@ -126,7 +126,7 @@ bool EGLContext::initialize(uint32_t width, uint32_t height) {
     if (!make_current()) {
         std::cerr << "[EGLContext] Failed to make context current" << std::endl;
         eglDestroySurface(static_cast<EGLDisplay>(display_), static_cast<EGLSurface>(surface_));
-        eglDestroyContext(static_cast<EGLDisplay>(display_), static_cast<EGLContext>(context_));
+        eglDestroyContext(static_cast<EGLDisplay>(display_), static_cast<::EGLContext>(context_));
         context_ = nullptr;
         surface_ = nullptr;
         return false;
@@ -136,10 +136,10 @@ bool EGLContext::initialize(uint32_t width, uint32_t height) {
     return true;
 }
 
-void EGLContext::shutdown() {
+void EGLGraphicsContext::shutdown() {
     if (context_) {
         eglMakeCurrent(static_cast<EGLDisplay>(display_), EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-        eglDestroyContext(static_cast<EGLDisplay>(display_), static_cast<EGLContext>(context_));
+        eglDestroyContext(static_cast<EGLDisplay>(display_), static_cast<::EGLContext>(context_));
         context_ = nullptr;
     }
 
@@ -156,7 +156,7 @@ void EGLContext::shutdown() {
     std::cout << "[EGLContext] Shutdown complete" << std::endl;
 }
 
-bool EGLContext::make_current() {
+bool EGLGraphicsContext::make_current() {
     if (!display_ || !surface_ || !context_) {
         return false;
     }
@@ -165,11 +165,11 @@ bool EGLContext::make_current() {
         static_cast<EGLDisplay>(display_),
         static_cast<EGLSurface>(surface_),
         static_cast<EGLSurface>(surface_),
-        static_cast<EGLContext>(context_)
+        static_cast<::EGLContext>(context_)
     );
 }
 
-void* EGLContext::get_proc_address(const char* name) {
+void* EGLGraphicsContext::get_proc_address(const char* name) {
     return reinterpret_cast<void*>(eglGetProcAddress(name));
 }
 

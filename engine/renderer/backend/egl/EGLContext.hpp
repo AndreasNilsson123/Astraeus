@@ -9,10 +9,10 @@ namespace astraeus {
  * EGL-based graphics context for Linux/Wayland headless rendering.
  * Only compiled when ASTRAEUS_ENABLE_EGL is ON.
  */
-class EGLContext : public GraphicsContext {
+class EGLGraphicsContext : public GraphicsContext {
 public:
-    EGLContext();
-    ~EGLContext() override;
+    EGLGraphicsContext();
+    ~EGLGraphicsContext() override;
 
     bool initialize(uint32_t width, uint32_t height) override;
     void shutdown() override;
