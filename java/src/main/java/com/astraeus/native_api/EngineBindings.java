@@ -189,6 +189,11 @@ public class EngineBindings {
         ValueLayout.JAVA_INT      // param: screen_y
     );
     
+    private static final FunctionDescriptor GET_FRAME_STATS_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,      // param: EngineHandle
+        ValueLayout.ADDRESS       // param: FrameStats* (out)
+    );
+    
     // Method handles
     public static final MethodHandle CREATE_ENGINE;
     public static final MethodHandle DESTROY_ENGINE;
@@ -202,6 +207,7 @@ public class EngineBindings {
     public static final MethodHandle CREATE_ENTITY;
     public static final MethodHandle DESTROY_ENTITY;
     public static final MethodHandle PICK;
+    public static final MethodHandle GET_FRAME_STATS;
     
     static {
         try {
@@ -268,6 +274,11 @@ public class EngineBindings {
             PICK = LINKER.downcallHandle(
                 LIBRARY.find("astraeus_pick").orElseThrow(),
                 PICK_DESC
+            );
+            
+            GET_FRAME_STATS = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_get_frame_stats").orElseThrow(),
+                GET_FRAME_STATS_DESC
             );
             
         } catch (Exception e) {

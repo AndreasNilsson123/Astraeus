@@ -188,6 +188,28 @@ public class NativeEngine implements AutoCloseable {
     }
     
     /**
+     * Get current frame statistics.
+     * Returns telemetry data including FPS, timings, draw calls, etc.
+     * 
+     * @return FrameStatsView containing current frame statistics
+     */
+    public FrameStatsView getFrameStats() {
+        checkClosed();
+        try {
+            // Allocate memory for FrameStats struct
+            MemorySegment statsStruct = arena.allocate(EngineBindings.FRAME_STATS_LAYOUT);
+            
+            // Call native function to fill the struct
+            EngineBindings.GET_FRAME_STATS.invoke(engineHandle, statsStruct);
+            
+            // Wrap in FrameStatsView for safe access
+            return new FrameStatsView(statsStruct);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to get frame stats", e);
+        }
+    }
+    
+    /**
      * Perform picking at screen coordinates.
      * Returns information about the entity at the specified screen position.
      * 
