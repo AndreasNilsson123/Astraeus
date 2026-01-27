@@ -1,8 +1,23 @@
-#include "engine/api/EngineAPI.h"
+#include "api/EngineAPI.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <unistd.h>
+#ifdef _WIN32
+    #include <windows.h>
+    static void sleep_ms(unsigned int ms) {
+        Sleep(ms);
+    }
+#else
+#include <time.h>
+static void sleep_ms(unsigned int ms) {
+        struct timespec ts;
+        ts.tv_sec = ms / 1000;
+        ts.tv_nsec = (ms % 1000) * 1000000;
+        nanosleep(&ts, NULL);
+    }
+#endif
+
 
 /**
  * Example demonstrating entity visualization with points and trails.
@@ -120,7 +135,7 @@ int main() {
         }
         
         // Small delay to simulate real-time
-        usleep(16000); // 16ms
+        sleep_ms(16);
     }
     printf("\n");
 
@@ -132,7 +147,7 @@ int main() {
     for (int i = 0; i < 5; i++) {
         astraeus_begin_frame(engine, delta_time);
         astraeus_end_frame(engine);
-        usleep(16000);
+        sleep_ms(16);
     }
     printf("Red entity hidden\n\n");
 
@@ -143,7 +158,7 @@ int main() {
     for (int i = 0; i < 5; i++) {
         astraeus_begin_frame(engine, delta_time);
         astraeus_end_frame(engine);
-        usleep(16000);
+        sleep_ms(16);
     }
     printf("Red entity visible again\n\n");
 

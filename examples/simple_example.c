@@ -1,7 +1,20 @@
-#include "engine/api/EngineAPI.h"
+#include "api/EngineAPI.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#ifdef _WIN32
+    #include <windows.h>
+    static void sleep_ms(unsigned int ms) {
+        Sleep(ms);
+    }
+#else
+#include <time.h>
+static void sleep_ms(unsigned int ms) {
+        struct timespec ts;
+        ts.tv_sec = ms / 1000;
+        ts.tv_nsec = (ms % 1000) * 1000000;
+        nanosleep(&ts, NULL);
+    }
+#endif
 
 /**
  * Simple example demonstrating the Astraeus engine C API.
@@ -90,7 +103,7 @@ int main() {
                stats.entity_count);
 
         // Small delay to simulate real-time
-        usleep(16000); // 16ms
+        sleep_ms(16);
     }
     printf("\n");
 

@@ -8,6 +8,17 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
+#if defined(_WIN32)
+    #if defined(ASTRAEUS_BUILDING_DLL)
+        #define ASTRAEUS_API __declspec(dllexport)
+    #else
+        #define ASTRAEUS_API __declspec(dllimport)
+#endif
+    #else
+        #define ASTRAEUS_API
+#endif
+
+
 // =============================================================================
 // VERSION AND BUILD INFO
 // =============================================================================
@@ -107,20 +118,20 @@ typedef struct {
  * @param config Engine configuration
  * @return Opaque engine handle or NULL on failure
  */
-EngineHandle astraeus_create_engine(const EngineConfig* config);
+ASTRAEUS_API EngineHandle astraeus_create_engine(const EngineConfig* config);
 
 /**
  * Destroy the engine instance and free all resources.
  * @param engine Engine handle
  */
-void astraeus_destroy_engine(EngineHandle engine);
+ASTRAEUS_API void astraeus_destroy_engine(EngineHandle engine);
 
 /**
  * Check if the engine is valid and initialized.
  * @param engine Engine handle
  * @return true if valid, false otherwise
  */
-bool astraeus_is_valid(EngineHandle engine);
+ASTRAEUS_API bool astraeus_is_valid(EngineHandle engine);
 
 // =============================================================================
 // RENDERING
@@ -131,13 +142,13 @@ bool astraeus_is_valid(EngineHandle engine);
  * @param engine Engine handle
  * @param delta_time Time since last frame in seconds
  */
-void astraeus_begin_frame(EngineHandle engine, double delta_time);
+ASTRAEUS_API void astraeus_begin_frame(EngineHandle engine, double delta_time);
 
 /**
  * End the current frame and present.
  * @param engine Engine handle
  */
-void astraeus_end_frame(EngineHandle engine);
+ASTRAEUS_API void astraeus_end_frame(EngineHandle engine);
 
 /**
  * Resize the viewport.
@@ -148,7 +159,7 @@ void astraeus_end_frame(EngineHandle engine);
  * @param width New viewport width (must be <= max_backing_width)
  * @param height New viewport height (must be <= max_backing_height)
  */
-void astraeus_resize_viewport(EngineHandle engine, uint32_t width, uint32_t height);
+ASTRAEUS_API void astraeus_resize_viewport(EngineHandle engine, uint32_t width, uint32_t height);
 
 /**
  * Configure readback buffers (color and ID buffers).
@@ -158,7 +169,7 @@ void astraeus_resize_viewport(EngineHandle engine, uint32_t width, uint32_t heig
  * @param id_config Configuration for ID buffer (can be NULL to use defaults)
  * @return true on success, false on failure
  */
-bool astraeus_configure_readback(EngineHandle engine, 
+ASTRAEUS_API bool astraeus_configure_readback(EngineHandle engine,
                                   const ReadbackConfig* color_config,
                                   const ReadbackConfig* id_config);
 
@@ -167,7 +178,7 @@ bool astraeus_configure_readback(EngineHandle engine,
  * @param engine Engine handle
  * @param out_stats Output frame stats
  */
-void astraeus_get_frame_stats(EngineHandle engine, FrameStats* out_stats);
+ASTRAEUS_API void astraeus_get_frame_stats(EngineHandle engine, FrameStats* out_stats);
 
 /**
  * Get a view of the color buffer for readback (zero-copy).
@@ -175,7 +186,7 @@ void astraeus_get_frame_stats(EngineHandle engine, FrameStats* out_stats);
  * @param engine Engine handle
  * @return Pixel buffer view
  */
-PixelBufferView astraeus_get_color_buffer(EngineHandle engine);
+ASTRAEUS_API PixelBufferView astraeus_get_color_buffer(EngineHandle engine);
 
 /**
  * Get a view of the ID buffer for picking (zero-copy).
@@ -183,7 +194,7 @@ PixelBufferView astraeus_get_color_buffer(EngineHandle engine);
  * @param engine Engine handle
  * @return Pixel buffer view
  */
-PixelBufferView astraeus_get_id_buffer(EngineHandle engine);
+ASTRAEUS_API PixelBufferView astraeus_get_id_buffer(EngineHandle engine);
 
 // =============================================================================
 // SCENE MANAGEMENT
@@ -194,14 +205,14 @@ PixelBufferView astraeus_get_id_buffer(EngineHandle engine);
  * @param engine Engine handle
  * @return Entity ID (handle-based)
  */
-uint32_t astraeus_create_entity(EngineHandle engine);
+ASTRAEUS_API uint32_t astraeus_create_entity(EngineHandle engine);
 
 /**
  * Destroy an entity.
  * @param engine Engine handle
  * @param entity_id Entity ID
  */
-void astraeus_destroy_entity(EngineHandle engine, uint32_t entity_id);
+ASTRAEUS_API void astraeus_destroy_entity(EngineHandle engine, uint32_t entity_id);
 
 /**
  * Set entity transform.
@@ -217,7 +228,7 @@ void astraeus_destroy_entity(EngineHandle engine, uint32_t entity_id);
  * @param scale_y Scale Y
  * @param scale_z Scale Z
  */
-void astraeus_set_entity_transform(EngineHandle engine, uint32_t entity_id,
+ASTRAEUS_API void astraeus_set_entity_transform(EngineHandle engine, uint32_t entity_id,
                                    float pos_x, float pos_y, float pos_z,
                                    float rot_x, float rot_y, float rot_z,
                                    float scale_x, float scale_y, float scale_z);
@@ -228,7 +239,7 @@ void astraeus_set_entity_transform(EngineHandle engine, uint32_t entity_id,
  * @param entity_id Entity ID
  * @param visible Whether entity should be rendered
  */
-void astraeus_set_entity_renderable(EngineHandle engine, uint32_t entity_id, bool visible);
+ASTRAEUS_API void astraeus_set_entity_renderable(EngineHandle engine, uint32_t entity_id, bool visible);
 
 /**
  * Set entity color.
@@ -239,7 +250,7 @@ void astraeus_set_entity_renderable(EngineHandle engine, uint32_t entity_id, boo
  * @param b Blue component [0-1]
  * @param a Alpha component [0-1]
  */
-void astraeus_set_entity_color(EngineHandle engine, uint32_t entity_id,
+ASTRAEUS_API void astraeus_set_entity_color(EngineHandle engine, uint32_t entity_id,
                                float r, float g, float b, float a);
 
 /**
@@ -248,7 +259,7 @@ void astraeus_set_entity_color(EngineHandle engine, uint32_t entity_id,
  * @param entity_id Entity ID
  * @param max_points Maximum number of trail points
  */
-void astraeus_set_entity_trail(EngineHandle engine, uint32_t entity_id, uint32_t max_points);
+ASTRAEUS_API void astraeus_set_entity_trail(EngineHandle engine, uint32_t entity_id, uint32_t max_points);
 
 /**
  * Apply entity snapshot at time t (WorldSync entry point).
@@ -259,7 +270,7 @@ void astraeus_set_entity_trail(EngineHandle engine, uint32_t entity_id, uint32_t
  * @param pos_y Position Y
  * @param pos_z Position Z
  */
-void astraeus_apply_entity_snapshot(EngineHandle engine, uint32_t entity_id,
+ASTRAEUS_API void astraeus_apply_entity_snapshot(EngineHandle engine, uint32_t entity_id,
                                     float pos_x, float pos_y, float pos_z);
 
 // =============================================================================
@@ -273,7 +284,7 @@ void astraeus_apply_entity_snapshot(EngineHandle engine, uint32_t entity_id,
  * @param screen_y Screen Y coordinate
  * @return Pick result
  */
-PickResult astraeus_pick(EngineHandle engine, uint32_t screen_x, uint32_t screen_y);
+ASTRAEUS_API PickResult astraeus_pick(EngineHandle engine, uint32_t screen_x, uint32_t screen_y);
 
 // =============================================================================
 // DATA INGESTION
@@ -287,7 +298,7 @@ PickResult astraeus_pick(EngineHandle engine, uint32_t screen_x, uint32_t screen
  * @param format Data format identifier
  * @return true on success, false on failure
  */
-bool astraeus_ingest_data(EngineHandle engine, const void* data, uint32_t size, uint32_t format);
+ASTRAEUS_API bool astraeus_ingest_data(EngineHandle engine, const void* data, uint32_t size, uint32_t format);
 
 // =============================================================================
 // CAMERA CONTROL
@@ -306,7 +317,7 @@ bool astraeus_ingest_data(EngineHandle engine, const void* data, uint32_t size, 
  * @param up_y Up vector Y
  * @param up_z Up vector Z
  */
-void astraeus_set_camera(EngineHandle engine,
+ASTRAEUS_API void astraeus_set_camera(EngineHandle engine,
                         float eye_x, float eye_y, float eye_z,
                         float target_x, float target_y, float target_z,
                         float up_x, float up_y, float up_z);
@@ -318,7 +329,7 @@ void astraeus_set_camera(EngineHandle engine,
  * @param near_plane Near clipping plane
  * @param far_plane Far clipping plane
  */
-void astraeus_set_camera_projection(EngineHandle engine, float fov_degrees, float near_plane, float far_plane);
+ASTRAEUS_API void astraeus_set_camera_projection(EngineHandle engine, float fov_degrees, float near_plane, float far_plane);
 
 #ifdef __cplusplus
 }
