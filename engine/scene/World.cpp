@@ -75,6 +75,8 @@ bool World::ensure_entity(uint32_t entity_id) {
     active_entities_.push_back(entity_id);
     
     // Update next_entity_id if needed
+    // Note: This is safe because WorldSync (the only caller) runs on main thread
+    // and create_entity() also runs on main thread. Not thread-safe for multi-writer scenarios.
     if (entity_id >= next_entity_id_) {
         next_entity_id_ = entity_id + 1;
     }
