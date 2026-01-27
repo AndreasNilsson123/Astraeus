@@ -1,6 +1,6 @@
 ---
 name: Data Ingest & Sync Agent
-description: Design the ingest pipeline for external simulation/physics data into the engine: DataChannel, Decoder interface, SchemaRegistry, SnapshotStore, TimeSync, and WorldSync adapter.
+description: Design the ingest pipeline for external
 ---
 
 PROJECT: Astraeus (professional 3D visualization engine)
