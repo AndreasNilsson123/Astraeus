@@ -216,4 +216,28 @@ void EngineContext::set_camera_projection(float fov_degrees, float near_plane, f
     }
 }
 
+void EngineContext::set_entity_renderable(uint32_t entity_id, bool visible) {
+    if (world_) {
+        world_->set_entity_renderable(entity_id, visible);
+    }
+}
+
+void EngineContext::set_entity_color(uint32_t entity_id, float r, float g, float b, float a) {
+    if (world_) {
+        world_->set_entity_color(entity_id, r, g, b, a);
+    }
+}
+
+void EngineContext::set_entity_trail(uint32_t entity_id, uint32_t max_points) {
+    if (world_) {
+        world_->set_entity_trail(entity_id, max_points);
+    }
+}
+
+void EngineContext::apply_entity_snapshot(uint32_t entity_id, float pos_x, float pos_y, float pos_z) {
+    if (world_) {
+        world_->apply_entity_snapshot(entity_id, pos_x, pos_y, pos_z);
+    }
+}
+
 } // namespace astraeus

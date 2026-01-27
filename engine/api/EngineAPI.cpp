@@ -234,3 +234,41 @@ void astraeus_set_camera_projection(EngineHandle engine, float fov_degrees, floa
     
     engine->context->set_camera_projection(fov_degrees, near_plane, far_plane);
 }
+
+// =============================================================================
+// ENTITY COMPONENTS
+// =============================================================================
+
+void astraeus_set_entity_renderable(EngineHandle engine, uint32_t entity_id, bool visible) {
+    if (!astraeus_is_valid(engine)) {
+        return;
+    }
+    
+    engine->context->set_entity_renderable(entity_id, visible);
+}
+
+void astraeus_set_entity_color(EngineHandle engine, uint32_t entity_id,
+                               float r, float g, float b, float a) {
+    if (!astraeus_is_valid(engine)) {
+        return;
+    }
+    
+    engine->context->set_entity_color(entity_id, r, g, b, a);
+}
+
+void astraeus_set_entity_trail(EngineHandle engine, uint32_t entity_id, uint32_t max_points) {
+    if (!astraeus_is_valid(engine)) {
+        return;
+    }
+    
+    engine->context->set_entity_trail(entity_id, max_points);
+}
+
+void astraeus_apply_entity_snapshot(EngineHandle engine, uint32_t entity_id,
+                                    float pos_x, float pos_y, float pos_z) {
+    if (!astraeus_is_valid(engine)) {
+        return;
+    }
+    
+    engine->context->apply_entity_snapshot(entity_id, pos_x, pos_y, pos_z);
+}

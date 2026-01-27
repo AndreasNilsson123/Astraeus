@@ -222,6 +222,46 @@ void astraeus_set_entity_transform(EngineHandle engine, uint32_t entity_id,
                                    float rot_x, float rot_y, float rot_z,
                                    float scale_x, float scale_y, float scale_z);
 
+/**
+ * Set entity renderable (visibility) state.
+ * @param engine Engine handle
+ * @param entity_id Entity ID
+ * @param visible Whether entity should be rendered
+ */
+void astraeus_set_entity_renderable(EngineHandle engine, uint32_t entity_id, bool visible);
+
+/**
+ * Set entity color.
+ * @param engine Engine handle
+ * @param entity_id Entity ID
+ * @param r Red component [0-1]
+ * @param g Green component [0-1]
+ * @param b Blue component [0-1]
+ * @param a Alpha component [0-1]
+ */
+void astraeus_set_entity_color(EngineHandle engine, uint32_t entity_id,
+                               float r, float g, float b, float a);
+
+/**
+ * Set entity trail (enable trail rendering with specified max length).
+ * @param engine Engine handle
+ * @param entity_id Entity ID
+ * @param max_points Maximum number of trail points
+ */
+void astraeus_set_entity_trail(EngineHandle engine, uint32_t entity_id, uint32_t max_points);
+
+/**
+ * Apply entity snapshot at time t (WorldSync entry point).
+ * Updates entity position and trail history.
+ * @param engine Engine handle
+ * @param entity_id Entity ID
+ * @param pos_x Position X
+ * @param pos_y Position Y
+ * @param pos_z Position Z
+ */
+void astraeus_apply_entity_snapshot(EngineHandle engine, uint32_t entity_id,
+                                    float pos_x, float pos_y, float pos_z);
+
 // =============================================================================
 // PICKING
 // =============================================================================
