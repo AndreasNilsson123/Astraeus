@@ -68,6 +68,13 @@ public:
      * @param height New height
      */
     void resize_viewport(uint32_t width, uint32_t height);
+    
+    /**
+     * Configure readback buffers with fixed backing size.
+     * Must be called before first frame.
+     */
+    bool configure_readback(const ReadbackConfig* color_config, 
+                            const ReadbackConfig* id_config);
 
     /**
      * Get current frame statistics.

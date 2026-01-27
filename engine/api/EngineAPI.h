@@ -16,6 +16,11 @@ extern "C" {
 #define ASTRAEUS_VERSION_MINOR 1
 #define ASTRAEUS_VERSION_PATCH 0
 
+// ABI Compatibility Notes:
+// - PixelBufferView uses fixed-size backing memory (max_backing_size)
+// - Resizing only updates viewport region, never reallocates backing memory
+// - This ensures JavaFX PixelBuffer memory stability and prevents crashes
+
 // =============================================================================
 // OPAQUE HANDLES
 // =============================================================================
@@ -43,14 +48,36 @@ typedef struct {
     float aspect_ratio;
 } ViewportConfig;
 
-// Pixel buffer view for readback (zero-copy)
+// Pixel format enumeration
+typedef enum {
+    PIXEL_FORMAT_RGBA8 = 0,    // Standard RGBA, 8-bit per channel
+    PIXEL_FORMAT_BGRA8 = 1,    // BGRA format (common for Windows/JavaFX)
+    PIXEL_FORMAT_ARGB8 = 2,    // ARGB format
+    PIXEL_FORMAT_R32UI = 3     // 32-bit unsigned int (for ID buffer)
+} PixelFormat;
+
+// Pixel buffer view for readback (zero-copy, fixed backing size)
+// IMPORTANT: The backing memory (data pointer) is allocated once with max_backing_size
+// and remains stable for the engine's lifetime. Only the viewport region (width, height)
+// changes on resize. This ensures JavaFX PixelBuffer memory stability.
 typedef struct {
-    void* data;
-    uint32_t width;
-    uint32_t height;
-    uint32_t stride;
-    uint32_t format;  // 0=RGBA8, 1=RGB8, 2=R32UI (ID buffer)
+    void* data;                    // Pointer to backing buffer (stable, never reallocated)
+    uint32_t width;                // Current viewport width (may be <= max_backing_width)
+    uint32_t height;               // Current viewport height (may be <= max_backing_height)
+    uint32_t stride;               // Row stride in bytes
+    uint32_t format;               // PixelFormat enum value
+    uint32_t max_backing_width;    // Maximum width of backing buffer
+    uint32_t max_backing_height;   // Maximum height of backing buffer
+    uint32_t max_backing_size;     // Total size of backing buffer in bytes
 } PixelBufferView;
+
+// Configuration for readback buffers
+typedef struct {
+    uint32_t max_width;            // Maximum expected viewport width
+    uint32_t max_height;           // Maximum expected viewport height
+    uint32_t format;               // PixelFormat enum value
+    bool enable_double_buffer;     // Enable double-buffered readback (safer, slightly slower)
+} ReadbackConfig;
 
 // Picking result
 typedef struct {
@@ -114,11 +141,26 @@ void astraeus_end_frame(EngineHandle engine);
 
 /**
  * Resize the viewport.
+ * IMPORTANT: This only changes the viewport region, NOT the backing buffer size.
+ * The backing buffer is allocated once at creation with max size and remains stable.
+ * This ensures JavaFX PixelBuffer memory stability.
  * @param engine Engine handle
- * @param width New width
- * @param height New height
+ * @param width New viewport width (must be <= max_backing_width)
+ * @param height New viewport height (must be <= max_backing_height)
  */
 void astraeus_resize_viewport(EngineHandle engine, uint32_t width, uint32_t height);
+
+/**
+ * Configure readback buffers (color and ID buffers).
+ * Must be called before first frame to set fixed backing buffer size.
+ * @param engine Engine handle
+ * @param color_config Configuration for color buffer (can be NULL to use defaults)
+ * @param id_config Configuration for ID buffer (can be NULL to use defaults)
+ * @return true on success, false on failure
+ */
+bool astraeus_configure_readback(EngineHandle engine, 
+                                  const ReadbackConfig* color_config,
+                                  const ReadbackConfig* id_config);
 
 /**
  * Get the current frame statistics.

@@ -109,6 +109,16 @@ void astraeus_resize_viewport(EngineHandle engine, uint32_t width, uint32_t heig
     engine->context->resize_viewport(width, height);
 }
 
+bool astraeus_configure_readback(EngineHandle engine, 
+                                  const ReadbackConfig* color_config,
+                                  const ReadbackConfig* id_config) {
+    if (!astraeus_is_valid(engine)) {
+        return false;
+    }
+    
+    return engine->context->configure_readback(color_config, id_config);
+}
+
 void astraeus_get_frame_stats(EngineHandle engine, FrameStats* out_stats) {
     if (!astraeus_is_valid(engine) || !out_stats) {
         return;
@@ -118,7 +128,7 @@ void astraeus_get_frame_stats(EngineHandle engine, FrameStats* out_stats) {
 }
 
 PixelBufferView astraeus_get_color_buffer(EngineHandle engine) {
-    PixelBufferView view = {nullptr, 0, 0, 0, 0};
+    PixelBufferView view = {nullptr, 0, 0, 0, 0, 0, 0, 0};
     
     if (!astraeus_is_valid(engine)) {
         return view;
@@ -129,7 +139,7 @@ PixelBufferView astraeus_get_color_buffer(EngineHandle engine) {
 }
 
 PixelBufferView astraeus_get_id_buffer(EngineHandle engine) {
-    PixelBufferView view = {nullptr, 0, 0, 0, 2}; // Format 2 = R32UI
+    PixelBufferView view = {nullptr, 0, 0, 0, PIXEL_FORMAT_R32UI, 0, 0, 0};
     
     if (!astraeus_is_valid(engine)) {
         return view;

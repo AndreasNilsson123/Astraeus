@@ -2,6 +2,7 @@
 #define ASTRAEUS_RENDER_DEVICE_HPP
 
 #include <cstdint>
+#include <vector>
 #include "../api/EngineAPI.h"
 
 namespace astraeus {
@@ -34,6 +35,13 @@ public:
     virtual void begin_frame();
     virtual void end_frame();
     virtual void resize(uint32_t width, uint32_t height);
+    
+    /**
+     * Configure readback buffers with fixed backing size.
+     * Must be called before first use.
+     */
+    virtual bool configure_readback(const ReadbackConfig* color_config, 
+                                     const ReadbackConfig* id_config);
 
     virtual void get_color_buffer_view(PixelBufferView& out_view) const;
     virtual void get_id_buffer_view(PixelBufferView& out_view) const;
@@ -49,6 +57,23 @@ protected:
     uint32_t height_;
     Stats stats_;
     bool is_initialized_;
+    
+    // Fixed-size backing buffers for readback (never resized after allocation)
+    struct BackingBuffer {
+        std::vector<uint8_t> data;
+        std::vector<uint8_t> back_buffer;  // For double-buffering
+        uint32_t max_width = 0;
+        uint32_t max_height = 0;
+        uint32_t current_width = 0;
+        uint32_t current_height = 0;
+        uint32_t format = 0;
+        bool double_buffered = false;
+        bool front_buffer_active = true;  // Toggle between front/back
+    };
+    
+    BackingBuffer color_backing_;
+    BackingBuffer id_backing_;
+    bool readback_configured_ = false;
 };
 
 } // namespace astraeus
