@@ -145,8 +145,11 @@ void TrailPass::update_trail_data(World* world) {
             trail_vertices_.push_back(trail->positions[base_pos + 2]);
 
             // Calculate alpha fade (oldest = transparent, newest = opaque)
-            float alpha_fade = fade_alpha_ ? 
-                (static_cast<float>(i) / static_cast<float>(trail->current_count - 1)) : 1.0f;
+            // Avoid division by zero: if current_count is 1, alpha_fade is 1.0
+            float alpha_fade = 1.0f;
+            if (fade_alpha_ && trail->current_count > 1) {
+                alpha_fade = static_cast<float>(i) / static_cast<float>(trail->current_count - 1);
+            }
 
             // Add vertex color
             trail_colors_.push_back(base_r);

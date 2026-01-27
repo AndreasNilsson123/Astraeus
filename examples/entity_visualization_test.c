@@ -112,8 +112,8 @@ int main() {
         if (frame % 10 == 0) {
             FrameStats stats;
             astraeus_get_frame_stats(engine, &stats);
-            printf("Frame %lu: dt=%.3fms, render=%.3fms, entities=%u\n",
-                   stats.frame_number,
+            printf("Frame %llu: dt=%.3fms, render=%.3fms, entities=%u\n",
+                   (unsigned long long)stats.frame_number,
                    stats.delta_time_ms,
                    stats.render_time_ms,
                    stats.entity_count);
@@ -151,7 +151,7 @@ int main() {
     FrameStats final_stats;
     astraeus_get_frame_stats(engine, &final_stats);
     printf("Final statistics:\n");
-    printf("  Total frames: %lu\n", final_stats.frame_number);
+    printf("  Total frames: %llu\n", (unsigned long long)final_stats.frame_number);
     printf("  Entity count: %u\n", final_stats.entity_count);
     printf("  Last frame time: %.3fms\n", final_stats.render_time_ms);
     printf("\n");

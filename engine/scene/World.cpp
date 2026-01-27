@@ -136,11 +136,28 @@ void World::set_entity_renderable(uint32_t entity_id, bool visible) {
     
     auto it = renderables_.find(entity_id);
     if (it != renderables_.end()) {
+        // Entity already has renderable component
+        bool was_visible = it->second.visible;
         it->second.visible = visible;
+        
+        // Update cache based on visibility change
+        if (was_visible && !visible) {
+            // Remove from cache
+            auto cache_it = std::find(renderable_entities_cache_.begin(), 
+                                     renderable_entities_cache_.end(), 
+                                     entity_id);
+            if (cache_it != renderable_entities_cache_.end()) {
+                renderable_entities_cache_.erase(cache_it);
+            }
+        } else if (!was_visible && visible) {
+            // Add to cache
+            renderable_entities_cache_.push_back(entity_id);
+        }
     } else {
-        renderables_[entity_id] = Renderable();
-        renderables_[entity_id].visible = visible;
-        // Update cache
+        // New renderable component
+        Renderable r;
+        r.visible = visible;
+        renderables_[entity_id] = r;
         if (visible) {
             renderable_entities_cache_.push_back(entity_id);
         }

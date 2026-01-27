@@ -48,7 +48,8 @@ void main() {
     // Smooth edges
     float alpha = vColor.a * (1.0 - smoothstep(0.4, 0.5, dist));
     FragColor = vec4(vColor.rgb, alpha);
-    EntityID = 0u; // TODO: Pass entity ID through instance data
+    // Entity ID output requires additional instance data and picking buffer integration
+    EntityID = 0u;
 }
 )";
 
