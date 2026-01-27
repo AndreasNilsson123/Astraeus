@@ -12,6 +12,15 @@ option(ASTRAEUS_ENABLE_VALIDATION "Enable validation layers" ON)
 option(ASTRAEUS_BUILD_TESTS "Build tests" OFF)
 option(ASTRAEUS_BUILD_EXAMPLES "Build examples" ON)
 
+# Platform-specific graphics backend options
+if(WIN32)
+    option(ASTRAEUS_ENABLE_EGL "Enable EGL backend (requires ANGLE or Mesa on Windows)" OFF)
+    option(ASTRAEUS_ENABLE_WGL "Enable WGL backend for Windows" ON)
+else()
+    option(ASTRAEUS_ENABLE_EGL "Enable EGL backend for Linux/Unix" ON)
+    option(ASTRAEUS_ENABLE_WGL "Enable WGL backend for Windows" OFF)
+endif()
+
 # Output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -24,6 +33,8 @@ set(ENGINE_SOURCES
     engine/renderer/RenderDevice.cpp
     engine/renderer/RenderGraph.cpp
     engine/renderer/opengl/GLRenderDevice.cpp
+    engine/renderer/backend/GraphicsContext.cpp
+    engine/renderer/backend/NullContext.cpp
     engine/renderer/passes/ClearPass.cpp
     engine/renderer/passes/GridPass.cpp
     engine/renderer/passes/AxesPass.cpp
@@ -41,6 +52,15 @@ set(ENGINE_SOURCES
     engine/assets/AssetManager.cpp
     engine/geometry/Mesh.cpp
 )
+
+# Add backend-specific sources
+if(ASTRAEUS_ENABLE_EGL)
+    list(APPEND ENGINE_SOURCES engine/renderer/backend/egl/EGLContext.cpp)
+endif()
+
+if(ASTRAEUS_ENABLE_WGL)
+    list(APPEND ENGINE_SOURCES engine/renderer/backend/wgl/WGLContext.cpp)
+endif()
 
 set(ENGINE_HEADERS
     engine/api/EngineAPI.h
@@ -84,8 +104,49 @@ target_include_directories(astraeus_engine
         $<INSTALL_INTERFACE:include>
 )
 
-# Link OpenGL and EGL directly (for headless rendering)
-target_link_libraries(astraeus_engine PRIVATE GL EGL)
+# Configure backend-specific compile definitions
+if(ASTRAEUS_ENABLE_EGL)
+    target_compile_definitions(astraeus_engine PRIVATE ASTRAEUS_ENABLE_EGL)
+endif()
+
+if(ASTRAEUS_ENABLE_WGL)
+    target_compile_definitions(astraeus_engine PRIVATE ASTRAEUS_ENABLE_WGL)
+endif()
+
+# Link OpenGL library (always needed for GL calls)
+find_package(OpenGL REQUIRED)
+target_link_libraries(astraeus_engine PRIVATE OpenGL::GL)
+
+# Link EGL if enabled (Linux/Unix or Windows with ANGLE)
+if(ASTRAEUS_ENABLE_EGL)
+    if(WIN32)
+        # On Windows, EGL requires ANGLE or other EGL provider
+        message(STATUS "EGL enabled on Windows - make sure ANGLE or other EGL provider is available")
+        # User should set EGL library paths if needed
+        find_library(EGL_LIBRARY NAMES EGL)
+        if(EGL_LIBRARY)
+            target_link_libraries(astraeus_engine PRIVATE ${EGL_LIBRARY})
+        else()
+            message(WARNING "EGL library not found - EGL backend may not work")
+        endif()
+    else()
+        # On Linux/Unix, try to find EGL via pkg-config or find_package
+        find_package(EGL)
+        if(EGL_FOUND)
+            target_link_libraries(astraeus_engine PRIVATE EGL::EGL)
+            message(STATUS "EGL found and will be linked")
+        else()
+            # Fallback to direct linking
+            target_link_libraries(astraeus_engine PRIVATE EGL)
+            message(STATUS "Using direct EGL linkage (fallback)")
+        endif()
+    endif()
+endif()
+
+# Link Windows-specific libraries for WGL
+if(ASTRAEUS_ENABLE_WGL AND WIN32)
+    target_link_libraries(astraeus_engine PRIVATE gdi32 user32)
+endif()
 
 # Compiler flags
 if(MSVC)
@@ -160,3 +221,18 @@ message(STATUS "  Shared library: ${ASTRAEUS_BUILD_SHARED}")
 message(STATUS "  Validation: ${ASTRAEUS_ENABLE_VALIDATION}")
 message(STATUS "  Build tests: ${ASTRAEUS_BUILD_TESTS}")
 message(STATUS "  Build examples: ${ASTRAEUS_BUILD_EXAMPLES}")
+message(STATUS "")
+message(STATUS "Graphics Backend Configuration:")
+if(ASTRAEUS_ENABLE_EGL)
+    message(STATUS "  ✓ EGL backend enabled (Linux/Unix or Windows with ANGLE)")
+else()
+    message(STATUS "  ✗ EGL backend disabled")
+endif()
+if(ASTRAEUS_ENABLE_WGL)
+    message(STATUS "  ✓ WGL backend enabled (Windows)")
+else()
+    message(STATUS "  ✗ WGL backend disabled")
+endif()
+if(NOT ASTRAEUS_ENABLE_EGL AND NOT ASTRAEUS_ENABLE_WGL)
+    message(STATUS "  ⚠ Warning: No graphics backend enabled - using null backend (no rendering)")
+endif()

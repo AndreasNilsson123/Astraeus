@@ -10,6 +10,9 @@
 
 namespace astraeus {
 
+// Forward declaration to avoid including backend headers
+class GraphicsContext;
+
 /**
  * OpenGL render device implementation.
  * Uses offscreen context for headless rendering with readback support.
@@ -85,9 +88,8 @@ private:
     void destroy_framebuffers();
     void setup_debug_output();
 
-    // OpenGL context (platform-specific)
-    void* gl_context_;
-    void* gl_display_;
+    // OpenGL context (platform-independent via backend)
+    GraphicsContext* graphics_context_;
 
     // Frame timing
     std::chrono::time_point<std::chrono::high_resolution_clock> frame_start_time_;

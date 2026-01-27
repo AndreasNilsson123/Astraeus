@@ -1,4 +1,5 @@
 #include "GLRenderDevice.hpp"
+#include "../backend/GraphicsContext.hpp"
 #include <iostream>
 #include <cstring>
 #include <chrono>
@@ -7,8 +8,6 @@
 #define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
 #include <GL/glext.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 
 namespace astraeus {
 
@@ -38,8 +37,7 @@ static void GLAPIENTRY gl_debug_callback(GLenum source, GLenum type, GLuint id,
 
 GLRenderDevice::GLRenderDevice(const Config& config)
     : RenderDevice(config)
-    , gl_context_(nullptr)
-    , gl_display_(nullptr)
+    , graphics_context_(nullptr)
     , main_fbo_(0)
     , color_texture_(0)
     , id_texture_(0)
@@ -64,10 +62,10 @@ bool GLRenderDevice::initialize() {
 
     std::cout << "[GLRenderDevice] Initializing OpenGL backend " << width_ << "x" << height_ << std::endl;
 
-    // Create EGL offscreen context
+    // Create platform-specific graphics context
     create_offscreen_context();
-    if (!gl_context_) {
-        std::cerr << "[GLRenderDevice] Failed to create OpenGL context" << std::endl;
+    if (!graphics_context_) {
+        std::cerr << "[GLRenderDevice] Failed to create graphics context" << std::endl;
         return false;
     }
 
@@ -397,114 +395,30 @@ void GLRenderDevice::set_object_label(uint32_t gl_type, uint32_t gl_id, const ch
 
 // Private methods
 void GLRenderDevice::create_offscreen_context() {
-    // Use surfaceless platform for headless rendering
-    const char* extensions = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
-    bool has_platform_base = extensions && strstr(extensions, "EGL_EXT_platform_base");
-    bool has_surfaceless = extensions && strstr(extensions, "EGL_MESA_platform_surfaceless");
-
-    EGLDisplay display = EGL_NO_DISPLAY;
+    // Use factory to create platform-appropriate context
+    graphics_context_ = create_graphics_context();
     
-    if (has_platform_base && has_surfaceless) {
-        // Use surfaceless platform (best for headless)
-        auto eglGetPlatformDisplayEXT = (PFNEGLGETPLATFORMDISPLAYEXTPROC)
-            eglGetProcAddress("eglGetPlatformDisplayEXT");
-        if (eglGetPlatformDisplayEXT) {
-            display = eglGetPlatformDisplayEXT(EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY, nullptr);
-        }
-    }
-    
-    if (display == EGL_NO_DISPLAY) {
-        // Fallback to default display
-        display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    }
-    
-    if (display == EGL_NO_DISPLAY) {
-        std::cerr << "[GLRenderDevice] Failed to get EGL display" << std::endl;
-        return;
-    }
-    
-    gl_display_ = display;
-
-    // Initialize EGL
-    EGLint major, minor;
-    if (!eglInitialize(static_cast<EGLDisplay>(gl_display_), &major, &minor)) {
-        std::cerr << "[GLRenderDevice] Failed to initialize EGL: " << eglGetError() << std::endl;
+    if (!graphics_context_) {
+        std::cerr << "[GLRenderDevice] Failed to allocate graphics context" << std::endl;
         return;
     }
 
-    std::cout << "[GLRenderDevice] EGL version: " << major << "." << minor << std::endl;
+    std::cout << "[GLRenderDevice] Using backend: " << graphics_context_->get_backend_name() << std::endl;
 
-    // Choose config
-    EGLint config_attribs[] = {
-        EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
-        EGL_BLUE_SIZE, 8,
-        EGL_GREEN_SIZE, 8,
-        EGL_RED_SIZE, 8,
-        EGL_ALPHA_SIZE, 8,
-        EGL_DEPTH_SIZE, 24,
-        EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
-        EGL_NONE
-    };
-
-    EGLConfig config;
-    EGLint num_configs;
-    if (!eglChooseConfig(static_cast<EGLDisplay>(gl_display_), config_attribs, &config, 1, &num_configs)) {
-        std::cerr << "[GLRenderDevice] Failed to choose EGL config" << std::endl;
+    // Initialize the context
+    if (!graphics_context_->initialize(width_, height_)) {
+        std::cerr << "[GLRenderDevice] Failed to initialize graphics context" << std::endl;
+        delete graphics_context_;
+        graphics_context_ = nullptr;
         return;
     }
-
-    // Bind OpenGL API
-    eglBindAPI(EGL_OPENGL_API);
-
-    // Create context
-    EGLint context_attribs[] = {
-        EGL_CONTEXT_MAJOR_VERSION, 3,
-        EGL_CONTEXT_MINOR_VERSION, 3,
-        EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
-        EGL_NONE
-    };
-
-    EGLContext context = eglCreateContext(static_cast<EGLDisplay>(gl_display_), config, EGL_NO_CONTEXT, context_attribs);
-    if (context == EGL_NO_CONTEXT) {
-        std::cerr << "[GLRenderDevice] Failed to create EGL context" << std::endl;
-        return;
-    }
-
-    // Create pbuffer surface
-    EGLint pbuffer_attribs[] = {
-        EGL_WIDTH, static_cast<EGLint>(width_),
-        EGL_HEIGHT, static_cast<EGLint>(height_),
-        EGL_NONE
-    };
-
-    EGLSurface surface = eglCreatePbufferSurface(static_cast<EGLDisplay>(gl_display_), config, pbuffer_attribs);
-    if (surface == EGL_NO_SURFACE) {
-        std::cerr << "[GLRenderDevice] Failed to create pbuffer surface" << std::endl;
-        eglDestroyContext(static_cast<EGLDisplay>(gl_display_), context);
-        return;
-    }
-
-    // Make context current
-    if (!eglMakeCurrent(static_cast<EGLDisplay>(gl_display_), surface, surface, context)) {
-        std::cerr << "[GLRenderDevice] Failed to make EGL context current" << std::endl;
-        eglDestroySurface(static_cast<EGLDisplay>(gl_display_), surface);
-        eglDestroyContext(static_cast<EGLDisplay>(gl_display_), context);
-        return;
-    }
-
-    gl_context_ = context;
 }
 
 void GLRenderDevice::destroy_offscreen_context() {
-    if (gl_context_) {
-        eglMakeCurrent(static_cast<EGLDisplay>(gl_display_), EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-        eglDestroyContext(static_cast<EGLDisplay>(gl_display_), static_cast<EGLContext>(gl_context_));
-        gl_context_ = nullptr;
-    }
-
-    if (gl_display_) {
-        eglTerminate(static_cast<EGLDisplay>(gl_display_));
-        gl_display_ = nullptr;
+    if (graphics_context_) {
+        graphics_context_->shutdown();
+        delete graphics_context_;
+        graphics_context_ = nullptr;
     }
 }
 
