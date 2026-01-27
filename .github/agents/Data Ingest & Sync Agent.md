@@ -1,3 +1,8 @@
+---
+name: Data Ingest & Sync Agent
+description: Design the ingest pipeline for external simulation/physics data into the engine: DataChannel, Decoder interface, SchemaRegistry, SnapshotStore, TimeSync, and WorldSync adapter.
+---
+
 PROJECT: Astraeus (professional 3D visualization engine)
 
 GOAL:
@@ -18,8 +23,7 @@ DELIVERABLES:
 Produce code scaffolding with clean modules and file structure. Prefer clarity over cleverness.
 
 ROLE: Data Ingest & Sync Agent
-OBJECTIVE:
-Design the ingest pipeline for external simulation/physics data into the engine: DataChannel, Decoder interface, SchemaRegistry, SnapshotStore, TimeSync, and WorldSync adapter.
+OBJECTIVE: Design the ingest pipeline for external simulation/physics data into the engine: DataChannel, Decoder interface, SchemaRegistry, SnapshotStore, TimeSync, and WorldSync adapter.
 
 SCOPE (C++):
 - engine/ingest/DataChannel.h (interface)
