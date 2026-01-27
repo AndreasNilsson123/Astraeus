@@ -3,7 +3,8 @@
 #include "../renderer/opengl/GLRenderDevice.hpp"
 #include "../renderer/RenderGraph.hpp"
 #include "../renderer/passes/ClearPass.hpp"
-#include "../renderer/passes/TrianglePass.hpp"
+#include "../renderer/passes/GridPass.hpp"
+#include "../renderer/passes/AxesPass.hpp"
 #include "../scene/World.hpp"
 #include "../ingest/IngestManager.hpp"
 #include "../assets/AssetManager.hpp"
@@ -54,9 +55,10 @@ bool EngineContext::initialize() {
         render_graph_ = std::make_unique<RenderGraph>(render_device_.get(), world_.get());
         render_graph_->initialize();
         
-        // Add render passes
+        // Add render passes: Clear, Grid, Axes
         render_graph_->add_pass(std::make_unique<ClearPass>());
-        render_graph_->add_pass(std::make_unique<TrianglePass>());
+        render_graph_->add_pass(std::make_unique<GridPass>());
+        render_graph_->add_pass(std::make_unique<AxesPass>());
 
         // Initialize ingest manager
         ingest_manager_ = std::make_unique<IngestManager>(world_.get());

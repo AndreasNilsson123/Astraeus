@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
+#include "Camera.hpp"
 
 namespace astraeus {
 
@@ -19,27 +20,6 @@ struct Transform {
         : pos_x(0), pos_y(0), pos_z(0)
         , rot_x(0), rot_y(0), rot_z(0)
         , scale_x(1), scale_y(1), scale_z(1)
-    {}
-};
-
-/**
- * Camera state.
- */
-struct Camera {
-    float eye_x, eye_y, eye_z;
-    float target_x, target_y, target_z;
-    float up_x, up_y, up_z;
-    float fov_degrees;
-    float near_plane;
-    float far_plane;
-
-    Camera()
-        : eye_x(0), eye_y(5), eye_z(10)
-        , target_x(0), target_y(0), target_z(0)
-        , up_x(0), up_y(1), up_z(0)
-        , fov_degrees(60.0f)
-        , near_plane(0.1f)
-        , far_plane(1000.0f)
     {}
 };
 
@@ -96,9 +76,15 @@ public:
     void set_camera_projection(float fov_degrees, float near_plane, float far_plane);
 
     /**
-     * Get camera state.
+     * Get camera object.
      */
+    Camera& get_camera() { return camera_; }
     const Camera& get_camera() const { return camera_; }
+    
+    /**
+     * Update camera matrices (call before rendering).
+     */
+    void update_camera(float aspect_ratio);
 
 private:
     // Handle-based entity storage
