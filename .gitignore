@@ -35,3 +35,6 @@ target/
 
 # Temporary Files
 /tmp/
+
+# CodeQL
+_codeql_*/
