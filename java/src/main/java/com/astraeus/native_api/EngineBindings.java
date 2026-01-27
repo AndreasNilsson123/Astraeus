@@ -12,6 +12,69 @@ public class EngineBindings {
     private static final Linker LINKER = Linker.nativeLinker();
     private static final SymbolLookup LIBRARY;
     
+    /**
+     * Memory layout for ReadbackConfig struct.
+     * 
+     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
+     * In production, consider generating layouts from native headers or using jextract.
+     */
+    public static final StructLayout READBACK_CONFIG_LAYOUT = MemoryLayout.structLayout(
+        ValueLayout.JAVA_INT.withName("max_width"),
+        ValueLayout.JAVA_INT.withName("max_height"),
+        ValueLayout.JAVA_INT.withName("format"),
+        ValueLayout.JAVA_BOOLEAN.withName("enable_double_buffer"),
+        MemoryLayout.paddingLayout(3)  // Padding for alignment
+    );
+    
+    /**
+     * Memory layout for PixelBufferView struct.
+     * 
+     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
+     * In production, consider generating layouts from native headers or using jextract.
+     */
+    public static final StructLayout PIXEL_BUFFER_VIEW_LAYOUT = MemoryLayout.structLayout(
+        ValueLayout.ADDRESS.withName("data"),
+        ValueLayout.JAVA_INT.withName("width"),
+        ValueLayout.JAVA_INT.withName("height"),
+        ValueLayout.JAVA_INT.withName("stride"),
+        ValueLayout.JAVA_INT.withName("format"),
+        ValueLayout.JAVA_INT.withName("max_backing_width"),
+        ValueLayout.JAVA_INT.withName("max_backing_height"),
+        ValueLayout.JAVA_INT.withName("max_backing_size")
+    );
+    
+    /**
+     * Memory layout for EngineConfig struct.
+     * 
+     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
+     * In production, consider generating layouts from native headers or using jextract.
+     */
+    public static final StructLayout ENGINE_CONFIG_LAYOUT = MemoryLayout.structLayout(
+        ValueLayout.JAVA_INT.withName("initial_width"),
+        ValueLayout.JAVA_INT.withName("initial_height"),
+        ValueLayout.JAVA_BOOLEAN.withName("enable_validation"),
+        MemoryLayout.paddingLayout(3), // Padding for alignment
+        ValueLayout.JAVA_BOOLEAN.withName("enable_debug_output"),
+        MemoryLayout.paddingLayout(3), // Padding for alignment
+        ValueLayout.ADDRESS.withName("log_file_path")
+    );
+    
+    /**
+     * Memory layout for FrameStats struct.
+     * 
+     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
+     * In production, consider generating layouts from native headers or using jextract.
+     */
+    public static final StructLayout FRAME_STATS_LAYOUT = MemoryLayout.structLayout(
+        ValueLayout.JAVA_LONG.withName("frame_number"),
+        ValueLayout.JAVA_DOUBLE.withName("delta_time_ms"),
+        ValueLayout.JAVA_DOUBLE.withName("render_time_ms"),
+        ValueLayout.JAVA_INT.withName("draw_calls"),
+        ValueLayout.JAVA_INT.withName("triangle_count"),
+        ValueLayout.JAVA_INT.withName("entity_count"),
+        MemoryLayout.paddingLayout(4) // Padding for alignment
+    );
+    
     // Function descriptors (C ABI signatures)
     private static final FunctionDescriptor CREATE_ENGINE_DESC = FunctionDescriptor.of(
         ValueLayout.ADDRESS,  // return: EngineHandle*
@@ -42,6 +105,23 @@ public class EngineBindings {
         ValueLayout.JAVA_INT      // param: height
     );
     
+    private static final FunctionDescriptor CONFIGURE_READBACK_DESC = FunctionDescriptor.of(
+        ValueLayout.JAVA_BOOLEAN, // return: bool
+        ValueLayout.ADDRESS,      // param: EngineHandle
+        ValueLayout.ADDRESS,      // param: ReadbackConfig* (color)
+        ValueLayout.ADDRESS       // param: ReadbackConfig* (id)
+    );
+    
+    private static final FunctionDescriptor GET_COLOR_BUFFER_DESC = FunctionDescriptor.of(
+        PIXEL_BUFFER_VIEW_LAYOUT,  // return: PixelBufferView (struct by value)
+        ValueLayout.ADDRESS        // param: EngineHandle
+    );
+    
+    private static final FunctionDescriptor GET_ID_BUFFER_DESC = FunctionDescriptor.of(
+        PIXEL_BUFFER_VIEW_LAYOUT,  // return: PixelBufferView (struct by value)
+        ValueLayout.ADDRESS        // param: EngineHandle
+    );
+    
     private static final FunctionDescriptor CREATE_ENTITY_DESC = FunctionDescriptor.of(
         ValueLayout.JAVA_INT,     // return: entity_id
         ValueLayout.ADDRESS       // param: EngineHandle
@@ -59,6 +139,9 @@ public class EngineBindings {
     public static final MethodHandle BEGIN_FRAME;
     public static final MethodHandle END_FRAME;
     public static final MethodHandle RESIZE_VIEWPORT;
+    public static final MethodHandle CONFIGURE_READBACK;
+    public static final MethodHandle GET_COLOR_BUFFER;
+    public static final MethodHandle GET_ID_BUFFER;
     public static final MethodHandle CREATE_ENTITY;
     public static final MethodHandle DESTROY_ENTITY;
     
@@ -109,40 +192,23 @@ public class EngineBindings {
                 DESTROY_ENTITY_DESC
             );
             
+            CONFIGURE_READBACK = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_configure_readback").orElseThrow(),
+                CONFIGURE_READBACK_DESC
+            );
+            
+            GET_COLOR_BUFFER = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_get_color_buffer").orElseThrow(),
+                GET_COLOR_BUFFER_DESC
+            );
+            
+            GET_ID_BUFFER = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_get_id_buffer").orElseThrow(),
+                GET_ID_BUFFER_DESC
+            );
+            
         } catch (Exception e) {
             throw new ExceptionInInitializerError("Failed to load Astraeus native library: " + e.getMessage());
         }
     }
-    
-    /**
-     * Memory layout for EngineConfig struct.
-     * 
-     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
-     * In production, consider generating layouts from native headers or using jextract.
-     */
-    public static final StructLayout ENGINE_CONFIG_LAYOUT = MemoryLayout.structLayout(
-        ValueLayout.JAVA_INT.withName("initial_width"),
-        ValueLayout.JAVA_INT.withName("initial_height"),
-        ValueLayout.JAVA_BOOLEAN.withName("enable_validation"),
-        MemoryLayout.paddingLayout(3), // Padding for alignment
-        ValueLayout.JAVA_BOOLEAN.withName("enable_debug_output"),
-        MemoryLayout.paddingLayout(3), // Padding for alignment
-        ValueLayout.ADDRESS.withName("log_file_path")
-    );
-    
-    /**
-     * Memory layout for FrameStats struct.
-     * 
-     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
-     * In production, consider generating layouts from native headers or using jextract.
-     */
-    public static final StructLayout FRAME_STATS_LAYOUT = MemoryLayout.structLayout(
-        ValueLayout.JAVA_LONG.withName("frame_number"),
-        ValueLayout.JAVA_DOUBLE.withName("delta_time_ms"),
-        ValueLayout.JAVA_DOUBLE.withName("render_time_ms"),
-        ValueLayout.JAVA_INT.withName("draw_calls"),
-        ValueLayout.JAVA_INT.withName("triangle_count"),
-        ValueLayout.JAVA_INT.withName("entity_count"),
-        MemoryLayout.paddingLayout(4) // Padding for alignment
-    );
 }

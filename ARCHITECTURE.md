@@ -283,6 +283,76 @@ Java highlights selected entity
 - Use memory pools for frequent allocations
 - Pre-allocate buffers at known upper bounds
 
+### Readback Buffer Lifetime Rules
+
+**CRITICAL FOR JAVAFX INTEGRATION:**
+
+The readback buffers (color and ID buffers) follow a strict "fixed backing size, viewport-only resize" contract:
+
+1. **Fixed Backing Buffer**: Allocated once at engine initialization with maximum expected dimensions
+   - Default: 2560x1440 (can be configured via `astraeus_configure_readback()`)
+   - Memory pointer remains STABLE for engine lifetime
+   - Never reallocated, never moved
+   
+2. **Viewport-Only Resize**: Resize operations only update the viewport region
+   - `astraeus_resize_viewport()` changes viewport dimensions, NOT backing buffer
+   - PixelBufferView returns current viewport dimensions and stable backing pointer
+   - JavaFX PixelBuffer wraps the full backing buffer and updates viewport region only
+   
+3. **Safety Guarantees**:
+   - No `EXCEPTION_ACCESS_VIOLATION` due to buffer reallocation
+   - No memory corruption from pointer invalidation
+   - No race conditions from buffer swapping (optional double-buffer mode available)
+   - JavaFX can safely hold references to native memory without lifetime concerns
+
+**Usage Example:**
+
+```java
+// Create engine with initial size
+NativeEngine engine = new NativeEngine(1280, 720, true);
+
+// Configure readback with maximum expected size (BEFORE first frame)
+engine.configureReadback(2560, 1440, false);
+
+// Create FxViewport with fixed backing size
+FxViewport viewport = new FxViewport(engine, 2560, 1440, 1280, 720);
+
+// Resize viewport (SAFE - only changes viewport region)
+viewport.resizeViewport(1920, 1080);  // No buffer reallocation!
+viewport.resizeViewport(1280, 720);   // No buffer reallocation!
+viewport.resizeViewport(2560, 1440);  // No buffer reallocation!
+```
+
+**Double-Buffered Mode:**
+
+For extra safety in multi-threaded scenarios, enable double-buffered readback:
+
+```java
+engine.configureReadback(2560, 1440, true);
+```
+
+This maintains two copies of the backing buffer and swaps between them at frame boundaries, preventing race conditions between engine writes and JavaFX reads.
+
+### Resizing Contract
+
+**Viewport Resize (Safe):**
+- Changes viewport dimensions only
+- Backing buffer remains fixed size
+- Memory pointer unchanged
+- JavaFX PixelBuffer remains valid
+- Can resize up to maxWidth x maxHeight without issues
+
+**DO NOT:**
+- ❌ Reallocate backing buffers after initialization
+- ❌ Change memory pointers held by JavaFX
+- ❌ Exceed max backing dimensions (will be clamped)
+- ❌ Call `configure_readback()` after initialization
+
+**Thread Safety:**
+- Single-threaded access (Java UI thread calls engine)
+- Optional double-buffer mode for producer/consumer pattern
+- Engine write completes before JavaFX read (frame boundaries)
+
 ### Threading
 
 Current design is single-threaded, but prepared for:
