@@ -23,6 +23,9 @@ set(ENGINE_SOURCES
     engine/core/EngineContext.cpp
     engine/renderer/RenderDevice.cpp
     engine/renderer/RenderGraph.cpp
+    engine/renderer/opengl/GLRenderDevice.cpp
+    engine/renderer/passes/ClearPass.cpp
+    engine/renderer/passes/TrianglePass.cpp
     engine/scene/World.cpp
     engine/ingest/IngestManager.cpp
     engine/assets/AssetManager.cpp
@@ -34,6 +37,9 @@ set(ENGINE_HEADERS
     engine/core/EngineContext.hpp
     engine/renderer/RenderDevice.hpp
     engine/renderer/RenderGraph.hpp
+    engine/renderer/opengl/GLRenderDevice.hpp
+    engine/renderer/passes/ClearPass.hpp
+    engine/renderer/passes/TrianglePass.hpp
     engine/scene/World.hpp
     engine/ingest/IngestManager.hpp
     engine/assets/AssetManager.hpp
@@ -54,6 +60,10 @@ target_include_directories(astraeus_engine
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine>
         $<INSTALL_INTERFACE:include>
 )
+
+# Find and link OpenGL and EGL
+find_package(OpenGL REQUIRED)
+target_link_libraries(astraeus_engine PRIVATE OpenGL::GL OpenGL::OpenGL EGL)
 
 # Compiler flags
 if(MSVC)
