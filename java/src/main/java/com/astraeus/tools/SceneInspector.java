@@ -93,25 +93,29 @@ public class SceneInspector extends VBox {
         // Update metadata
         StringBuilder metadata = new StringBuilder();
         metadata.append("=== Entity ").append(selectedEntityId).append(" ===\n\n");
-        metadata.append("Type: Unknown\n");
-        metadata.append("Visible: Yes\n");
+        metadata.append("NOTE: Properties below are placeholders.\n");
+        metadata.append("Full entity data requires additional C API.\n\n");
+        
+        metadata.append("Type: <Not Available>\n");
+        metadata.append("Visible: <Assumed Yes>\n");
         metadata.append("Pickable: Yes\n\n");
         
-        metadata.append("Transform:\n");
+        metadata.append("Pick Result:\n");
         metadata.append(String.format("  Position: (%.3f, %.3f, %.3f)\n",
                                      pickResult.getWorldX(),
                                      pickResult.getWorldY(),
                                      pickResult.getWorldZ()));
-        metadata.append("  Rotation: (0.00, 0.00, 0.00)\n");
-        metadata.append("  Scale: (1.00, 1.00, 1.00)\n\n");
+        metadata.append(String.format("  Depth: %.3f\n\n", pickResult.getDepth()));
         
-        metadata.append("Rendering:\n");
-        metadata.append(String.format("  Depth: %.3f\n", pickResult.getDepth()));
-        metadata.append("  Color: Unknown\n");
-        metadata.append("  Trail: Unknown\n\n");
+        metadata.append("Transform: <Not Available>\n");
+        metadata.append("  Query requires astraeus_get_entity_transform()\n\n");
         
-        metadata.append("Selection:\n");
-        metadata.append("  Click to deselect\n");
+        metadata.append("Rendering: <Not Available>\n");
+        metadata.append("  Query requires astraeus_get_entity_color()\n");
+        metadata.append("  and astraeus_get_entity_trail()\n\n");
+        
+        metadata.append("To view full entity properties, add these\n");
+        metadata.append("functions to the C API and FFM bindings.");
         
         metadataArea.setText(metadata.toString());
     }

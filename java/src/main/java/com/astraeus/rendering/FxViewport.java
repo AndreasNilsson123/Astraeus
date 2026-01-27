@@ -256,6 +256,11 @@ public class FxViewport extends Pane {
                 }
             } else {
                 clearSelection();
+                
+                // Notify callback with miss result (hit == false)
+                if (onEntitySelected != null) {
+                    onEntitySelected.accept(result);
+                }
             }
             
         } catch (Exception e) {
