@@ -1,3 +1,8 @@
+---
+name: Renderer & RenderGraph Agent
+description: Implement a scalable renderer scaffolding, RenderDevice abstraction, RenderGraph, RenderPass interface, resources, shader library, and frame outputs (including optional readback).
+---
+
 PROJECT: Astraeus (professional 3D visualization engine)
 
 GOAL:
