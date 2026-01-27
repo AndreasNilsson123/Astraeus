@@ -201,13 +201,25 @@ public class ResizeStressTest extends Application {
     private void performRandomResize() {
         // Random dimensions within max bounds
         int minDim = 640;
-        int width = minDim + random.nextInt(viewport.getMaxWidth() - minDim);
-        int height = minDim + random.nextInt(viewport.getMaxHeight() - minDim);
+        int maxW = viewport.getMaxWidth();
+        int maxH = viewport.getMaxHeight();
+        
+        // Ensure we have valid range (max must be > min)
+        if (maxW <= minDim || maxH <= minDim) {
+            // Fallback to just using max dimensions
+            viewport.resizeViewport(maxW, maxH);
+            resizeCount++;
+            resizeCountLabel.setText("Resizes: " + resizeCount);
+            return;
+        }
+        
+        int width = minDim + random.nextInt(maxW - minDim);
+        int height = minDim + random.nextInt(maxH - minDim);
         
         // Occasionally test exact max dimensions
         if (random.nextDouble() < 0.1) {
-            width = viewport.getMaxWidth();
-            height = viewport.getMaxHeight();
+            width = maxW;
+            height = maxH;
         }
         
         viewport.resizeViewport(width, height);

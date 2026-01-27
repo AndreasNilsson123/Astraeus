@@ -12,6 +12,12 @@ public class EngineBindings {
     private static final Linker LINKER = Linker.nativeLinker();
     private static final SymbolLookup LIBRARY;
     
+    // Pixel format constants (must match EngineAPI.h)
+    public static final int PIXEL_FORMAT_RGBA8 = 0;
+    public static final int PIXEL_FORMAT_BGRA8 = 1;
+    public static final int PIXEL_FORMAT_ARGB8 = 2;
+    public static final int PIXEL_FORMAT_R32UI = 3;
+    
     /**
      * Memory layout for ReadbackConfig struct.
      * 
@@ -29,8 +35,27 @@ public class EngineBindings {
     /**
      * Memory layout for PixelBufferView struct.
      * 
-     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
-     * In production, consider generating layouts from native headers or using jextract.
+     * IMPORTANT: This layout is manually defined and platform-dependent.
+     * Assumes x64 Linux/Windows with standard alignment.
+     * 
+     * Layout breakdown:
+     * - ADDRESS (data): 8 bytes
+     * - INT (width): 4 bytes (no padding needed, total now 12)
+     * - INT (height): 4 bytes (total now 16, aligned)
+     * - INT (stride): 4 bytes (total now 20)
+     * - INT (format): 4 bytes (total now 24, aligned)
+     * - INT (max_backing_width): 4 bytes (total now 28)
+     * - INT (max_backing_height): 4 bytes (total now 32, aligned)
+     * - INT (max_backing_size): 4 bytes (total now 36)
+     * 
+     * C struct alignment typically aligns to largest field (8 bytes for pointer),
+     * so no explicit padding needed between INT fields after the ADDRESS field.
+     * 
+     * For production use, consider:
+     * 1. Using jextract tool to generate layouts from C headers automatically
+     * 2. Testing on all target platforms to verify layout compatibility
+     * 3. Using runtime layout queries if available
+     * 4. Documenting supported platforms explicitly
      */
     public static final StructLayout PIXEL_BUFFER_VIEW_LAYOUT = MemoryLayout.structLayout(
         ValueLayout.ADDRESS.withName("data"),

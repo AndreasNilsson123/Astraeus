@@ -132,13 +132,13 @@ public class NativeEngine implements AutoCloseable {
             // Configure color buffer (BGRA8 format)
             maxWidthHandle.set(colorConfig, 0L, maxWidth);
             maxHeightHandle.set(colorConfig, 0L, maxHeight);
-            formatHandle.set(colorConfig, 0L, 1);  // PIXEL_FORMAT_BGRA8
+            formatHandle.set(colorConfig, 0L, EngineBindings.PIXEL_FORMAT_BGRA8);
             doubleBufferHandle.set(colorConfig, 0L, enableDoubleBuffer);
             
             // Configure ID buffer (R32UI format)
             maxWidthHandle.set(idConfig, 0L, maxWidth);
             maxHeightHandle.set(idConfig, 0L, maxHeight);
-            formatHandle.set(idConfig, 0L, 3);  // PIXEL_FORMAT_R32UI
+            formatHandle.set(idConfig, 0L, EngineBindings.PIXEL_FORMAT_R32UI);
             doubleBufferHandle.set(idConfig, 0L, enableDoubleBuffer);
             
             // Call native function

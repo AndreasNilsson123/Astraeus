@@ -128,7 +128,14 @@ bool RenderDevice::configure_readback(const ReadbackConfig* color_config,
         color_backing_.format = color_config->format;
         color_backing_.double_buffered = color_config->enable_double_buffer;
         
-        uint32_t bytes_per_pixel = (color_config->format == PIXEL_FORMAT_R32UI) ? 4 : 4;
+        // Calculate bytes per pixel based on format
+        uint32_t bytes_per_pixel = 4;  // Default for most formats
+        if (color_config->format == PIXEL_FORMAT_R32UI) {
+            bytes_per_pixel = 4;  // 32-bit unsigned int
+        } else {
+            bytes_per_pixel = 4;  // RGBA8, BGRA8, ARGB8 all use 4 bytes
+        }
+        
         size_t buffer_size = color_backing_.max_width * color_backing_.max_height * bytes_per_pixel;
         
         color_backing_.data.resize(buffer_size, 0);
@@ -173,8 +180,9 @@ bool RenderDevice::configure_readback(const ReadbackConfig* color_config,
 
 void RenderDevice::get_color_buffer_view(PixelBufferView& out_view) const {
     // Return view to STABLE backing buffer (never changes pointer)
-    const auto& buffer = color_backing_.front_buffer_active ? 
-                         color_backing_.data : color_backing_.back_buffer;
+    // Always use front buffer if double buffering is disabled
+    const auto& buffer = (color_backing_.double_buffered && !color_backing_.front_buffer_active) ? 
+                         color_backing_.back_buffer : color_backing_.data;
     
     out_view.data = const_cast<void*>(static_cast<const void*>(buffer.data()));
     out_view.width = color_backing_.current_width;
@@ -188,8 +196,9 @@ void RenderDevice::get_color_buffer_view(PixelBufferView& out_view) const {
 
 void RenderDevice::get_id_buffer_view(PixelBufferView& out_view) const {
     // Return view to STABLE backing buffer (never changes pointer)
-    const auto& buffer = id_backing_.front_buffer_active ? 
-                         id_backing_.data : id_backing_.back_buffer;
+    // Always use front buffer if double buffering is disabled
+    const auto& buffer = (id_backing_.double_buffered && !id_backing_.front_buffer_active) ? 
+                         id_backing_.back_buffer : id_backing_.data;
     
     out_view.data = const_cast<void*>(static_cast<const void*>(buffer.data()));
     out_view.width = id_backing_.current_width;
