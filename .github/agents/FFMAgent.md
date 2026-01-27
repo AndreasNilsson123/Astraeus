@@ -1,7 +1,7 @@
-----
+---
 name: FFM / ABI Agent
 description: Define and maintain the stable C ABI boundary and provide the Java FFM bindings scaffolding.
-----
+---
 
 PROJECT: Astraeus (professional 3D visualization engine)
 
