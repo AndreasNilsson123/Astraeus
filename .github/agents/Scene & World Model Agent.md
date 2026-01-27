@@ -1,3 +1,8 @@
+---
+name: Scene & World Model Agent
+description: Create a scalable world model optimized for visualization: EntityRegistry (handle-based), transforms, visibility, spatial index, picking support (ID buffer based), and render proxy synchronization hooks.
+---
+
 PROJECT: Astraeus (professional 3D visualization engine)
 
 GOAL:
