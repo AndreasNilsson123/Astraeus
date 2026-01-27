@@ -1,0 +1,254 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    PICKING VIA ID BUFFER - ARCHITECTURE                       ║
+║                           Task B2 Implementation                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│                              USER INTERACTION                               │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────┐    │
+│   │  JavaFX Scene                                                    │    │
+│   │                                                                  │    │
+│   │  ┌───────────────────────────┐  ┌────────────────────────────┐ │    │
+│   │  │     FxViewport             │  │    SceneInspector         │ │    │
+│   │  │  ┌─────────────────────┐  │  │  ┌──────────────────────┐ │ │    │
+│   │  │  │  ImageView          │  │  │  │ Entity ID: 42       │ │ │    │
+│   │  │  │  (3D Rendering)     │  │  │  │ Position: (1,2,3)   │ │ │    │
+│   │  │  │                     │  │  │  │ Depth: 0.756        │ │ │    │
+│   │  │  │  [Entity]   [*]     │  │  │  │                     │ │ │    │
+│   │  │  │     ^        ^      │  │  │  │ Transform: ...      │ │ │    │
+│   │  │  │     │        │      │  │  │  │ Rendering: ...      │ │ │    │
+│   │  │  │     └────────┘      │  │  │  └──────────────────────┘ │ │    │
+│   │  │  │  Selection Overlay  │  │  └────────────────────────────┘ │    │
+│   │  │  │  (Yellow Rectangle) │  │                                 │    │
+│   │  │  └─────────────────────┘  │                                 │    │
+│   │  │          │                │                                 │    │
+│   │  │     Mouse Click            │                                 │    │
+│   │  └────────┬───────────────────┘                                 │    │
+│   └───────────┼─────────────────────────────────────────────────────┘    │
+└───────────────┼──────────────────────────────────────────────────────────┘
+                │
+                │ handleMouseClick(event)
+                │ • Convert scene coords → viewport coords
+                │ • Scale by viewport/imageView ratio
+                │ • Clamp to bounds
+                │
+                ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                          JAVA WRAPPER LAYER                                │
+│                                                                            │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │  NativeEngine.java                                                 │  │
+│  │                                                                     │  │
+│  │  public PickingView pick(int screenX, int screenY) {              │  │
+│  │      MemorySegment result = PICK.invoke(engineHandle, x, y);      │  │
+│  │      return new PickingView(result);                               │  │
+│  │  }                                                                  │  │
+│  └────────────────────┬───────────────────────────────────────────────┘  │
+│                       │                                                   │
+│                       │ Invokes via MethodHandle                          │
+│                       │                                                   │
+│  ┌────────────────────▼───────────────────────────────────────────────┐  │
+│  │  PickingView.java (Immutable Wrapper)                              │  │
+│  │                                                                     │  │
+│  │  PickingView(MemorySegment struct) {                               │  │
+│  │      // Read fields using VarHandles                               │  │
+│  │      entityId = (int) entityIdHandle.get(struct, 0L);             │  │
+│  │      depth = (float) depthHandle.get(struct, 0L);                 │  │
+│  │      worldX/Y/Z = ...                                              │  │
+│  │      hit = (boolean) hitHandle.get(struct, 0L);                   │  │
+│  │  }                                                                  │  │
+│  │                                                                     │  │
+│  │  public boolean hasValidEntity() { return hit && entityId != 0; } │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────────────────────┘
+                │
+                │ FFM (Foreign Function & Memory API)
+                │
+┌───────────────▼───────────────────────────────────────────────────────────┐
+│                         FFM BINDINGS LAYER                                 │
+│                                                                            │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │  EngineBindings.java                                               │  │
+│  │                                                                     │  │
+│  │  // Struct Layout (24 bytes)                                       │  │
+│  │  PICK_RESULT_LAYOUT = MemoryLayout.structLayout(                  │  │
+│  │      JAVA_INT.withName("entity_id"),        // 4 bytes            │  │
+│  │      JAVA_FLOAT.withName("depth"),          // 4 bytes            │  │
+│  │      JAVA_FLOAT.withName("world_x"),        // 4 bytes            │  │
+│  │      JAVA_FLOAT.withName("world_y"),        // 4 bytes            │  │
+│  │      JAVA_FLOAT.withName("world_z"),        // 4 bytes            │  │
+│  │      JAVA_BOOLEAN.withName("hit"),          // 1 byte             │  │
+│  │      paddingLayout(3)                        // 3 bytes padding    │  │
+│  │  );                                                                 │  │
+│  │                                                                     │  │
+│  │  // Function Descriptor                                            │  │
+│  │  PICK_DESC = FunctionDescriptor.of(                               │  │
+│  │      PICK_RESULT_LAYOUT,  // return struct by value               │  │
+│  │      ADDRESS,              // EngineHandle                          │  │
+│  │      JAVA_INT,             // screen_x                             │  │
+│  │      JAVA_INT              // screen_y                             │  │
+│  │  );                                                                 │  │
+│  │                                                                     │  │
+│  │  // Method Handle                                                  │  │
+│  │  PICK = LINKER.downcallHandle(                                    │  │
+│  │      LIBRARY.find("astraeus_pick").orElseThrow(),                 │  │
+│  │      PICK_DESC                                                     │  │
+│  │  );                                                                 │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────────────────────┘
+                │
+                │ Native Library Call
+                │ libastraeus.so / astraeus.dll / libastraeus.dylib
+                │
+┌───────────────▼───────────────────────────────────────────────────────────┐
+│                           C++ ENGINE (Native)                              │
+│                                                                            │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │  engine/api/EngineAPI.cpp                                          │  │
+│  │                                                                     │  │
+│  │  PickResult astraeus_pick(EngineHandle engine,                    │  │
+│  │                           uint32_t screen_x,                       │  │
+│  │                           uint32_t screen_y) {                     │  │
+│  │      PickResult result = {0};                                      │  │
+│  │      if (!astraeus_is_valid(engine)) return result;               │  │
+│  │                                                                     │  │
+│  │      engine->context->pick(screen_x, screen_y, result);           │  │
+│  │      return result;  // Struct returned by value                   │  │
+│  │  }                                                                  │  │
+│  └────────────────────┬───────────────────────────────────────────────┘  │
+│                       │                                                   │
+│                       │ Delegates to EngineContext                        │
+│                       │                                                   │
+│  ┌────────────────────▼───────────────────────────────────────────────┐  │
+│  │  engine/core/EngineContext.cpp                                     │  │
+│  │                                                                     │  │
+│  │  void EngineContext::pick(uint32_t x, uint32_t y,                 │  │
+│  │                           PickResult& result) {                    │  │
+│  │      device->pick(x, y, result);                                   │  │
+│  │  }                                                                  │  │
+│  └────────────────────┬───────────────────────────────────────────────┘  │
+│                       │                                                   │
+│                       │ Delegates to RenderDevice                         │
+│                       │                                                   │
+│  ┌────────────────────▼───────────────────────────────────────────────┐  │
+│  │  engine/renderer/opengl/GLRenderDevice.cpp                         │  │
+│  │                                                                     │  │
+│  │  void GLRenderDevice::pick(uint32_t x, uint32_t y,                │  │
+│  │                            PickResult& result) {                   │  │
+│  │      // 1. Read pixel from ID buffer at (x, y)                     │  │
+│  │      uint32_t entityId = readback_id_[y * width + x];             │  │
+│  │                                                                     │  │
+│  │      // 2. Read depth from depth buffer                            │  │
+│  │      float depth = readback_depth_[y * width + x];                │  │
+│  │                                                                     │  │
+│  │      // 3. Calculate world position from screen coords             │  │
+│  │      vec3 worldPos = unproject(x, y, depth, camera);              │  │
+│  │                                                                     │  │
+│  │      // 4. Populate result                                         │  │
+│  │      result.entity_id = entityId;                                  │  │
+│  │      result.depth = depth;                                         │  │
+│  │      result.world_x = worldPos.x;                                  │  │
+│  │      result.world_y = worldPos.y;                                  │  │
+│  │      result.world_z = worldPos.z;                                  │  │
+│  │      result.hit = (entityId != 0);                                 │  │
+│  │  }                                                                  │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                            │
+│  ID Buffer:   ┌───┬───┬───┬───┐                                          │
+│  (R32UI)      │ 0 │42 │ 0 │17 │  Entity IDs rendered to texture          │
+│               └───┴───┴───┴───┘                                           │
+│                                                                            │
+│  Depth Buffer:┌─────┬─────┬─────┬─────┐                                 │
+│  (D24)        │ 1.0 │0.756│ 1.0 │0.423│  Depth values [0, 1]             │
+│               └─────┴─────┴─────┴─────┘                                  │
+└───────────────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             DATA FLOW SUMMARY                                 ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+1. User clicks ImageView at scene coordinates (e.g., 640, 360)
+
+2. FxViewport transforms coordinates:
+   • scaleX = currentWidth / imageView.fitWidth
+   • scaleY = currentHeight / imageView.fitHeight
+   • viewportX = (int)(sceneX * scaleX)  → e.g., 640
+   • viewportY = (int)(sceneY * scaleY)  → e.g., 360
+
+3. NativeEngine.pick(640, 360) invoked
+
+4. FFM MethodHandle calls astraeus_pick(engine, 640, 360)
+
+5. C++ reads ID buffer at pixel (640, 360):
+   • entityId = idBuffer[360 * width + 640]  → e.g., 42
+   • depth = depthBuffer[360 * width + 640]  → e.g., 0.756
+   • worldPos = unproject(640, 360, 0.756, camera)  → e.g., (1.2, 3.4, 5.6)
+
+6. PickResult struct returned by value (24 bytes on stack)
+
+7. PickingView created from MemorySegment, values copied to Java
+
+8. Callback invoked: onEntitySelected.accept(pickingView)
+
+9. UI updates:
+   • FxViewport: Show yellow selection overlay at click position
+   • SceneInspector: Display entity ID, position, depth
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                            MEMORY LAYOUT                                      ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+PickResult Struct (C):
+┌────────────┬────────┬────────┬────────┬────────┬─────┬─────────┐
+│ entity_id  │ depth  │world_x │world_y │world_z │ hit │ padding │
+│  (uint32)  │(float) │(float) │(float) │(float) │(bool│  (3B)   │
+│   4 bytes  │ 4 bytes│ 4 bytes│ 4 bytes│ 4 bytes│ 1B  │         │
+└────────────┴────────┴────────┴────────┴────────┴─────┴─────────┘
+  0          4        8        12       16       20    21       24
+
+Java MemoryLayout (FFM):
+StructLayout PICK_RESULT_LAYOUT = MemoryLayout.structLayout(
+    ValueLayout.JAVA_INT.withName("entity_id"),      // offset 0
+    ValueLayout.JAVA_FLOAT.withName("depth"),        // offset 4
+    ValueLayout.JAVA_FLOAT.withName("world_x"),      // offset 8
+    ValueLayout.JAVA_FLOAT.withName("world_y"),      // offset 12
+    ValueLayout.JAVA_FLOAT.withName("world_z"),      // offset 16
+    ValueLayout.JAVA_BOOLEAN.withName("hit"),        // offset 20
+    MemoryLayout.paddingLayout(3)                     // offset 21-23
+);
+
+VarHandle Access:
+entityIdHandle.get(segment, 0L)  → reads 4 bytes at offset 0
+depthHandle.get(segment, 0L)     → reads 4 bytes at offset 4
+...
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                         FILES MODIFIED/CREATED                                ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Modified:
+  • java/src/main/java/com/astraeus/native_api/EngineBindings.java (+38 lines)
+  • java/src/main/java/com/astraeus/native_api/NativeEngine.java (+19 lines)
+  • java/src/main/java/com/astraeus/rendering/FxViewport.java (+111 lines)
+  • java/src/main/java/com/astraeus/tools/SceneInspector.java (+130 lines)
+
+Created:
+  • java/src/main/java/com/astraeus/native_api/PickingView.java (115 lines)
+  • java/src/main/java/com/astraeus/test/PickingDemoApp.java (281 lines)
+  • PICKING_IMPLEMENTATION.md (317 lines)
+  • TASK_B2_COMPLETION_REPORT.md (229 lines)
+
+Total: 1,240 lines added/modified across 8 files
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                           TESTING STATUS                                      ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+✅ Code Review: All comments addressed
+✅ Security Scan: CodeQL 0 alerts
+✅ Design Review: Follows Astraeus architecture principles
+⏳ Compilation: Requires Java 21+ or Java 17 with FFM preview
+⏳ Runtime Testing: Requires C++ native library build
+
+Ready for testing once environment is configured.
