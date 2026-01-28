@@ -42,10 +42,7 @@ set(ASTRAEUS_ENGINE_SOURCES
         engine/api/EngineAPI.cpp
         engine/core/EngineContext.cpp
 
-        engine/renderer/RenderDevice.cpp
-        engine/renderer/RenderGraph.cpp
-        engine/renderer/opengl/GLRenderDevice.cpp
-
+        # Note: Renderer modules are now header-only (see engine/renderer/*.hpp)
         # Note: Backend modules are now header-only (see engine/renderer/backend/*.hpp)
         # Note: Render pass modules are now header-only (see engine/renderer/passes/*.hpp)
         # Note: Ingest modules are now header-only (see engine/ingest/*.hpp)
