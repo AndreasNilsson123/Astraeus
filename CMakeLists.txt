@@ -49,12 +49,7 @@ set(ASTRAEUS_ENGINE_SOURCES
         engine/renderer/backend/GraphicsContext.cpp
         engine/renderer/backend/NullContext.cpp
 
-        engine/renderer/passes/ClearPass.cpp
-        engine/renderer/passes/GridPass.cpp
-        engine/renderer/passes/AxesPass.cpp
-        engine/renderer/passes/PointSpritePass.cpp
-        engine/renderer/passes/TrailPass.cpp
-
+        # Note: Render pass modules are now header-only (see engine/renderer/passes/*.hpp)
         # Note: Ingest modules are now header-only (see engine/ingest/*.hpp)
 
         engine/assets/AssetManager.cpp

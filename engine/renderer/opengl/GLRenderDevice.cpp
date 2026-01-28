@@ -3,10 +3,10 @@
 #include <iostream>
 #include <cstring>
 #include <chrono>
-#include <glad/glad.h>
 
 // OpenGL headers
 #define GL_GLEXT_PROTOTYPES
+#include <GL/gl.h>
 
 namespace astraeus {
 
@@ -54,12 +54,6 @@ GLRenderDevice::~GLRenderDevice() {
     shutdown();
 }
 
-static void* glad_loader(const char* name) {
-    return astraeus::g_current_context
-        ? astraeus::g_current_context->get_proc_address(name)
-        : nullptr;
-}
-
 bool GLRenderDevice::initialize() {
     if (is_initialized_) {
         return true;
@@ -74,10 +68,8 @@ bool GLRenderDevice::initialize() {
         return false;
     }
 
-    if (!gladLoadGLLoader((GLADloadproc)glad_loader)) {
-        std::cerr << "[GLRenderDevice] Failed to initialize GLAD\n";
-        return false;
-    }
+    // With GL_GLEXT_PROTOTYPES, function pointers are resolved at link time
+    // No need for runtime loading (glad/glew)
 
     // Check OpenGL version
     const char* version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
