@@ -151,6 +151,10 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     target_link_libraries(entity_visualization_test PRIVATE astraeus_engine)
     set_target_properties(entity_visualization_test PROPERTIES LINKER_LANGUAGE CXX)
 
+    add_executable(pointer_stability_test examples/pointer_stability_test.c)
+    target_link_libraries(pointer_stability_test PRIVATE astraeus_engine)
+    set_target_properties(pointer_stability_test PROPERTIES LINKER_LANGUAGE CXX)
+
     add_executable(ingest_demo examples/ingest_demo.cpp ${ASTRAEUS_ENGINE_SOURCES}) # Include engine sources directly due to symbol linkage errors on windows
     target_include_directories(ingest_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/engine)
     target_link_libraries(ingest_demo PRIVATE Threads::Threads OpenGL::GL)
