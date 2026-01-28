@@ -180,4 +180,10 @@ private:
 
 } // namespace astraeus
 
+// Include inline implementations if requested
+// This should only be included in .cpp files that actually instantiate EngineContext
+#ifdef ASTRAEUS_ENGINE_CONTEXT_INLINE_IMPL
+#include "EngineContext_impl.hpp"
+#endif
+
 #endif // ASTRAEUS_ENGINE_CONTEXT_HPP

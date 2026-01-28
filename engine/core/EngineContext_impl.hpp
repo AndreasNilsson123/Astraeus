@@ -1,4 +1,14 @@
+#ifndef ASTRAEUS_ENGINE_CONTEXT_IMPL_HPP
+#define ASTRAEUS_ENGINE_CONTEXT_IMPL_HPP
+
+// This header contains inline implementations for EngineContext.
+// It should only be included in .cpp files that need to instantiate EngineContext.
+// DO NOT include this in other headers to avoid transitive dependencies.
+
 #include "EngineContext.hpp"
+#include <iostream>
+
+// Full includes needed for inline implementations
 #include "renderer/RenderDevice.hpp"
 #include "renderer/opengl/GLRenderDevice.hpp"
 #include "renderer/RenderGraph.hpp"
@@ -8,12 +18,14 @@
 #include "scene/World.hpp"
 #include "ingest/IngestManager.hpp"
 #include "assets/AssetManager.hpp"
-#include "api/EngineAPI.h"
-#include <iostream>
 
 namespace astraeus {
 
-EngineContext::EngineContext(const Config& config)
+// ============================================================
+// Inline implementations
+// ============================================================
+
+inline EngineContext::EngineContext(const Config& config)
     : config_(config)
     , is_initialized_(false)
     , current_delta_time_(0.0)
@@ -22,11 +34,11 @@ EngineContext::EngineContext(const Config& config)
 {
 }
 
-EngineContext::~EngineContext() {
+inline EngineContext::~EngineContext() {
     shutdown();
 }
 
-bool EngineContext::initialize() {
+inline bool EngineContext::initialize() {
     if (is_initialized_) {
         return true;
     }
@@ -78,7 +90,7 @@ bool EngineContext::initialize() {
     }
 }
 
-void EngineContext::shutdown() {
+inline void EngineContext::shutdown() {
     if (!is_initialized_) {
         return;
     }
@@ -96,7 +108,7 @@ void EngineContext::shutdown() {
     std::cout << "[Astraeus] Engine shutdown complete" << std::endl;
 }
 
-void EngineContext::begin_frame(double delta_time) {
+inline void EngineContext::begin_frame(double delta_time) {
     current_delta_time_ = delta_time;
     total_time_ += delta_time;
     
@@ -105,7 +117,7 @@ void EngineContext::begin_frame(double delta_time) {
     }
 }
 
-void EngineContext::end_frame() {
+inline void EngineContext::end_frame() {
     if (render_graph_) {
         render_graph_->execute();
     }
@@ -117,7 +129,7 @@ void EngineContext::end_frame() {
     frame_count_++;
 }
 
-void EngineContext::resize_viewport(uint32_t width, uint32_t height) {
+inline void EngineContext::resize_viewport(uint32_t width, uint32_t height) {
     if (render_device_) {
         render_device_->resize(width, height);
     }
@@ -126,7 +138,7 @@ void EngineContext::resize_viewport(uint32_t width, uint32_t height) {
     }
 }
 
-bool EngineContext::configure_readback(const ReadbackConfig* color_config, 
+inline bool EngineContext::configure_readback(const ReadbackConfig* color_config, 
                                         const ReadbackConfig* id_config) {
     if (render_device_) {
         return render_device_->configure_readback(color_config, id_config);
@@ -134,7 +146,7 @@ bool EngineContext::configure_readback(const ReadbackConfig* color_config,
     return false;
 }
 
-void EngineContext::get_frame_stats(FrameStats& out_stats) const {
+inline void EngineContext::get_frame_stats(FrameStats& out_stats) const {
     out_stats.frame_number = frame_count_;
     out_stats.delta_time_ms = current_delta_time_ * 1000.0;
     
@@ -150,32 +162,32 @@ void EngineContext::get_frame_stats(FrameStats& out_stats) const {
     }
 }
 
-void EngineContext::get_color_buffer_view(PixelBufferView& out_view) const {
+inline void EngineContext::get_color_buffer_view(PixelBufferView& out_view) const {
     if (render_device_) {
         render_device_->get_color_buffer_view(out_view);
     }
 }
 
-void EngineContext::get_id_buffer_view(PixelBufferView& out_view) const {
+inline void EngineContext::get_id_buffer_view(PixelBufferView& out_view) const {
     if (render_device_) {
         render_device_->get_id_buffer_view(out_view);
     }
 }
 
-uint32_t EngineContext::create_entity() {
+inline uint32_t EngineContext::create_entity() {
     if (world_) {
         return world_->create_entity();
     }
     return 0;
 }
 
-void EngineContext::destroy_entity(uint32_t entity_id) {
+inline void EngineContext::destroy_entity(uint32_t entity_id) {
     if (world_) {
         world_->destroy_entity(entity_id);
     }
 }
 
-void EngineContext::set_entity_transform(uint32_t entity_id,
+inline void EngineContext::set_entity_transform(uint32_t entity_id,
                                         float pos_x, float pos_y, float pos_z,
                                         float rot_x, float rot_y, float rot_z,
                                         float scale_x, float scale_y, float scale_z) {
@@ -187,20 +199,20 @@ void EngineContext::set_entity_transform(uint32_t entity_id,
     }
 }
 
-void EngineContext::pick(uint32_t screen_x, uint32_t screen_y, PickResult& out_result) {
+inline void EngineContext::pick(uint32_t screen_x, uint32_t screen_y, PickResult& out_result) {
     if (render_device_) {
         render_device_->pick(screen_x, screen_y, out_result);
     }
 }
 
-bool EngineContext::ingest_data(const void* data, uint32_t size, uint32_t format) {
+inline bool EngineContext::ingest_data(const void* data, uint32_t size, uint32_t format) {
     if (ingest_manager_) {
         return ingest_manager_->ingest(data, size, format);
     }
     return false;
 }
 
-void EngineContext::set_camera(float eye_x, float eye_y, float eye_z,
+inline void EngineContext::set_camera(float eye_x, float eye_y, float eye_z,
                               float target_x, float target_y, float target_z,
                               float up_x, float up_y, float up_z) {
     if (world_) {
@@ -210,34 +222,36 @@ void EngineContext::set_camera(float eye_x, float eye_y, float eye_z,
     }
 }
 
-void EngineContext::set_camera_projection(float fov_degrees, float near_plane, float far_plane) {
+inline void EngineContext::set_camera_projection(float fov_degrees, float near_plane, float far_plane) {
     if (world_) {
         world_->set_camera_projection(fov_degrees, near_plane, far_plane);
     }
 }
 
-void EngineContext::set_entity_renderable(uint32_t entity_id, bool visible) {
+inline void EngineContext::set_entity_renderable(uint32_t entity_id, bool visible) {
     if (world_) {
         world_->set_entity_renderable(entity_id, visible);
     }
 }
 
-void EngineContext::set_entity_color(uint32_t entity_id, float r, float g, float b, float a) {
+inline void EngineContext::set_entity_color(uint32_t entity_id, float r, float g, float b, float a) {
     if (world_) {
         world_->set_entity_color(entity_id, r, g, b, a);
     }
 }
 
-void EngineContext::set_entity_trail(uint32_t entity_id, uint32_t max_points) {
+inline void EngineContext::set_entity_trail(uint32_t entity_id, uint32_t max_points) {
     if (world_) {
         world_->set_entity_trail(entity_id, max_points);
     }
 }
 
-void EngineContext::apply_entity_snapshot(uint32_t entity_id, float pos_x, float pos_y, float pos_z) {
+inline void EngineContext::apply_entity_snapshot(uint32_t entity_id, float pos_x, float pos_y, float pos_z) {
     if (world_) {
         world_->apply_entity_snapshot(entity_id, pos_x, pos_y, pos_z);
     }
 }
 
 } // namespace astraeus
+
+#endif // ASTRAEUS_ENGINE_CONTEXT_IMPL_HPP
