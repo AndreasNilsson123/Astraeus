@@ -55,13 +55,7 @@ set(ASTRAEUS_ENGINE_SOURCES
         engine/renderer/passes/PointSpritePass.cpp
         engine/renderer/passes/TrailPass.cpp
 
-        engine/ingest/IngestManager.cpp
-        engine/ingest/SnapshotStore.cpp
-        engine/ingest/TimeSync.cpp
-        engine/ingest/SchemaRegistry.cpp
-        engine/ingest/FixedBinaryDecoder.cpp
-        engine/ingest/WorldSync.cpp
-        engine/ingest/DeterministicSimGenerator.cpp
+        # Note: Ingest modules are now header-only (see engine/ingest/*.hpp)
 
         engine/assets/AssetManager.cpp
         engine/geometry/Mesh.cpp
