@@ -38,49 +38,21 @@ endif()
 # Engine sources
 # ==================================================
 
+# All engine modules are now header-only for maximum flexibility
+# Note: Engine API and Core modules are now header-only (see engine/api/*.h, engine/core/*.hpp)
+# Note: Renderer modules are now header-only (see engine/renderer/*.hpp)
+# Note: Backend modules are now header-only (see engine/renderer/backend/*.hpp)
+# Note: Render pass modules are now header-only (see engine/renderer/passes/*.hpp)
+# Note: Ingest modules are now header-only (see engine/ingest/*.hpp)
+# Note: Asset and geometry modules are now header-only (see engine/assets/*.hpp, engine/geometry/*.hpp)
+
+# Minimal stub file to satisfy CMake library requirements (all implementations are inline/header-only)
 set(ASTRAEUS_ENGINE_SOURCES
-        engine/api/EngineAPI.cpp
-        engine/core/EngineContext.cpp
-
-        engine/renderer/RenderDevice.cpp
-        engine/renderer/RenderGraph.cpp
-        engine/renderer/opengl/GLRenderDevice.cpp
-
-        engine/renderer/backend/GraphicsContext.cpp
-        engine/renderer/backend/NullContext.cpp
-
-        engine/renderer/passes/ClearPass.cpp
-        engine/renderer/passes/GridPass.cpp
-        engine/renderer/passes/AxesPass.cpp
-        engine/renderer/passes/PointSpritePass.cpp
-        engine/renderer/passes/TrailPass.cpp
-
-        engine/scene/World.cpp
-        engine/scene/Camera.cpp
-
-        engine/ingest/IngestManager.cpp
-        engine/ingest/SnapshotStore.cpp
-        engine/ingest/TimeSync.cpp
-        engine/ingest/SchemaRegistry.cpp
-        engine/ingest/FixedBinaryDecoder.cpp
-        engine/ingest/WorldSync.cpp
-        engine/ingest/DeterministicSimGenerator.cpp
-
-        engine/assets/AssetManager.cpp
-        engine/geometry/Mesh.cpp
+        engine/api/EngineAPI_stub.cpp
 )
 
-if(ASTRAEUS_ENABLE_WGL)
-    list(APPEND ASTRAEUS_ENGINE_SOURCES
-            engine/renderer/backend/wgl/WGLContext.cpp
-    )
-endif()
-
-if(ASTRAEUS_ENABLE_EGL)
-    list(APPEND ASTRAEUS_ENGINE_SOURCES
-            engine/renderer/backend/egl/EGLContext.cpp
-    )
-endif()
+# Note: WGL and EGL backend modules are now header-only
+# No additional source files needed for backend compilation
 
 # ==================================================
 # Engine target

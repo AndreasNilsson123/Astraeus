@@ -64,7 +64,7 @@
 
 #### 6. CMake Build System
 **Changes to `CMakeLists.txt`:**
-- Added `engine/scene/Camera.cpp`
+- Added `engine/scene/Camera.hpp` (header-only implementation)
 - Added `engine/renderer/passes/GridPass.cpp`
 - Added `engine/renderer/passes/AxesPass.cpp`
 - Removed `engine/renderer/passes/TrianglePass.cpp`
@@ -200,8 +200,7 @@ The following features are not implemented but could be added later:
 ### Files Created/Modified
 
 **Created:**
-- `engine/scene/Camera.hpp`
-- `engine/scene/Camera.cpp`
+- `engine/scene/Camera.hpp` (header-only implementation)
 - `engine/renderer/passes/GridPass.hpp`
 - `engine/renderer/passes/GridPass.cpp`
 - `engine/renderer/passes/AxesPass.hpp`
