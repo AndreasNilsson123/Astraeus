@@ -1,6 +1,7 @@
 #include "EngineAPI.h"
 #include "core/EngineContext.hpp"
 #include <cstring>
+#include <iostream>
 #include <memory>
 
 // =============================================================================

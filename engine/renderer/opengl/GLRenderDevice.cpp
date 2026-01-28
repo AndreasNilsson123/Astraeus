@@ -1,12 +1,12 @@
 #include "GLRenderDevice.hpp"
-#include "../backend/GraphicsContext.hpp"
+#include "renderer/backend/GraphicsContext.hpp"
 #include <iostream>
 #include <cstring>
 #include <chrono>
+#include <glad/glad.h>
 
 // OpenGL headers
 #define GL_GLEXT_PROTOTYPES
-#include <glad/glad.h>
 
 namespace astraeus {
 
@@ -54,6 +54,12 @@ GLRenderDevice::~GLRenderDevice() {
     shutdown();
 }
 
+static void* glad_loader(const char* name) {
+    return astraeus::g_current_context
+        ? astraeus::g_current_context->get_proc_address(name)
+        : nullptr;
+}
+
 bool GLRenderDevice::initialize() {
     if (is_initialized_) {
         return true;
@@ -65,6 +71,11 @@ bool GLRenderDevice::initialize() {
     create_offscreen_context();
     if (!graphics_context_) {
         std::cerr << "[GLRenderDevice] Failed to create graphics context" << std::endl;
+        return false;
+    }
+
+    if (!gladLoadGLLoader((GLADloadproc)glad_loader)) {
+        std::cerr << "[GLRenderDevice] Failed to initialize GLAD\n";
         return false;
     }
 

@@ -43,6 +43,8 @@ public:
     virtual const char* get_backend_name() const = 0;
 };
 
+    extern thread_local GraphicsContext* g_current_context;
+
 /**
  * Factory function to create the appropriate context for the current platform.
  * Returns EGLContext on Linux, WGLContext on Windows, or NullContext as fallback.

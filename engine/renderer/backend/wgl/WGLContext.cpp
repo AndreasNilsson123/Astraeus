@@ -1,6 +1,7 @@
 #include "WGLContext.hpp"
 #include <iostream>
 #include <cstdio>  // for snprintf
+#include <glad/glad.h>
 
 // Windows headers - only included in this backend implementation
 #ifdef _WIN32
@@ -182,7 +183,12 @@ bool WGLContext::make_current() {
         return false;
     }
 
-    return wglMakeCurrent(static_cast<HDC>(hdc_), static_cast<HGLRC>(hglrc_)) == TRUE;
+    if (wglMakeCurrent(static_cast<HDC>(hdc_), static_cast<HGLRC>(hglrc_)) == TRUE) {
+        g_current_context = this;
+        return true;
+    }
+    return false;
+
 #else
     return false;
 #endif
