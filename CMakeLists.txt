@@ -49,9 +49,7 @@ set(ASTRAEUS_ENGINE_SOURCES
         # Note: Backend modules are now header-only (see engine/renderer/backend/*.hpp)
         # Note: Render pass modules are now header-only (see engine/renderer/passes/*.hpp)
         # Note: Ingest modules are now header-only (see engine/ingest/*.hpp)
-
-        engine/assets/AssetManager.cpp
-        engine/geometry/Mesh.cpp
+        # Note: Asset and geometry modules are now header-only (see engine/assets/*.hpp, engine/geometry/*.hpp)
 )
 
 # Note: WGL and EGL backend modules are now header-only

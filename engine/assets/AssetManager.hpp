@@ -2,6 +2,7 @@
 #define ASTRAEUS_ASSET_MANAGER_HPP
 
 #include <cstdint>
+#include <iostream>
 
 namespace astraeus {
 
@@ -12,31 +13,83 @@ class RenderDevice;
  */
 class AssetManager {
 public:
-    explicit AssetManager(RenderDevice* device);
-    ~AssetManager();
+    inline explicit AssetManager(RenderDevice* device)
+        : device_(device)
+        , is_initialized_(false)
+        , next_handle_(1)
+    {
+    }
 
-    bool initialize();
-    void shutdown();
+    inline ~AssetManager() {
+        shutdown();
+    }
+
+    inline bool initialize() {
+        if (is_initialized_) {
+            return true;
+        }
+
+        std::cout << "[AssetManager] Initializing" << std::endl;
+        
+        is_initialized_ = true;
+        return true;
+    }
+
+    inline void shutdown() {
+        if (!is_initialized_) {
+            return;
+        }
+
+        std::cout << "[AssetManager] Shutting down" << std::endl;
+        is_initialized_ = false;
+    }
 
     /**
      * Load a model asset.
      * @param path File path to model
      * @return Asset handle or 0 on failure
      */
-    uint32_t load_model(const char* path);
+    inline uint32_t load_model(const char* path) {
+        if (!is_initialized_ || !path) {
+            return 0;
+        }
+
+        std::cout << "[AssetManager] Loading model: " << path << std::endl;
+        
+        // TODO: Implement actual model loading
+        // Return a handle
+        return next_handle_++;
+    }
 
     /**
      * Load a texture asset.
      * @param path File path to texture
      * @return Asset handle or 0 on failure
      */
-    uint32_t load_texture(const char* path);
+    inline uint32_t load_texture(const char* path) {
+        if (!is_initialized_ || !path) {
+            return 0;
+        }
+
+        std::cout << "[AssetManager] Loading texture: " << path << std::endl;
+        
+        // TODO: Implement actual texture loading
+        return next_handle_++;
+    }
 
     /**
      * Unload an asset.
      * @param handle Asset handle
      */
-    void unload_asset(uint32_t handle);
+    inline void unload_asset(uint32_t handle) {
+        if (handle == 0) {
+            return;
+        }
+
+        std::cout << "[AssetManager] Unloading asset: " << handle << std::endl;
+        
+        // TODO: Implement actual unloading
+    }
 
 private:
     RenderDevice* device_;

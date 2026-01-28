@@ -23,8 +23,13 @@ public:
     Mesh() = default;
     ~Mesh() = default;
 
-    void set_vertices(const std::vector<Vertex>& vertices);
-    void set_indices(const std::vector<uint32_t>& indices);
+    inline void set_vertices(const std::vector<Vertex>& vertices) {
+        vertices_ = vertices;
+    }
+
+    inline void set_indices(const std::vector<uint32_t>& indices) {
+        indices_ = indices;
+    }
 
     const std::vector<Vertex>& get_vertices() const { return vertices_; }
     const std::vector<uint32_t>& get_indices() const { return indices_; }
