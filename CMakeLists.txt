@@ -38,15 +38,17 @@ endif()
 # Engine sources
 # ==================================================
 
-set(ASTRAEUS_ENGINE_SOURCES
-        engine/api/EngineAPI.cpp
-        engine/core/EngineContext.cpp
+# All engine modules are now header-only for maximum flexibility
+# Note: Engine API and Core modules are now header-only (see engine/api/*.h, engine/core/*.hpp)
+# Note: Renderer modules are now header-only (see engine/renderer/*.hpp)
+# Note: Backend modules are now header-only (see engine/renderer/backend/*.hpp)
+# Note: Render pass modules are now header-only (see engine/renderer/passes/*.hpp)
+# Note: Ingest modules are now header-only (see engine/ingest/*.hpp)
+# Note: Asset and geometry modules are now header-only (see engine/assets/*.hpp, engine/geometry/*.hpp)
 
-        # Note: Renderer modules are now header-only (see engine/renderer/*.hpp)
-        # Note: Backend modules are now header-only (see engine/renderer/backend/*.hpp)
-        # Note: Render pass modules are now header-only (see engine/renderer/passes/*.hpp)
-        # Note: Ingest modules are now header-only (see engine/ingest/*.hpp)
-        # Note: Asset and geometry modules are now header-only (see engine/assets/*.hpp, engine/geometry/*.hpp)
+# Minimal stub file to satisfy CMake library requirements (all implementations are inline/header-only)
+set(ASTRAEUS_ENGINE_SOURCES
+        engine/api/EngineAPI_stub.cpp
 )
 
 # Note: WGL and EGL backend modules are now header-only

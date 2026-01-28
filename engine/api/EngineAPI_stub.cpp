@@ -1,13 +1,12 @@
+// Minimal implementation file for C API
+// Provides non-inline definitions for C linkage
+
 #include "EngineAPI.h"
 #include "core/EngineContext.hpp"
 #include <cstring>
-#include <iostream>
 #include <memory>
 
-// =============================================================================
-// INTERNAL STRUCTURES
-// =============================================================================
-
+// Internal structure definition
 struct AstraeusEngine {
     std::unique_ptr<astraeus::EngineContext> context;
     FrameStats current_stats;
@@ -20,9 +19,16 @@ struct AstraeusEngine {
     }
 };
 
+// Helper function
+static inline bool is_valid_engine(EngineHandle engine) {
+    return engine != nullptr && engine->is_initialized && engine->context != nullptr;
+}
+
 // =============================================================================
-// ENGINE LIFECYCLE
+// C API IMPLEMENTATIONS (non-inline for C linkage)
 // =============================================================================
+
+extern "C" {
 
 EngineHandle astraeus_create_engine(const EngineConfig* config) {
     if (!config) {
@@ -70,15 +76,11 @@ void astraeus_destroy_engine(EngineHandle engine) {
 }
 
 bool astraeus_is_valid(EngineHandle engine) {
-    return engine != nullptr && engine->is_initialized && engine->context != nullptr;
+    return is_valid_engine(engine);
 }
 
-// =============================================================================
-// RENDERING
-// =============================================================================
-
 void astraeus_begin_frame(EngineHandle engine, double delta_time) {
-    if (!astraeus_is_valid(engine)) {
+    if (!is_valid_engine(engine)) {
         return;
     }
     
@@ -86,7 +88,7 @@ void astraeus_begin_frame(EngineHandle engine, double delta_time) {
 }
 
 void astraeus_end_frame(EngineHandle engine) {
-    if (!astraeus_is_valid(engine)) {
+    if (!is_valid_engine(engine)) {
         return;
     }
     
@@ -94,12 +96,11 @@ void astraeus_end_frame(EngineHandle engine) {
     
     // Update frame stats
     engine->current_stats.frame_number++;
-    // Stats will be filled by the engine context
     engine->context->get_frame_stats(engine->current_stats);
 }
 
 void astraeus_resize_viewport(EngineHandle engine, uint32_t width, uint32_t height) {
-    if (!astraeus_is_valid(engine)) {
+    if (!is_valid_engine(engine)) {
         return;
     }
     
@@ -113,7 +114,7 @@ void astraeus_resize_viewport(EngineHandle engine, uint32_t width, uint32_t heig
 bool astraeus_configure_readback(EngineHandle engine, 
                                   const ReadbackConfig* color_config,
                                   const ReadbackConfig* id_config) {
-    if (!astraeus_is_valid(engine)) {
+    if (!is_valid_engine(engine)) {
         return false;
     }
     
@@ -121,7 +122,7 @@ bool astraeus_configure_readback(EngineHandle engine,
 }
 
 void astraeus_get_frame_stats(EngineHandle engine, FrameStats* out_stats) {
-    if (!astraeus_is_valid(engine) || !out_stats) {
+    if (!is_valid_engine(engine) || !out_stats) {
         return;
     }
     
@@ -134,7 +135,7 @@ void astraeus_get_color_buffer(EngineHandle engine, PixelBufferView* out_view) {
     // Initialize to defaults with RGBA8 format
     *out_view = {nullptr, 0, 0, 0, PIXEL_FORMAT_RGBA8, 0, 0, 0};
 
-    if (!astraeus_is_valid(engine)) return;
+    if (!is_valid_engine(engine)) return;
 
     engine->context->get_color_buffer_view(*out_view);
 }
@@ -145,17 +146,13 @@ void astraeus_get_id_buffer(EngineHandle engine, PixelBufferView* out_view) {
     // Initialize to defaults with ID buffer format
     *out_view = {nullptr, 0, 0, 0, PIXEL_FORMAT_R32UI, 0, 0, 0};
     
-    if (!astraeus_is_valid(engine)) return;
+    if (!is_valid_engine(engine)) return;
     
     engine->context->get_id_buffer_view(*out_view);
 }
 
-// =============================================================================
-// SCENE MANAGEMENT
-// =============================================================================
-
 uint32_t astraeus_create_entity(EngineHandle engine) {
-    if (!astraeus_is_valid(engine)) {
+    if (!is_valid_engine(engine)) {
         return 0;
     }
     
@@ -163,7 +160,7 @@ uint32_t astraeus_create_entity(EngineHandle engine) {
 }
 
 void astraeus_destroy_entity(EngineHandle engine, uint32_t entity_id) {
-    if (!astraeus_is_valid(engine)) {
+    if (!is_valid_engine(engine)) {
         return;
     }
     
@@ -174,7 +171,7 @@ void astraeus_set_entity_transform(EngineHandle engine, uint32_t entity_id,
                                    float pos_x, float pos_y, float pos_z,
                                    float rot_x, float rot_y, float rot_z,
                                    float scale_x, float scale_y, float scale_z) {
-    if (!astraeus_is_valid(engine)) {
+    if (!is_valid_engine(engine)) {
         return;
     }
     
@@ -184,14 +181,44 @@ void astraeus_set_entity_transform(EngineHandle engine, uint32_t entity_id,
                                          scale_x, scale_y, scale_z);
 }
 
-// =============================================================================
-// PICKING
-// =============================================================================
+void astraeus_set_entity_renderable(EngineHandle engine, uint32_t entity_id, bool visible) {
+    if (!is_valid_engine(engine)) {
+        return;
+    }
+    
+    engine->context->set_entity_renderable(entity_id, visible);
+}
+
+void astraeus_set_entity_color(EngineHandle engine, uint32_t entity_id,
+                               float r, float g, float b, float a) {
+    if (!is_valid_engine(engine)) {
+        return;
+    }
+    
+    engine->context->set_entity_color(entity_id, r, g, b, a);
+}
+
+void astraeus_set_entity_trail(EngineHandle engine, uint32_t entity_id, uint32_t max_points) {
+    if (!is_valid_engine(engine)) {
+        return;
+    }
+    
+    engine->context->set_entity_trail(entity_id, max_points);
+}
+
+void astraeus_apply_entity_snapshot(EngineHandle engine, uint32_t entity_id,
+                                    float pos_x, float pos_y, float pos_z) {
+    if (!is_valid_engine(engine)) {
+        return;
+    }
+    
+    engine->context->apply_entity_snapshot(entity_id, pos_x, pos_y, pos_z);
+}
 
 PickResult astraeus_pick(EngineHandle engine, uint32_t screen_x, uint32_t screen_y) {
     PickResult result = {0, 0.0f, 0.0f, 0.0f, 0.0f, false};
     
-    if (!astraeus_is_valid(engine)) {
+    if (!is_valid_engine(engine)) {
         return result;
     }
     
@@ -199,27 +226,19 @@ PickResult astraeus_pick(EngineHandle engine, uint32_t screen_x, uint32_t screen
     return result;
 }
 
-// =============================================================================
-// DATA INGESTION
-// =============================================================================
-
 bool astraeus_ingest_data(EngineHandle engine, const void* data, uint32_t size, uint32_t format) {
-    if (!astraeus_is_valid(engine) || !data) {
+    if (!is_valid_engine(engine) || !data) {
         return false;
     }
     
     return engine->context->ingest_data(data, size, format);
 }
 
-// =============================================================================
-// CAMERA CONTROL
-// =============================================================================
-
 void astraeus_set_camera(EngineHandle engine,
                         float eye_x, float eye_y, float eye_z,
                         float target_x, float target_y, float target_z,
                         float up_x, float up_y, float up_z) {
-    if (!astraeus_is_valid(engine)) {
+    if (!is_valid_engine(engine)) {
         return;
     }
     
@@ -229,47 +248,12 @@ void astraeus_set_camera(EngineHandle engine,
 }
 
 void astraeus_set_camera_projection(EngineHandle engine, float fov_degrees, float near_plane, float far_plane) {
-    if (!astraeus_is_valid(engine)) {
+    if (!is_valid_engine(engine)) {
         return;
     }
     
     engine->context->set_camera_projection(fov_degrees, near_plane, far_plane);
 }
 
-// =============================================================================
-// ENTITY COMPONENTS
-// =============================================================================
+} // extern "C"
 
-void astraeus_set_entity_renderable(EngineHandle engine, uint32_t entity_id, bool visible) {
-    if (!astraeus_is_valid(engine)) {
-        return;
-    }
-    
-    engine->context->set_entity_renderable(entity_id, visible);
-}
-
-void astraeus_set_entity_color(EngineHandle engine, uint32_t entity_id,
-                               float r, float g, float b, float a) {
-    if (!astraeus_is_valid(engine)) {
-        return;
-    }
-    
-    engine->context->set_entity_color(entity_id, r, g, b, a);
-}
-
-void astraeus_set_entity_trail(EngineHandle engine, uint32_t entity_id, uint32_t max_points) {
-    if (!astraeus_is_valid(engine)) {
-        return;
-    }
-    
-    engine->context->set_entity_trail(entity_id, max_points);
-}
-
-void astraeus_apply_entity_snapshot(EngineHandle engine, uint32_t entity_id,
-                                    float pos_x, float pos_y, float pos_z) {
-    if (!astraeus_is_valid(engine)) {
-        return;
-    }
-    
-    engine->context->apply_entity_snapshot(entity_id, pos_x, pos_y, pos_z);
-}
