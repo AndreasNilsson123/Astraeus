@@ -6,7 +6,7 @@
 #include "ingest/WorldSync.hpp"
 #include "ingest/SchemaRegistry.hpp"
 #include "scene/World.hpp"
-#include "core/EngineContext.hpp"
+#include "core/EngineContext_impl.hpp"  // Include implementation for EngineContext
 
 #include <stdio.h>
 #include <chrono>

@@ -40,7 +40,6 @@ endif()
 
 set(ASTRAEUS_ENGINE_SOURCES
         engine/api/EngineAPI.cpp
-        engine/core/EngineContext.cpp
 
         engine/renderer/RenderDevice.cpp
         engine/renderer/RenderGraph.cpp

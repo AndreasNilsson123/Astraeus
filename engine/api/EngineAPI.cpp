@@ -1,5 +1,5 @@
 #include "EngineAPI.h"
-#include "core/EngineContext.hpp"
+#include "core/EngineContext_impl.hpp"  // Include implementation for EngineContext
 #include <cstring>
 #include <iostream>
 #include <memory>
