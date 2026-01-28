@@ -43,13 +43,41 @@ public:
     virtual const char* get_backend_name() const = 0;
 };
 
-    extern thread_local GraphicsContext* g_current_context;
+inline thread_local GraphicsContext* g_current_context = nullptr;
+
+} // namespace astraeus
+
+// Include concrete implementations after the interface is defined
+#include "NullContext.hpp"
+
+#ifdef ASTRAEUS_ENABLE_EGL
+#include "egl/EGLContext.hpp"
+#endif
+
+#ifdef WIN32
+#include "wgl/WGLContext.hpp"
+#endif
+
+namespace astraeus {
 
 /**
  * Factory function to create the appropriate context for the current platform.
  * Returns EGLContext on Linux, WGLContext on Windows, or NullContext as fallback.
  */
-GraphicsContext* create_graphics_context();
+inline GraphicsContext* create_graphics_context() {
+    // Platform-specific context creation based on compile-time configuration
+    
+#ifdef WIN32
+    // Windows: use WGL backend
+    return new WGLContext();
+#elif defined(ASTRAEUS_ENABLE_EGL)
+    // Linux/Unix: use EGL backend
+    return new EGLGraphicsContext();
+#else
+    // Fallback: no backend available
+    return new NullContext();
+#endif
+}
 
 } // namespace astraeus
 

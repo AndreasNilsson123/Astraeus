@@ -46,9 +46,7 @@ set(ASTRAEUS_ENGINE_SOURCES
         engine/renderer/RenderGraph.cpp
         engine/renderer/opengl/GLRenderDevice.cpp
 
-        engine/renderer/backend/GraphicsContext.cpp
-        engine/renderer/backend/NullContext.cpp
-
+        # Note: Backend modules are now header-only (see engine/renderer/backend/*.hpp)
         # Note: Render pass modules are now header-only (see engine/renderer/passes/*.hpp)
         # Note: Ingest modules are now header-only (see engine/ingest/*.hpp)
 
@@ -56,17 +54,8 @@ set(ASTRAEUS_ENGINE_SOURCES
         engine/geometry/Mesh.cpp
 )
 
-if(ASTRAEUS_ENABLE_WGL)
-    list(APPEND ASTRAEUS_ENGINE_SOURCES
-            engine/renderer/backend/wgl/WGLContext.cpp
-    )
-endif()
-
-if(ASTRAEUS_ENABLE_EGL)
-    list(APPEND ASTRAEUS_ENGINE_SOURCES
-            engine/renderer/backend/egl/EGLContext.cpp
-    )
-endif()
+# Note: WGL and EGL backend modules are now header-only
+# No additional source files needed for backend compilation
 
 # ==================================================
 # Engine target
