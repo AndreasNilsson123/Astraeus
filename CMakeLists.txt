@@ -56,7 +56,6 @@ set(ASTRAEUS_ENGINE_SOURCES
         engine/renderer/passes/TrailPass.cpp
 
         engine/scene/World.cpp
-        engine/scene/Camera.cpp
 
         engine/ingest/IngestManager.cpp
         engine/ingest/SnapshotStore.cpp
