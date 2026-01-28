@@ -55,8 +55,6 @@ set(ASTRAEUS_ENGINE_SOURCES
         engine/renderer/passes/PointSpritePass.cpp
         engine/renderer/passes/TrailPass.cpp
 
-        engine/scene/World.cpp
-
         engine/ingest/IngestManager.cpp
         engine/ingest/SnapshotStore.cpp
         engine/ingest/TimeSync.cpp
