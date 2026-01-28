@@ -105,8 +105,11 @@ if(WIN32)
 else()
     # Linux EGL path
     if(ASTRAEUS_ENABLE_EGL)
-        find_package(EGL REQUIRED)
-        target_link_libraries(astraeus_engine PRIVATE EGL::EGL)
+        # Use pkg-config to find EGL
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(EGL REQUIRED egl)
+        target_include_directories(astraeus_engine PRIVATE ${EGL_INCLUDE_DIRS})
+        target_link_libraries(astraeus_engine PRIVATE ${EGL_LIBRARIES})
     endif()
 endif()
 
