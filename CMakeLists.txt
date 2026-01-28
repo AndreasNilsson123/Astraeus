@@ -105,8 +105,11 @@ if(WIN32)
 else()
     # Linux EGL path
     if(ASTRAEUS_ENABLE_EGL)
-        find_package(EGL REQUIRED)
-        target_link_libraries(astraeus_engine PRIVATE EGL::EGL)
+        # Use pkg-config to find EGL
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(EGL REQUIRED egl)
+        target_include_directories(astraeus_engine PRIVATE ${EGL_INCLUDE_DIRS})
+        target_link_libraries(astraeus_engine PRIVATE ${EGL_LIBRARIES})
     endif()
 endif()
 
@@ -147,6 +150,10 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     add_executable(entity_visualization_test examples/entity_visualization_test.c)
     target_link_libraries(entity_visualization_test PRIVATE astraeus_engine)
     set_target_properties(entity_visualization_test PROPERTIES LINKER_LANGUAGE CXX)
+
+    add_executable(pointer_stability_test examples/pointer_stability_test.c)
+    target_link_libraries(pointer_stability_test PRIVATE astraeus_engine)
+    set_target_properties(pointer_stability_test PROPERTIES LINKER_LANGUAGE CXX)
 
     add_executable(ingest_demo examples/ingest_demo.cpp ${ASTRAEUS_ENGINE_SOURCES}) # Include engine sources directly due to symbol linkage errors on windows
     target_include_directories(ingest_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/engine)
