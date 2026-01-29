@@ -7,7 +7,7 @@
 #include <iostream>
 
 #define GL_GLEXT_PROTOTYPES
-#include <GL/gl.h>
+#include <glad/glad.h>
 
 namespace astraeus {
 

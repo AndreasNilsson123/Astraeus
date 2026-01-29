@@ -44,9 +44,10 @@ Successfully converted the final two engine modules to be header-only, completin
 ## Build System Updates
 
 ### CMakeLists.txt Changes
+
 ```cmake
 set(ASTRAEUS_ENGINE_SOURCES
-        engine/api/EngineAPI_stub.cpp  # Minimal stub for C API linkage
+        ../engine/api/EngineAPI_stub.cpp  # Minimal stub for C API linkage
 )
 ```
 

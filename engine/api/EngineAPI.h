@@ -282,9 +282,10 @@ ASTRAEUS_API void astraeus_apply_entity_snapshot(EngineHandle engine, uint32_t e
  * @param engine Engine handle
  * @param screen_x Screen X coordinate
  * @param screen_y Screen Y coordinate
+ * @param pick_result out buffer
  * @return Pick result
  */
-ASTRAEUS_API PickResult astraeus_pick(EngineHandle engine, uint32_t screen_x, uint32_t screen_y);
+ASTRAEUS_API void astraeus_pick(EngineHandle engine, uint32_t screen_x, uint32_t screen_y, PickResult* pick_result);
 
 // =============================================================================
 // DATA INGESTION

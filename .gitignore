@@ -39,3 +39,4 @@ target/
 
 # CodeQL
 _codeql_*/
+/cmake-build-debug-visual-studio/

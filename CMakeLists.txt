@@ -84,33 +84,42 @@ target_include_directories(astraeus_engine
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
 
+# ---- GLAD (third_party) ----
+add_library(glad STATIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad/src/glad.c)
+
+target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad/include)
+
+if (WIN32)
+    # Support both common filenames
+    set(GLAD_WGL_SRC "")
+    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad_wgl/src/glad_wgl.c)
+        set(GLAD_WGL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad_wgl/src/glad_wgl.c)
+    elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad_wgl/src/wgl.c)
+        set(GLAD_WGL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad_wgl/src/wgl.c)
+    endif()
+
+    target_sources(glad PRIVATE ${GLAD_WGL_SRC})
+    target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad_wgl/include)
+
+    # WGL ultimately depends on opengl32 on Windows
+    target_link_libraries(glad PUBLIC opengl32)
+endif()
+
+
 target_link_libraries(astraeus_engine
-        PRIVATE
+        PUBLIC
+        glad
         OpenGL::GL
         Threads::Threads
 )
 
-if(WIN32)
-    # GL loader + window system (via vcpkg)
-    find_package(glad CONFIG REQUIRED)
-    find_package(glfw3 CONFIG REQUIRED)
-
-    target_link_libraries(astraeus_engine
-            PRIVATE
-            glad::glad
-            glfw
-            gdi32
-            user32
-    )
-else()
-    # Linux EGL path
-    if(ASTRAEUS_ENABLE_EGL)
-        # Use pkg-config to find EGL
-        find_package(PkgConfig REQUIRED)
-        pkg_check_modules(EGL REQUIRED egl)
-        target_include_directories(astraeus_engine PRIVATE ${EGL_INCLUDE_DIRS})
-        target_link_libraries(astraeus_engine PRIVATE ${EGL_LIBRARIES})
-    endif()
+# Linux EGL path
+if(ASTRAEUS_ENABLE_EGL)
+    # Use pkg-config to find EGL
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(EGL REQUIRED egl)
+    target_include_directories(astraeus_engine PRIVATE ${EGL_INCLUDE_DIRS})
+    target_link_libraries(astraeus_engine PRIVATE ${EGL_LIBRARIES})
 endif()
 
 # ==================================================
@@ -157,10 +166,7 @@ if(ASTRAEUS_BUILD_EXAMPLES)
 
     add_executable(ingest_demo examples/ingest_demo.cpp ${ASTRAEUS_ENGINE_SOURCES}) # Include engine sources directly due to symbol linkage errors on windows
     target_include_directories(ingest_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/engine)
-    target_link_libraries(ingest_demo PRIVATE Threads::Threads OpenGL::GL)
-    if(WIN32)
-        target_link_libraries(ingest_demo PRIVATE glad::glad glfw gdi32 user32)
-    endif()
+    target_link_libraries(ingest_demo PRIVATE Threads::Threads OpenGL::GL glad)
 
 endif()
 

@@ -181,14 +181,15 @@ public class EngineBindings {
         ValueLayout.ADDRESS,      // param: EngineHandle
         ValueLayout.JAVA_INT      // param: entity_id
     );
-    
-    private static final FunctionDescriptor PICK_DESC = FunctionDescriptor.of(
-        PICK_RESULT_LAYOUT,       // return: PickResult (struct by value)
-        ValueLayout.ADDRESS,      // param: EngineHandle
-        ValueLayout.JAVA_INT,     // param: screen_x
-        ValueLayout.JAVA_INT      // param: screen_y
+
+    private static final FunctionDescriptor PICK_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,  // EngineHandle
+        ValueLayout.JAVA_INT, // screen_x
+        ValueLayout.JAVA_INT, // screen_y
+        ValueLayout.ADDRESS   // PickResult* out
     );
-    
+
+
     // Method handles
     public static final MethodHandle CREATE_ENGINE;
     public static final MethodHandle DESTROY_ENGINE;

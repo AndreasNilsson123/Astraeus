@@ -34,7 +34,7 @@ EngineHandle astraeus_create_engine(const EngineConfig* config) {
     if (!config) {
         return nullptr;
     }
-    
+    std::cerr << "[Astraeus] Creating engine instance..." << std::endl;
     try {
         auto engine = new AstraeusEngine();
         
@@ -46,7 +46,7 @@ EngineHandle astraeus_create_engine(const EngineConfig* config) {
         if (config->log_file_path) {
             ctx_config.log_file_path = config->log_file_path;
         }
-        
+        std::cerr << "[Astraeus] Creating engine instance... 2" << std::endl;
         engine->context = std::make_unique<astraeus::EngineContext>(ctx_config);
         engine->is_initialized = engine->context->initialize();
         
@@ -54,7 +54,7 @@ EngineHandle astraeus_create_engine(const EngineConfig* config) {
             delete engine;
             return nullptr;
         }
-        
+        std::cerr << "[Astraeus] Creating engine instance... 3" << std::endl;
         engine->viewport.width = config->initial_width;
         engine->viewport.height = config->initial_height;
         engine->viewport.aspect_ratio = static_cast<float>(config->initial_width) / 
@@ -215,15 +215,16 @@ void astraeus_apply_entity_snapshot(EngineHandle engine, uint32_t entity_id,
     engine->context->apply_entity_snapshot(entity_id, pos_x, pos_y, pos_z);
 }
 
-PickResult astraeus_pick(EngineHandle engine, uint32_t screen_x, uint32_t screen_y) {
-    PickResult result = {0, 0.0f, 0.0f, 0.0f, 0.0f, false};
+void astraeus_pick(EngineHandle engine, uint32_t screen_x, uint32_t screen_y, PickResult* pick_result) {
+    if (!pick_result)
+        return;
+    *pick_result = {0, 0.0f, 0.0f, 0.0f, 0.0f, false};
     
     if (!is_valid_engine(engine)) {
-        return result;
+        return;
     }
     
-    engine->context->pick(screen_x, screen_y, result);
-    return result;
+    engine->context->pick(screen_x, screen_y, *pick_result);
 }
 
 bool astraeus_ingest_data(EngineHandle engine, const void* data, uint32_t size, uint32_t format) {

@@ -63,30 +63,33 @@ public class FxViewport extends Pane {
         
         // Configure readback buffers with fixed size
         engine.configureReadback(maxWidth, maxHeight, false);
-        
-        // Get the color buffer view (stable pointer)
-        colorBuffer = engine.getColorBuffer();
-        
-        // Create PixelBuffer with STABLE backing memory
-        // IMPORTANT: This ByteBuffer wraps the native memory and must never be resized
-        MemorySegment data = colorBuffer.getData();
-        ByteBuffer backingBuffer = data.asByteBuffer();
-        
-        // PixelFormat for BGRA8 (common for JavaFX)
+
+        // Fetch view (this also refreshes bb.position/limit for current viewport)
+        NativeEngine.PixelBufferView colorView = engine.getColorBuffer();
+
+        // IMPORTANT: use the cached, engine-lifetime ByteBuffer (NOT a per-call MemorySegment)
+        ByteBuffer backingBuffer = colorView.getByteBuffer();
+        if (backingBuffer == null) {
+            throw new IllegalStateException("Color ByteBuffer not attached (engine.getColorBuffer() must attach it)");
+        }
+
+        // JavaFX PixelFormat (BGRA_PRE). Ensure native output matches this.
         PixelFormat<ByteBuffer> format = PixelFormat.getByteBgraPreInstance();
-        
-        // Create PixelBuffer with FULL backing size
-        // Only the viewport region (width/height) will change, not the buffer
-        pixelBuffer = new PixelBuffer<>(maxWidth, maxHeight, backingBuffer, format);
-        
-        // Create WritableImage from PixelBuffer
+
+        // PixelBuffer dimensions MUST match the backing buffer dimensions you configured.
+        // Use max backing dimensions, not current viewport dimensions.
+        int backingW = colorView.getMaxBackingWidth();
+        int backingH = colorView.getMaxBackingHeight();
+
+        // Create PixelBuffer ONCE. Do not recreate per frame.
+        pixelBuffer = new PixelBuffer<>(backingW, backingH, backingBuffer, format);
         writableImage = new WritableImage(pixelBuffer);
-        
-        // Create ImageView to display the image
+
         imageView = new ImageView(writableImage);
         imageView.setPreserveRatio(false);
-        imageView.setSmooth(false);  // No interpolation for pixel-perfect rendering
-        
+        imageView.setSmooth(false);
+
+
         // Set initial viewport
         imageView.setViewport(new javafx.geometry.Rectangle2D(0, 0, initialWidth, initialHeight));
         

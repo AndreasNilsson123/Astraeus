@@ -7,10 +7,10 @@
 
 // Windows headers - only included in this backend implementation
 #ifdef _WIN32
+
 #include <windows.h>
-#include <GL/gl.h>
-#include <GL/wglext.h>
-#include <glad/glad.h>
+#include <glad/glad_wgl.h>
+
 #endif
 
 namespace astraeus {
@@ -36,6 +36,10 @@ public:
 
     inline ~WGLContext() override {
         shutdown();
+    }
+
+    static void* glad_loader(const char* name) {
+        return g_current_context ? g_current_context->get_proc_address(name) : nullptr;
     }
 
     inline bool initialize(uint32_t width, uint32_t height) override {
@@ -126,8 +130,16 @@ public:
             return false;
         }
 
+#if defined(_WIN32)
+        // Must load GL function pointers on Windows (opengl32.dll is 1.1)
+        if (!gladLoadGLLoader(glad_loader)) {
+            std::cerr << "[WGLContect] Failed to initialize GLAD" << std::endl;
+            return false;
+        }
+#endif
+
         // Try to create a modern OpenGL 3.3 context using wglCreateContextAttribsARB
-        PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = 
+        const auto wglCreateContextAttribsARB =
             reinterpret_cast<PFNWGLCREATECONTEXTATTRIBSARBPROC>(
                 wglGetProcAddress("wglCreateContextAttribsARB")
             );

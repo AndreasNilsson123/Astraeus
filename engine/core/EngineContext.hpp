@@ -7,7 +7,7 @@
 #include <iostream>
 
 // Include C API types
-#include "../api/EngineAPI.h"
+#include "api/EngineAPI.h"
 
 // Include implementation headers for inline methods
 #include "renderer/RenderDevice.hpp"

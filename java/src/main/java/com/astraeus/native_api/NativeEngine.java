@@ -2,6 +2,7 @@ package com.astraeus.native_api;
 
 import java.lang.foreign.*;
 import java.lang.invoke.VarHandle;
+import java.nio.ByteBuffer;
 
 /**
  * High-level Java wrapper around the native Astraeus engine.
@@ -162,59 +163,110 @@ public class NativeEngine implements AutoCloseable {
      * The returned PixelBufferView has a stable data pointer that never changes.
      * Only the viewport dimensions (width/height) change on resize.
      */
+    // Cached backing for Prism upload (recreated only when addr/size changes)
+    private MemorySegment colorDataSeg;
+    private ByteBuffer colorByteBuffer;
+    private long colorAddr = 0;
+    private int colorBackingSize = 0;
+
     public PixelBufferView getColorBuffer() {
         checkClosed();
+
+        // Out struct is short-lived; that's fine (just metadata)
+        MemorySegment viewStruct = arena.allocate(EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT);
+
         try {
-            // Allocate memory for out-parameter
-            MemorySegment viewStruct = arena.allocate(EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT);
-            
-            // Call native function with out-parameter
             EngineBindings.GET_COLOR_BUFFER.invoke(engineHandle, viewStruct);
-            
-            // Validate the result before creating PixelBufferView
-            VarHandle dataHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("data"));
-            MemorySegment dataPtr = (MemorySegment) dataHandle.get(viewStruct, 0L);
-            
-            if (dataPtr == null || dataPtr.equals(MemorySegment.NULL)) {
-                throw new RuntimeException("Failed to get color buffer: invalid data pointer");
-            }
-            
-            return new PixelBufferView(viewStruct);
-        } catch (Throwable e) {
-            throw new RuntimeException("Failed to get color buffer", e);
+        } catch (Throwable t) {
+            throw new RuntimeException("GET_COLOR_BUFFER failed", t);
         }
+
+        PixelBufferView view = new PixelBufferView(viewStruct);
+
+        long addr = view.dataAddress();
+        int backingSize = view.getMaxBackingSize();
+        int needed = Math.multiplyExact(view.getStride(), view.getHeight());
+
+        if (addr == 0 || backingSize <= 0) {
+            throw new IllegalStateException("Invalid color view: addr=" + addr + " backingSize=" + backingSize);
+        }
+        if (needed < 0 || needed > backingSize) {
+            throw new IllegalStateException("Color view size mismatch: needed=" + needed + " backingSize=" + backingSize +
+                    " stride=" + view.getStride() + " height=" + view.getHeight());
+        }
+
+        // Rebuild only if address/size changed
+        if (colorByteBuffer == null || colorAddr != addr || colorBackingSize != backingSize) {
+            colorAddr = addr;
+            colorBackingSize = backingSize;
+
+            // IMPORTANT: attach to engine lifetime arena/session (this.arena)
+            colorDataSeg = MemorySegment.ofAddress(addr).reinterpret(backingSize, arena, null);
+            colorByteBuffer = colorDataSeg.asByteBuffer();
+        }
+
+        // CRITICAL: Prism reads from current position/limit
+        colorByteBuffer.position(0);
+        colorByteBuffer.limit(needed);
+
+        // Attach the ByteBuffer so your view/renderer can use it directly
+        view.attachByteBuffer(colorByteBuffer);
+        return view;
     }
-    
+
+
+
     /**
      * Get the ID buffer view for picking.
      * The returned PixelBufferView has a stable data pointer that never changes.
      * Only the viewport dimensions (width/height) change on resize.
      */
+    private MemorySegment idDataSeg;
+    private ByteBuffer idByteBuffer;
+    private long idAddr = 0;
+    private int idBackingSize = 0;
+
     public PixelBufferView getIdBuffer() {
         checkClosed();
+
+        MemorySegment viewStruct = arena.allocate(EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT);
+
         try {
-            // Allocate memory for out-parameter
-            MemorySegment viewStruct = arena.allocate(EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT);
-            
-            // Call native function with out-parameter
             EngineBindings.GET_ID_BUFFER.invoke(engineHandle, viewStruct);
-            
-            // Validate the result before creating PixelBufferView
-            VarHandle dataHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("data"));
-            MemorySegment dataPtr = (MemorySegment) dataHandle.get(viewStruct, 0L);
-            
-            if (dataPtr == null || dataPtr.equals(MemorySegment.NULL)) {
-                throw new RuntimeException("Failed to get ID buffer: invalid data pointer");
-            }
-            
-            return new PixelBufferView(viewStruct);
-        } catch (Throwable e) {
-            throw new RuntimeException("Failed to get ID buffer", e);
+        } catch (Throwable t) {
+            throw new RuntimeException("GET_ID_BUFFER failed", t);
         }
+
+        PixelBufferView view = new PixelBufferView(viewStruct);
+
+        long addr = view.dataAddress();
+        int backingSize = view.getMaxBackingSize();
+        int needed = Math.multiplyExact(view.getStride(), view.getHeight());
+
+        if (addr == 0 || backingSize <= 0) {
+            throw new IllegalStateException("Invalid id view: addr=" + addr + " backingSize=" + backingSize);
+        }
+        if (needed < 0 || needed > backingSize) {
+            throw new IllegalStateException("ID view size mismatch: needed=" + needed + " backingSize=" + backingSize +
+                    " stride=" + view.getStride() + " height=" + view.getHeight());
+        }
+
+        if (idByteBuffer == null || idAddr != addr || idBackingSize != backingSize) {
+            idAddr = addr;
+            idBackingSize = backingSize;
+
+            idDataSeg = MemorySegment.ofAddress(addr).reinterpret(backingSize, arena, null);
+            idByteBuffer = idDataSeg.asByteBuffer();
+        }
+
+        idByteBuffer.position(0);
+        idByteBuffer.limit(needed);
+
+        view.attachByteBuffer(idByteBuffer);
+        return view;
     }
-    
+
+
     /**
      * Perform picking at screen coordinates.
      * Returns information about the entity at the specified screen position.
@@ -225,21 +277,23 @@ public class NativeEngine implements AutoCloseable {
      */
     public PickingView pick(int screenX, int screenY) {
         checkClosed();
-        try {
-            MemorySegment resultStruct = (MemorySegment) EngineBindings.PICK.invoke(
-                engineHandle, screenX, screenY);
-            return new PickingView(resultStruct);
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment out = arena.allocate(EngineBindings.PICK_RESULT_LAYOUT);
+            EngineBindings.PICK.invoke(engineHandle, screenX, screenY, out);
+
+            return new PickingView(out);
         } catch (Throwable e) {
             throw new RuntimeException("Failed to perform picking", e);
         }
     }
-    
+
+
     /**
      * Wrapper for PixelBufferView struct.
      * Provides safe access to backing buffer without memory hazards.
      */
     public static class PixelBufferView {
-        private final MemorySegment data;
+        private final long dataAddress;
         private final int width;
         private final int height;
         private final int stride;
@@ -247,26 +301,31 @@ public class NativeEngine implements AutoCloseable {
         private final int maxBackingWidth;
         private final int maxBackingHeight;
         private final int maxBackingSize;
-        
+
+        // Optional: store ByteBuffer for convenience (set by NativeEngine)
+        private ByteBuffer byteBuffer;
+
         public PixelBufferView(MemorySegment structSegment) {
             VarHandle dataHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("data"));
+                    MemoryLayout.PathElement.groupElement("data"));
             VarHandle widthHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("width"));
+                    MemoryLayout.PathElement.groupElement("width"));
             VarHandle heightHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("height"));
+                    MemoryLayout.PathElement.groupElement("height"));
             VarHandle strideHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("stride"));
+                    MemoryLayout.PathElement.groupElement("stride"));
             VarHandle formatHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("format"));
+                    MemoryLayout.PathElement.groupElement("format"));
             VarHandle maxWidthHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("max_backing_width"));
+                    MemoryLayout.PathElement.groupElement("max_backing_width"));
             VarHandle maxHeightHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("max_backing_height"));
+                    MemoryLayout.PathElement.groupElement("max_backing_height"));
             VarHandle maxSizeHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("max_backing_size"));
-            
+                    MemoryLayout.PathElement.groupElement("max_backing_size"));
+
             MemorySegment dataPtr = (MemorySegment) dataHandle.get(structSegment, 0L);
+            this.dataAddress = (dataPtr == null || dataPtr.equals(MemorySegment.NULL)) ? 0L : dataPtr.address();
+
             this.width = (int) widthHandle.get(structSegment, 0L);
             this.height = (int) heightHandle.get(structSegment, 0L);
             this.stride = (int) strideHandle.get(structSegment, 0L);
@@ -274,12 +333,10 @@ public class NativeEngine implements AutoCloseable {
             this.maxBackingWidth = (int) maxWidthHandle.get(structSegment, 0L);
             this.maxBackingHeight = (int) maxHeightHandle.get(structSegment, 0L);
             this.maxBackingSize = (int) maxSizeHandle.get(structSegment, 0L);
-            
-            // Reinterpret data pointer to access full backing buffer
-            this.data = dataPtr.reinterpret(maxBackingSize);
         }
-        
-        public MemorySegment getData() { return data; }
+
+        public long dataAddress() { return dataAddress; }
+
         public int getWidth() { return width; }
         public int getHeight() { return height; }
         public int getStride() { return stride; }
@@ -287,8 +344,15 @@ public class NativeEngine implements AutoCloseable {
         public int getMaxBackingWidth() { return maxBackingWidth; }
         public int getMaxBackingHeight() { return maxBackingHeight; }
         public int getMaxBackingSize() { return maxBackingSize; }
+
+        public ByteBuffer getByteBuffer() { return byteBuffer; }
+
+        void attachByteBuffer(ByteBuffer bb) { // package-private
+            this.byteBuffer = bb;
+        }
     }
-    
+
+
     /**
      * Create a new entity.
      * @return Entity ID

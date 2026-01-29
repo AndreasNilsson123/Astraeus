@@ -1,8 +1,8 @@
 #ifndef ASTRAEUS_GL_RENDER_DEVICE_HPP
 #define ASTRAEUS_GL_RENDER_DEVICE_HPP
 
-#include "../RenderDevice.hpp"
-#include "../backend/GraphicsContext.hpp"
+#include "renderer/RenderDevice.hpp"
+#include "renderer/backend/GraphicsContext.hpp"
 #include <cstdint>
 #include <vector>
 #include <string>
@@ -11,9 +11,10 @@
 #include <iostream>
 #include <cstring>
 
+
 // OpenGL headers
 #define GL_GLEXT_PROTOTYPES
-#include <GL/gl.h>
+#include <glad/glad.h>
 
 namespace astraeus {
 
@@ -111,6 +112,15 @@ private:
     uint32_t id_pbo_;
     void* color_mapped_ptr_;
     void* id_mapped_ptr_;
+
+    bool supports_persistent_map_ = false;
+    uint32_t color_pbo_bytes_ = 0;
+    uint32_t id_pbo_bytes_ = 0;
+
+    std::vector<std::uint8_t> color_cpu_;
+    std::vector<std::uint8_t> id_cpu_;
+
+
     
     // Fence sync objects for GPU/CPU synchronization
     void* color_fence_;
@@ -178,34 +188,24 @@ inline bool GLRenderDevice::initialize() {
 
     std::cout << "[GLRenderDevice] Initializing OpenGL backend " << width_ << "x" << height_ << std::endl;
 
-    // Create platform-specific graphics context
     create_offscreen_context();
     if (!graphics_context_) {
         std::cerr << "[GLRenderDevice] Failed to create graphics context" << std::endl;
         return false;
     }
 
-    // With GL_GLEXT_PROTOTYPES, function pointers are resolved at link time
-    // No need for runtime loading (glad/glew)
-
-    // Check OpenGL version
     const char* version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
     const char* renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
-    std::cout << "[GLRenderDevice] OpenGL version: " << version << std::endl;
-    std::cout << "[GLRenderDevice] Renderer: " << renderer << std::endl;
+    std::cout << "[GLRenderDevice] OpenGL version: " << (version ? version : "<null>") << std::endl;
+    std::cout << "[GLRenderDevice] Renderer: " << (renderer ? renderer : "<null>") << std::endl;
 
-    // Setup debug output if available
     if (config_.enable_debug) {
         setup_debug_output();
     }
 
-    // Create framebuffers for offscreen rendering
     create_framebuffers();
-    
-    // Create persistent readback buffers (separate from framebuffers for stability)
     create_readback_buffers();
 
-    // Initialize stats
     stats_.draw_calls = 0;
     stats_.triangle_count = 0;
     stats_.render_time_ms = 0.0;
@@ -230,30 +230,47 @@ inline void GLRenderDevice::shutdown() {
 }
 
 inline void GLRenderDevice::begin_frame() {
+    // If fallback mapping, unmap previous mapping so the PBO can be written again
+    // if (!supports_persistent_map_) {
+    //     if (color_mapped_ptr_) {
+    //         glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);
+    //         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+    //         color_mapped_ptr_ = nullptr;
+    //     }
+    //     if (id_mapped_ptr_) {
+    //         glBindBuffer(GL_PIXEL_PACK_BUFFER, id_pbo_);
+    //         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+    //         id_mapped_ptr_ = nullptr;
+    //     }
+    //     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    // }
+
     frame_start_time_ = std::chrono::high_resolution_clock::now();
-    
     stats_.draw_calls = 0;
     stats_.triangle_count = 0;
 
-    // Bind main framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, main_fbo_);
     glViewport(0, 0, width_, height_);
 }
 
+
 inline void GLRenderDevice::end_frame() {
-    // Wait for previous frame's readback to complete (if fence exists)
+    // Wait for previous frame's fence (if any)
     if (color_fence_) {
-        // Wait for GPU to finish previous readback (timeout 1 second)
-        GLenum result = glClientWaitSync(static_cast<GLsync>(color_fence_), GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000);
+        GLenum result = glClientWaitSync(static_cast<GLsync>(color_fence_),
+                                         GL_SYNC_FLUSH_COMMANDS_BIT,
+                                         1000000000);
         if (result == GL_TIMEOUT_EXPIRED || result == GL_WAIT_FAILED) {
             std::cerr << "[GLRenderDevice] Color fence wait failed or timed out" << std::endl;
         }
         glDeleteSync(static_cast<GLsync>(color_fence_));
         color_fence_ = nullptr;
     }
-    
+
     if (id_fence_) {
-        GLenum result = glClientWaitSync(static_cast<GLsync>(id_fence_), GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000);
+        GLenum result = glClientWaitSync(static_cast<GLsync>(id_fence_),
+                                         GL_SYNC_FLUSH_COMMANDS_BIT,
+                                         1000000000);
         if (result == GL_TIMEOUT_EXPIRED || result == GL_WAIT_FAILED) {
             std::cerr << "[GLRenderDevice] ID fence wait failed or timed out" << std::endl;
         }
@@ -261,32 +278,38 @@ inline void GLRenderDevice::end_frame() {
         id_fence_ = nullptr;
     }
 
-    // Readback to PBOs for zero-copy access from Java
-    // With persistent mapping, we read directly to mapped memory
-    
-    // Bind color texture readback
+    // Readback: texture -> PBO
     glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);
     glBindTexture(GL_TEXTURE_2D, color_texture_);
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
-    // Bind ID texture readback
     glBindBuffer(GL_PIXEL_PACK_BUFFER, id_pbo_);
     glBindTexture(GL_TEXTURE_2D, id_texture_);
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
 
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    // If no persistent map, copy PBO -> CPU-backed stable buffer
+    if (!supports_persistent_map_) {
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);
+        glGetBufferSubData(GL_PIXEL_PACK_BUFFER, 0, color_pbo_bytes_, color_cpu_.data());
+
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, id_pbo_);
+        glGetBufferSubData(GL_PIXEL_PACK_BUFFER, 0, id_pbo_bytes_, id_cpu_.data());
+    }
+
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
-    // Insert fence sync to track when GPU readback completes
-    // Java can safely read mapped memory after this fence signals
+    // Fence indicates GPU commands for readback have been queued/completed
     color_fence_ = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-    id_fence_ = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    id_fence_    = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 
-    // Calculate frame time
+    // Frame time
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end_time - frame_start_time_;
     stats_.render_time_ms = elapsed.count();
 }
+
 
 inline void GLRenderDevice::resize(uint32_t width, uint32_t height) {
     if (width == width_ && height == height_) {
@@ -355,13 +378,37 @@ inline void GLRenderDevice::resize(uint32_t width, uint32_t height) {
  * 
  * @param out_view Output pixel buffer view with stable pointer
  */
-inline void GLRenderDevice::get_color_buffer_view(PixelBufferView& out_view) const {
-    out_view.data = color_mapped_ptr_;
-    out_view.width = width_;
+    inline void GLRenderDevice::get_color_buffer_view(PixelBufferView& out_view) const {
+    out_view.data   = color_mapped_ptr_;
+    out_view.width  = width_;
     out_view.height = height_;
-    out_view.stride = width_ * 4; // RGBA8
-    out_view.format = 0; // RGBA8
+    out_view.stride = width_ * 4;                 // RGBA8 => 4 bytes per pixel
+    out_view.format = PIXEL_FORMAT_RGBA8;         // use enum, not 0
+
+    // Backing capacity (stable allocation size)
+    // NOTE: these should reflect the allocation that backs `data`, not necessarily current viewport.
+    // If you allocate exactly width_*height_*4 each time, then max==current.
+    // If you allocate a larger "max backing" buffer, set these to that max capacity.
+    const uint32_t bytes_per_pixel = 4;
+    const uint32_t backing_bytes = color_pbo_bytes_; // or the CPU buffer size
+
+    // If you *don’t* track max_backing_width/height separately, you can treat current as max.
+    // Better: store max_backing_width_/height_ in the base RenderDevice if you have it.
+    out_view.max_backing_width  = width_;
+    out_view.max_backing_height = height_;
+    out_view.max_backing_size   = backing_bytes * bytes_per_pixel;
+
+    // Optional defensive clamp: ensure max_backing_size is at least current frame footprint
+    // (useful if something got out of sync)
+    const uint64_t needed = (uint64_t)out_view.stride * (uint64_t)out_view.height;
+    if (out_view.max_backing_size < needed) {
+        // keep it consistent rather than lying
+        out_view.max_backing_size = (uint32_t)needed;
+        out_view.max_backing_width = out_view.width;
+        out_view.max_backing_height = out_view.height;
+    }
 }
+
 
 /**
  * Get a view of the ID buffer for picking (zero-copy).
@@ -374,12 +421,26 @@ inline void GLRenderDevice::get_color_buffer_view(PixelBufferView& out_view) con
  * @param out_view Output pixel buffer view with stable pointer
  */
 inline void GLRenderDevice::get_id_buffer_view(PixelBufferView& out_view) const {
-    out_view.data = id_mapped_ptr_;
-    out_view.width = width_;
+    out_view.data   = id_mapped_ptr_;
+    out_view.width  = width_;
     out_view.height = height_;
-    out_view.stride = width_ * 4; // R32UI
-    out_view.format = 2; // R32UI
+    out_view.stride = width_ * 4;                 // R32UI => 4 bytes per pixel
+    out_view.format = PIXEL_FORMAT_R32UI;         // use enum value
+
+    const uint32_t backing_bytes = id_pbo_bytes_;
+
+    out_view.max_backing_width  = width_;
+    out_view.max_backing_height = height_;
+    out_view.max_backing_size   = backing_bytes;
+
+    const uint64_t needed = (uint64_t)out_view.stride * (uint64_t)out_view.height;
+    if (out_view.max_backing_size < needed) {
+        out_view.max_backing_size = (uint32_t)needed;
+        out_view.max_backing_width = out_view.width;
+        out_view.max_backing_height = out_view.height;
+    }
 }
+
 
 inline void GLRenderDevice::pick(uint32_t screen_x, uint32_t screen_y, PickResult& out_result) const {
     if (!id_mapped_ptr_ || screen_x >= width_ || screen_y >= height_) {
@@ -658,53 +719,99 @@ inline void GLRenderDevice::create_framebuffers() {
 }
 
 inline void GLRenderDevice::create_readback_buffers() {
-    std::cout << "[GLRenderDevice] Creating persistent readback buffers " << width_ << "x" << height_ << std::endl;
+    std::cout << "[GLRenderDevice] Creating readback buffers " << width_ << "x" << height_ << std::endl;
 
-    // Create PBOs for readback with PERSISTENT MAPPING
-    // This ensures the pointer remains stable and always valid
-    uint32_t color_buffer_size = width_ * height_ * 4; // RGBA8
-    uint32_t id_buffer_size = width_ * height_ * 4; // R32UI
+    color_pbo_bytes_ = width_ * height_ * 4; // RGBA8
+    id_pbo_bytes_    = width_ * height_ * 4; // R32UI
 
-    // Color PBO with persistent mapping
+    // Detect persistent mapping support (GL 4.4+ or ARB_buffer_storage) and function pointer presence.
+    supports_persistent_map_ = false;
+
+    GLint major = 0, minor = 0;
+    glGetIntegerv(GL_MAJOR_VERSION, &major);
+    glGetIntegerv(GL_MINOR_VERSION, &minor);
+
+    const bool gl44plus = (major > 4) || (major == 4 && minor >= 4);
+
+    bool has_arb_buffer_storage = false;
+    GLint num_ext = 0;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &num_ext);
+    for (GLint i = 0; i < num_ext; ++i) {
+        const char* ext = reinterpret_cast<const char*>(glGetStringi(GL_EXTENSIONS, i));
+        if (ext && std::strcmp(ext, "GL_ARB_buffer_storage") == 0) {
+            has_arb_buffer_storage = true;
+            break;
+        }
+    }
+
+    if ((gl44plus || has_arb_buffer_storage) && glBufferStorage) {
+        supports_persistent_map_ = true;
+    }
+
+    std::cout << "[GLRenderDevice] Persistent map: "
+              << (supports_persistent_map_ ? "ENABLED" : "DISABLED")
+              << " (GL " << major << "." << minor
+              << ", ARB_buffer_storage=" << (has_arb_buffer_storage ? "YES" : "NO")
+              << ", glBufferStorage=" << (glBufferStorage ? "OK" : "NULL")
+              << ")\n";
+
+    // ---------------------------------------------------------------------
+    // Color PBO
+    // ---------------------------------------------------------------------
     glGenBuffers(1, &color_pbo_);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);
-    
-    // Use glBufferStorage for persistent, coherent mapping (GL 4.4+)
-    GLbitfield storage_flags = GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-    glBufferStorage(GL_PIXEL_PACK_BUFFER, color_buffer_size, nullptr, storage_flags);
-    
-    // Map persistently - this pointer remains valid until buffer is destroyed
-    GLbitfield map_flags = GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-    color_mapped_ptr_ = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, color_buffer_size, map_flags);
-    
-    if (!color_mapped_ptr_) {
-        std::cerr << "[GLRenderDevice] Failed to map color PBO persistently" << std::endl;
+
+    if (supports_persistent_map_) {
+        const GLbitfield storage_flags = GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+        glBufferStorage(GL_PIXEL_PACK_BUFFER, color_pbo_bytes_, nullptr, storage_flags);
+
+        const GLbitfield map_flags = GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+        color_mapped_ptr_ = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, color_pbo_bytes_, map_flags);
+
+        if (!color_mapped_ptr_) {
+            std::cerr << "[GLRenderDevice] Failed to persistently map color PBO" << std::endl;
+        }
     } else {
-        std::cout << "[GLRenderDevice] Color PBO mapped persistently at " << color_mapped_ptr_ << std::endl;
+        // GL 3.3 fallback: PBO exists but exported pointer is CPU-backed and stable.
+        glBufferData(GL_PIXEL_PACK_BUFFER, color_pbo_bytes_, nullptr, GL_STREAM_READ);
+
+        color_cpu_.assign(color_pbo_bytes_, 0);
+        color_mapped_ptr_ = color_cpu_.data(); // stable, non-null after init
     }
-    
+
     set_object_label(GL_BUFFER, color_pbo_, "ColorPBO");
 
-    // ID PBO with persistent mapping
+    // ---------------------------------------------------------------------
+    // ID PBO
+    // ---------------------------------------------------------------------
     glGenBuffers(1, &id_pbo_);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, id_pbo_);
-    
-    glBufferStorage(GL_PIXEL_PACK_BUFFER, id_buffer_size, nullptr, storage_flags);
-    
-    id_mapped_ptr_ = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, id_buffer_size, map_flags);
-    
-    if (!id_mapped_ptr_) {
-        std::cerr << "[GLRenderDevice] Failed to map ID PBO persistently" << std::endl;
+
+    if (supports_persistent_map_) {
+        const GLbitfield storage_flags = GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+        glBufferStorage(GL_PIXEL_PACK_BUFFER, id_pbo_bytes_, nullptr, storage_flags);
+
+        const GLbitfield map_flags = GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+        id_mapped_ptr_ = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, id_pbo_bytes_, map_flags);
+
+        if (!id_mapped_ptr_) {
+            std::cerr << "[GLRenderDevice] Failed to persistently map ID PBO" << std::endl;
+        }
     } else {
-        std::cout << "[GLRenderDevice] ID PBO mapped persistently at " << id_mapped_ptr_ << std::endl;
+        glBufferData(GL_PIXEL_PACK_BUFFER, id_pbo_bytes_, nullptr, GL_STREAM_READ);
+
+        id_cpu_.assign(id_pbo_bytes_, 0);
+        id_mapped_ptr_ = id_cpu_.data(); // stable, non-null after init
     }
-    
+
     set_object_label(GL_BUFFER, id_pbo_, "IDPBO");
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
-    std::cout << "[GLRenderDevice] Readback buffers created successfully with persistent PBO mapping" << std::endl;
+    std::cout << "[GLRenderDevice] Readback buffers created successfully" << std::endl;
 }
+
+
 
 inline void GLRenderDevice::destroy_framebuffers() {
     // Only destroy textures and FBO, not PBOs
@@ -729,41 +836,51 @@ inline void GLRenderDevice::destroy_framebuffers() {
     }
 }
 
-inline void GLRenderDevice::destroy_readback_buffers() {
-    // Clean up fence objects
+    inline void GLRenderDevice::destroy_readback_buffers() {
     if (color_fence_) {
         glDeleteSync(static_cast<GLsync>(color_fence_));
         color_fence_ = nullptr;
     }
-    
     if (id_fence_) {
         glDeleteSync(static_cast<GLsync>(id_fence_));
         id_fence_ = nullptr;
     }
 
-    // Unmap persistent PBOs before deletion
-    if (color_pbo_ != 0) {
-        glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);
-        if (color_mapped_ptr_) {
+    // If persistently mapped, unmap before delete
+    if (supports_persistent_map_) {
+        if (color_pbo_ != 0 && color_mapped_ptr_) {
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);
             glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
             color_mapped_ptr_ = nullptr;
         }
-        glDeleteBuffers(1, &color_pbo_);
-        color_pbo_ = 0;
-    }
-
-    if (id_pbo_ != 0) {
-        glBindBuffer(GL_PIXEL_PACK_BUFFER, id_pbo_);
-        if (id_mapped_ptr_) {
+        if (id_pbo_ != 0 && id_mapped_ptr_) {
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, id_pbo_);
             glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
             id_mapped_ptr_ = nullptr;
         }
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    } else {
+        // CPU-backed fallback pointers
+        color_mapped_ptr_ = nullptr;
+        id_mapped_ptr_ = nullptr;
+        color_cpu_.clear();
+        id_cpu_.clear();
+    }
+
+    if (color_pbo_ != 0) {
+        glDeleteBuffers(1, &color_pbo_);
+        color_pbo_ = 0;
+    }
+    if (id_pbo_ != 0) {
         glDeleteBuffers(1, &id_pbo_);
         id_pbo_ = 0;
     }
 
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    supports_persistent_map_ = false;
+    color_pbo_bytes_ = 0;
+    id_pbo_bytes_ = 0;
 }
+
 
 inline void GLRenderDevice::setup_debug_output() {
     // Check for KHR_debug extension
