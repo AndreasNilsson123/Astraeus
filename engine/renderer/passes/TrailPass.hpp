@@ -26,6 +26,7 @@ public:
     inline bool initialize(RenderDevice* device) override;
     inline void execute(RenderDevice* device, World* world) override;
     inline void on_resize(uint32_t width, uint32_t height) override;
+    inline const char* get_name() const override { return "Trail"; }
 
     // Configuration
     void set_trail_width(float width) { trail_width_ = width; }

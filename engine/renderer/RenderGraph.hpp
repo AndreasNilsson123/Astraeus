@@ -11,6 +11,7 @@ namespace astraeus {
 class RenderDevice;
 class World;
 class RenderPass;
+class Telemetry;
 
 /**
  * Render graph manages the execution of multiple render passes.
@@ -18,7 +19,7 @@ class RenderPass;
  */
 class RenderGraph {
 public:
-    RenderGraph(RenderDevice* device, World* world);
+    RenderGraph(RenderDevice* device, World* world, Telemetry* telemetry);
     ~RenderGraph();
 
     bool initialize();
@@ -42,6 +43,7 @@ public:
 private:
     RenderDevice* device_;
     World* world_;
+    Telemetry* telemetry_;
     std::vector<std::unique_ptr<RenderPass>> passes_;
     bool is_initialized_;
 };
@@ -56,6 +58,9 @@ public:
     virtual bool initialize(RenderDevice* device) = 0;
     virtual void execute(RenderDevice* device, World* world) = 0;
     virtual void on_resize(uint32_t width, uint32_t height) = 0;
+    
+    // Get a human-readable name for this pass (for telemetry)
+    virtual const char* get_name() const = 0;
 
 protected:
     RenderPass() = default;
@@ -65,9 +70,10 @@ protected:
 // Inline implementations
 // ============================================================================
 
-inline RenderGraph::RenderGraph(RenderDevice* device, World* world)
+inline RenderGraph::RenderGraph(RenderDevice* device, World* world, Telemetry* telemetry)
     : device_(device)
     , world_(world)
+    , telemetry_(telemetry)
     , is_initialized_(false)
 {
 }
@@ -101,9 +107,17 @@ inline void RenderGraph::shutdown() {
 }
 
 inline void RenderGraph::execute() {
-    // Execute all passes in order
+    // Execute all passes in order with per-pass timing
     for (auto& pass : passes_) {
-        pass->execute(device_, world_);
+        if (telemetry_ && telemetry_->is_enabled()) {
+            // Manual timing (PassTimer can't be used here due to header dependencies)
+            uint32_t pass_index = telemetry_->begin_pass(pass->get_name());
+            pass->execute(device_, world_);
+            telemetry_->end_pass(pass_index);
+        } else {
+            // No telemetry overhead when disabled
+            pass->execute(device_, world_);
+        }
     }
 }
 
