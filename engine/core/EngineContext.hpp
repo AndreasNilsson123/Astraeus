@@ -10,6 +10,7 @@
 #include "api/EngineAPI.h"
 
 // Include implementation headers for inline methods
+#include "core/Telemetry.hpp"
 #include "renderer/RenderDevice.hpp"
 #include "renderer/opengl/GLRenderDevice.hpp"
 #include "renderer/RenderGraph.hpp"
@@ -27,6 +28,7 @@ namespace astraeus {
     class World;
     class IngestManager;
     class AssetManager;
+    class Telemetry;
 }
 
 namespace astraeus {
@@ -168,10 +170,44 @@ public:
      */
     void apply_entity_snapshot(uint32_t entity_id, float pos_x, float pos_y, float pos_z);
 
+    /**
+     * Enable or disable telemetry collection.
+     */
+    void set_telemetry_enabled(bool enabled);
+
+    /**
+     * Check if telemetry is enabled.
+     */
+    bool is_telemetry_enabled() const;
+
+    /**
+     * Get telemetry statistics for the current frame.
+     */
+    const Telemetry::FrameStats& get_telemetry_stats() const;
+
+    /**
+     * Get telemetry history.
+     * @param out_buffer Output buffer for frame stats
+     * @param max_frames Maximum number of frames to retrieve
+     * @return Number of frames actually written
+     */
+    uint32_t get_telemetry_history(Telemetry::FrameStats* out_buffer, uint32_t max_frames) const;
+
+    /**
+     * Get the number of render passes in the current frame.
+     */
+    uint32_t get_telemetry_pass_count() const;
+
+    /**
+     * Get timing information for a specific pass.
+     */
+    const Telemetry::PassTiming* get_telemetry_pass_timing(uint32_t pass_index) const;
+
     // Accessors for subsystems (internal use)
     RenderDevice* get_render_device() const { return render_device_.get(); }
     RenderGraph* get_render_graph() const { return render_graph_.get(); }
     World* get_world() const { return world_.get(); }
+    Telemetry* get_telemetry() const { return telemetry_.get(); }
     AssetManager* get_asset_manager() const { return asset_manager_.get(); }
 
 private:
@@ -179,6 +215,7 @@ private:
     bool is_initialized_;
     
     // Major subsystems
+    std::unique_ptr<Telemetry> telemetry_;
     std::unique_ptr<RenderDevice> render_device_;
     std::unique_ptr<RenderGraph> render_graph_;
     std::unique_ptr<World> world_;
@@ -216,6 +253,9 @@ inline bool EngineContext::initialize() {
     std::cout << "[Astraeus] Initializing engine..." << std::endl;
 
     try {
+        // Initialize telemetry system (enabled by default in constructor)
+        telemetry_ = std::make_unique<Telemetry>();
+        
         // Initialize render device (use GL backend)
         RenderDevice::Config render_config;
         render_config.width = config_.initial_width;
@@ -233,8 +273,8 @@ inline bool EngineContext::initialize() {
         world_ = std::make_unique<World>();
         world_->initialize();
 
-        // Initialize render graph with passes
-        render_graph_ = std::make_unique<RenderGraph>(render_device_.get(), world_.get());
+        // Initialize render graph with passes (pass telemetry for per-pass timing)
+        render_graph_ = std::make_unique<RenderGraph>(render_device_.get(), world_.get(), telemetry_.get());
         render_graph_->initialize();
         
         // Add render passes: Clear, Grid, Axes
@@ -273,6 +313,7 @@ inline void EngineContext::shutdown() {
     render_graph_.reset();
     world_.reset();
     render_device_.reset();
+    telemetry_.reset();
 
     is_initialized_ = false;
     std::cout << "[Astraeus] Engine shutdown complete" << std::endl;
@@ -281,6 +322,11 @@ inline void EngineContext::shutdown() {
 inline void EngineContext::begin_frame(double delta_time) {
     current_delta_time_ = delta_time;
     total_time_ += delta_time;
+    
+    // Begin telemetry frame timing
+    if (telemetry_) {
+        telemetry_->begin_frame(frame_count_);
+    }
     
     if (render_device_) {
         render_device_->begin_frame();
@@ -299,6 +345,12 @@ inline void EngineContext::end_frame() {
     
     if (render_device_) {
         render_device_->end_frame();
+    }
+    
+    // End telemetry frame timing
+    if (telemetry_) {
+        auto device_stats = render_device_ ? render_device_->get_stats() : RenderDevice::Stats{};
+        telemetry_->end_frame(device_stats.draw_calls, device_stats.triangle_count);
     }
     
     frame_count_++;
@@ -425,6 +477,33 @@ inline void EngineContext::apply_entity_snapshot(uint32_t entity_id, float pos_x
     if (world_) {
         world_->apply_entity_snapshot(entity_id, pos_x, pos_y, pos_z);
     }
+}
+
+inline void EngineContext::set_telemetry_enabled(bool enabled) {
+    if (telemetry_) {
+        telemetry_->set_enabled(enabled);
+    }
+}
+
+inline bool EngineContext::is_telemetry_enabled() const {
+    return telemetry_ ? telemetry_->is_enabled() : false;
+}
+
+inline const Telemetry::FrameStats& EngineContext::get_telemetry_stats() const {
+    static Telemetry::FrameStats empty_stats{};
+    return telemetry_ ? telemetry_->get_current_stats() : empty_stats;
+}
+
+inline uint32_t EngineContext::get_telemetry_history(Telemetry::FrameStats* out_buffer, uint32_t max_frames) const {
+    return telemetry_ ? telemetry_->get_history(out_buffer, max_frames) : 0;
+}
+
+inline uint32_t EngineContext::get_telemetry_pass_count() const {
+    return telemetry_ ? telemetry_->get_pass_count() : 0;
+}
+
+inline const Telemetry::PassTiming* EngineContext::get_telemetry_pass_timing(uint32_t pass_index) const {
+    return telemetry_ ? telemetry_->get_pass_timing(pass_index) : nullptr;
 }
 
 } // namespace astraeus

@@ -5,6 +5,15 @@
 #include "core/EngineContext.hpp"
 #include <cstring>
 #include <memory>
+#include <type_traits>
+
+// Compile-time check: Ensure C API struct is compatible with internal struct
+static_assert(sizeof(TelemetryFrameStats) == sizeof(astraeus::Telemetry::FrameStats),
+              "TelemetryFrameStats must match Telemetry::FrameStats size");
+static_assert(offsetof(TelemetryFrameStats, frame_number) == offsetof(astraeus::Telemetry::FrameStats, frame_number),
+              "frame_number offset mismatch");
+static_assert(offsetof(TelemetryFrameStats, pass_count) == offsetof(astraeus::Telemetry::FrameStats, pass_count),
+              "pass_count offset mismatch");
 
 // Internal structure definition
 struct AstraeusEngine {
@@ -254,6 +263,97 @@ void astraeus_set_camera_projection(EngineHandle engine, float fov_degrees, floa
     }
     
     engine->context->set_camera_projection(fov_degrees, near_plane, far_plane);
+}
+
+// =============================================================================
+// TELEMETRY IMPLEMENTATIONS
+// =============================================================================
+
+void astraeus_enable_telemetry(EngineHandle engine, bool enabled) {
+    if (!is_valid_engine(engine)) {
+        return;
+    }
+    
+    engine->context->set_telemetry_enabled(enabled);
+}
+
+bool astraeus_is_telemetry_enabled(EngineHandle engine) {
+    if (!is_valid_engine(engine)) {
+        return false;
+    }
+    
+    return engine->context->is_telemetry_enabled();
+}
+
+void astraeus_get_telemetry_frame_stats(EngineHandle engine, TelemetryFrameStats* out_stats) {
+    if (!is_valid_engine(engine) || !out_stats) {
+        return;
+    }
+    
+    const auto& stats = engine->context->get_telemetry_stats();
+    out_stats->frame_number = stats.frame_number;
+    out_stats->cpu_time_ms = stats.cpu_time_ms;
+    out_stats->gpu_time_ms = stats.gpu_time_ms;
+    out_stats->total_time_ms = stats.total_time_ms;
+    out_stats->draw_calls = stats.draw_calls;
+    out_stats->triangle_count = stats.triangle_count;
+    out_stats->pass_count = stats.pass_count;
+    // _padding is explicitly zero-initialized in struct
+}
+
+uint32_t astraeus_get_telemetry_history(EngineHandle engine, TelemetryFrameStats* out_buffer, uint32_t max_frames) {
+    if (!is_valid_engine(engine) || !out_buffer || max_frames == 0) {
+        return 0;
+    }
+    
+    // Allocate temporary buffer for history retrieval
+    auto temp_buffer = std::make_unique<astraeus::Telemetry::FrameStats[]>(max_frames);
+    uint32_t count = engine->context->get_telemetry_history(temp_buffer.get(), max_frames);
+    
+    // Copy field-by-field to ensure ABI safety
+    for (uint32_t i = 0; i < count; ++i) {
+        const auto& src = temp_buffer[i];
+        auto& dst = out_buffer[i];
+        dst.frame_number = src.frame_number;
+        dst.cpu_time_ms = src.cpu_time_ms;
+        dst.gpu_time_ms = src.gpu_time_ms;
+        dst.total_time_ms = src.total_time_ms;
+        dst.draw_calls = src.draw_calls;
+        dst.triangle_count = src.triangle_count;
+        dst.pass_count = src.pass_count;
+    }
+    
+    return count;
+}
+
+uint32_t astraeus_get_pass_count(EngineHandle engine) {
+    if (!is_valid_engine(engine)) {
+        return 0;
+    }
+    
+    return engine->context->get_telemetry_pass_count();
+}
+
+bool astraeus_get_pass_timing(EngineHandle engine, uint32_t pass_index, 
+                               char* out_name_buffer, uint32_t name_buffer_size, 
+                               double* out_time_ms) {
+    if (!is_valid_engine(engine) || !out_name_buffer || !out_time_ms || name_buffer_size == 0) {
+        return false;
+    }
+    
+    const auto* pass_timing = engine->context->get_telemetry_pass_timing(pass_index);
+    if (!pass_timing) {
+        return false;
+    }
+    
+    // Copy pass name safely
+    std::strncpy(out_name_buffer, pass_timing->name, name_buffer_size - 1);
+    out_name_buffer[name_buffer_size - 1] = '\0';
+    
+    // Copy timing
+    *out_time_ms = pass_timing->duration_ms;
+    
+    return true;
 }
 
 } // extern "C"

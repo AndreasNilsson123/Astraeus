@@ -286,10 +286,121 @@ public class NativeEngine implements AutoCloseable {
             throw new RuntimeException("Failed to perform picking", e);
         }
     }
+    
+    /**
+     * Enable or disable telemetry collection.
+     * @param enabled Whether to enable telemetry
+     */
+    public void enableTelemetry(boolean enabled) {
+        checkClosed();
+        try {
+            EngineBindings.ENABLE_TELEMETRY.invoke(engineHandle, enabled);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to enable/disable telemetry", e);
+        }
+    }
+    
+    /**
+     * Check if telemetry is enabled.
+     * @return true if telemetry is enabled
+     */
+    public boolean isTelemetryEnabled() {
+        checkClosed();
+        try {
+            return (boolean) EngineBindings.IS_TELEMETRY_ENABLED.invoke(engineHandle);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to check telemetry status", e);
+        }
+    }
+    
+    /**
+     * Get current frame telemetry statistics.
+     * @return TelemetryFrameStats for the current frame
+     */
+    public TelemetryFrameStats getTelemetryStats() {
+        checkClosed();
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment out = arena.allocate(EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT);
+            EngineBindings.GET_TELEMETRY_FRAME_STATS.invoke(engineHandle, out);
+            
+            return new TelemetryFrameStats(out);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to get telemetry stats", e);
+        }
+    }
+    
+    /**
+     * Get telemetry history (ring buffer of recent frames).
+     * @param maxFrames Maximum number of frames to retrieve
+     * @return List of TelemetryFrameStats (most recent first)
+     */
+    public java.util.List<TelemetryFrameStats> getTelemetryHistory(int maxFrames) {
+        checkClosed();
+        try (Arena arena = Arena.ofConfined()) {
+            // Allocate buffer for frame stats array
+            long statsSize = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.byteSize();
+            MemorySegment buffer = arena.allocate(statsSize * maxFrames);
+            
+            int framesWritten = (int) EngineBindings.GET_TELEMETRY_HISTORY.invoke(
+                engineHandle, buffer, maxFrames);
+            
+            java.util.List<TelemetryFrameStats> history = new java.util.ArrayList<>(framesWritten);
+            for (int i = 0; i < framesWritten; i++) {
+                MemorySegment statsSegment = buffer.asSlice(i * statsSize, statsSize);
+                history.add(new TelemetryFrameStats(statsSegment));
+            }
+            
+            return history;
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to get telemetry history", e);
+        }
+    }
+    
+    /**
+     * Get the number of render passes in the current frame.
+     * @return Number of render passes
+     */
+    public int getPassCount() {
+        checkClosed();
+        try {
+            return (int) EngineBindings.GET_PASS_COUNT.invoke(engineHandle);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to get pass count", e);
+        }
+    }
+    
+    /**
+     * Get timing information for a specific render pass.
+     * @param passIndex Index of the pass (0 to passCount-1)
+     * @return PassTiming with name and time, or null if pass doesn't exist
+     */
+    public PassTiming getPassTiming(int passIndex) {
+        checkClosed();
+        try (Arena arena = Arena.ofConfined()) {
+            // Allocate buffer for pass name (max 64 chars)
+            MemorySegment nameBuffer = arena.allocate(64);
+            MemorySegment timeMs = arena.allocate(ValueLayout.JAVA_DOUBLE);
+            
+            boolean success = (boolean) EngineBindings.GET_PASS_TIMING.invoke(
+                engineHandle, passIndex, nameBuffer, 64, timeMs);
+            
+            if (!success) {
+                return null;
+            }
+            
+            // Read pass name (null-terminated string)
+            String passName = nameBuffer.getString(0);
+            double time = timeMs.get(ValueLayout.JAVA_DOUBLE, 0);
+            
+            return new PassTiming(passName, time);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to get pass timing", e);
+        }
+    }
 
 
     /**
-     * Wrapper for PixelBufferView struct.
+     * Wrapper for PickingView struct.
      * Provides safe access to backing buffer without memory hazards.
      */
     public static class PixelBufferView {
@@ -417,5 +528,72 @@ public class NativeEngine implements AutoCloseable {
             closed = true;
             System.out.println("[NativeEngine] Engine closed");
         }
+    }
+    
+    /**
+     * Telemetry frame statistics.
+     * Immutable snapshot of a single frame's performance metrics.
+     */
+    public static class TelemetryFrameStats {
+        private final long frameNumber;
+        private final double cpuTimeMs;
+        private final double gpuTimeMs;
+        private final double totalTimeMs;
+        private final int drawCalls;
+        private final int triangleCount;
+        private final int passCount;
+        
+        public TelemetryFrameStats(MemorySegment structSegment) {
+            VarHandle frameNumberHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("frame_number"));
+            VarHandle cpuTimeHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("cpu_time_ms"));
+            VarHandle gpuTimeHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("gpu_time_ms"));
+            VarHandle totalTimeHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("total_time_ms"));
+            VarHandle drawCallsHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("draw_calls"));
+            VarHandle triangleCountHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("triangle_count"));
+            VarHandle passCountHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("pass_count"));
+            
+            this.frameNumber = (long) frameNumberHandle.get(structSegment, 0L);
+            this.cpuTimeMs = (double) cpuTimeHandle.get(structSegment, 0L);
+            this.gpuTimeMs = (double) gpuTimeHandle.get(structSegment, 0L);
+            this.totalTimeMs = (double) totalTimeHandle.get(structSegment, 0L);
+            this.drawCalls = (int) drawCallsHandle.get(structSegment, 0L);
+            this.triangleCount = (int) triangleCountHandle.get(structSegment, 0L);
+            this.passCount = (byte) passCountHandle.get(structSegment, 0L);
+        }
+        
+        public long getFrameNumber() { return frameNumber; }
+        public double getCpuTimeMs() { return cpuTimeMs; }
+        public double getGpuTimeMs() { return gpuTimeMs; }
+        public double getTotalTimeMs() { return totalTimeMs; }
+        public int getDrawCalls() { return drawCalls; }
+        public int getTriangleCount() { return triangleCount; }
+        public int getPassCount() { return passCount; }
+        
+        public double getFPS() {
+            return totalTimeMs > 0 ? 1000.0 / totalTimeMs : 0.0;
+        }
+    }
+    
+    /**
+     * Render pass timing information.
+     */
+    public static class PassTiming {
+        private final String name;
+        private final double timeMs;
+        
+        public PassTiming(String name, double timeMs) {
+            this.name = name;
+            this.timeMs = timeMs;
+        }
+        
+        public String getName() { return name; }
+        public double getTimeMs() { return timeMs; }
     }
 }

@@ -125,6 +125,33 @@ public class EngineBindings {
         MemoryLayout.paddingLayout(3) // Padding for alignment
     );
     
+    /**
+     * Memory layout for TelemetryFrameStats struct.
+     * 
+     * Layout breakdown (C struct):
+     * - UINT64 (frame_number): 8 bytes
+     * - DOUBLE (cpu_time_ms): 8 bytes (total 16)
+     * - DOUBLE (gpu_time_ms): 8 bytes (total 24)
+     * - DOUBLE (total_time_ms): 8 bytes (total 32)
+     * - UINT32 (draw_calls): 4 bytes (total 36)
+     * - UINT32 (triangle_count): 4 bytes (total 40)
+     * - UINT8 (pass_count): 1 byte (total 41)
+     * - PADDING: 7 bytes (alignment to 8-byte boundary, total 48)
+     * 
+     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
+     * In production, consider generating layouts from native headers or using jextract.
+     */
+    public static final StructLayout TELEMETRY_FRAME_STATS_LAYOUT = MemoryLayout.structLayout(
+        ValueLayout.JAVA_LONG.withName("frame_number"),
+        ValueLayout.JAVA_DOUBLE.withName("cpu_time_ms"),
+        ValueLayout.JAVA_DOUBLE.withName("gpu_time_ms"),
+        ValueLayout.JAVA_DOUBLE.withName("total_time_ms"),
+        ValueLayout.JAVA_INT.withName("draw_calls"),
+        ValueLayout.JAVA_INT.withName("triangle_count"),
+        ValueLayout.JAVA_BYTE.withName("pass_count"),
+        MemoryLayout.paddingLayout(7) // Padding for alignment
+    );
+    
     // Function descriptors (C ABI signatures)
     private static final FunctionDescriptor CREATE_ENGINE_DESC = FunctionDescriptor.of(
         ValueLayout.ADDRESS,  // return: EngineHandle*
@@ -188,6 +215,42 @@ public class EngineBindings {
         ValueLayout.JAVA_INT, // screen_y
         ValueLayout.ADDRESS   // PickResult* out
     );
+    
+    private static final FunctionDescriptor ENABLE_TELEMETRY_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,       // param: EngineHandle
+        ValueLayout.JAVA_BOOLEAN   // param: enabled
+    );
+    
+    private static final FunctionDescriptor IS_TELEMETRY_ENABLED_DESC = FunctionDescriptor.of(
+        ValueLayout.JAVA_BOOLEAN,  // return: bool
+        ValueLayout.ADDRESS        // param: EngineHandle
+    );
+    
+    private static final FunctionDescriptor GET_TELEMETRY_FRAME_STATS_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,       // param: EngineHandle
+        ValueLayout.ADDRESS        // param: TelemetryFrameStats* (out)
+    );
+    
+    private static final FunctionDescriptor GET_TELEMETRY_HISTORY_DESC = FunctionDescriptor.of(
+        ValueLayout.JAVA_INT,      // return: uint32_t (frames written)
+        ValueLayout.ADDRESS,       // param: EngineHandle
+        ValueLayout.ADDRESS,       // param: TelemetryFrameStats* buffer (out)
+        ValueLayout.JAVA_INT       // param: max_frames
+    );
+    
+    private static final FunctionDescriptor GET_PASS_COUNT_DESC = FunctionDescriptor.of(
+        ValueLayout.JAVA_INT,      // return: uint32_t
+        ValueLayout.ADDRESS        // param: EngineHandle
+    );
+    
+    private static final FunctionDescriptor GET_PASS_TIMING_DESC = FunctionDescriptor.of(
+        ValueLayout.JAVA_BOOLEAN,  // return: bool
+        ValueLayout.ADDRESS,       // param: EngineHandle
+        ValueLayout.JAVA_INT,      // param: pass_index
+        ValueLayout.ADDRESS,       // param: char* name_buffer (out)
+        ValueLayout.JAVA_INT,      // param: name_buffer_size
+        ValueLayout.ADDRESS        // param: double* time_ms (out)
+    );
 
 
     // Method handles
@@ -203,6 +266,12 @@ public class EngineBindings {
     public static final MethodHandle CREATE_ENTITY;
     public static final MethodHandle DESTROY_ENTITY;
     public static final MethodHandle PICK;
+    public static final MethodHandle ENABLE_TELEMETRY;
+    public static final MethodHandle IS_TELEMETRY_ENABLED;
+    public static final MethodHandle GET_TELEMETRY_FRAME_STATS;
+    public static final MethodHandle GET_TELEMETRY_HISTORY;
+    public static final MethodHandle GET_PASS_COUNT;
+    public static final MethodHandle GET_PASS_TIMING;
     
     static {
         try {
@@ -269,6 +338,36 @@ public class EngineBindings {
             PICK = LINKER.downcallHandle(
                 LIBRARY.find("astraeus_pick").orElseThrow(),
                 PICK_DESC
+            );
+            
+            ENABLE_TELEMETRY = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_enable_telemetry").orElseThrow(),
+                ENABLE_TELEMETRY_DESC
+            );
+            
+            IS_TELEMETRY_ENABLED = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_is_telemetry_enabled").orElseThrow(),
+                IS_TELEMETRY_ENABLED_DESC
+            );
+            
+            GET_TELEMETRY_FRAME_STATS = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_get_telemetry_frame_stats").orElseThrow(),
+                GET_TELEMETRY_FRAME_STATS_DESC
+            );
+            
+            GET_TELEMETRY_HISTORY = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_get_telemetry_history").orElseThrow(),
+                GET_TELEMETRY_HISTORY_DESC
+            );
+            
+            GET_PASS_COUNT = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_get_pass_count").orElseThrow(),
+                GET_PASS_COUNT_DESC
+            );
+            
+            GET_PASS_TIMING = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_get_pass_timing").orElseThrow(),
+                GET_PASS_TIMING_DESC
             );
             
         } catch (Exception e) {

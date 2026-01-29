@@ -52,6 +52,18 @@ typedef struct {
     uint32_t entity_count;
 } FrameStats;
 
+// Telemetry frame statistics (for telemetry system)
+typedef struct {
+    uint64_t frame_number;
+    double cpu_time_ms;
+    double gpu_time_ms;      // Placeholder for now (requires GPU queries)
+    double total_time_ms;
+    uint32_t draw_calls;
+    uint32_t triangle_count;
+    uint8_t pass_count;      // Number of active passes this frame
+    uint8_t _padding[7];     // Explicit padding for 64-bit alignment
+} TelemetryFrameStats;
+
 // Viewport configuration
 typedef struct {
     uint32_t width;
@@ -331,6 +343,61 @@ ASTRAEUS_API void astraeus_set_camera(EngineHandle engine,
  * @param far_plane Far clipping plane
  */
 ASTRAEUS_API void astraeus_set_camera_projection(EngineHandle engine, float fov_degrees, float near_plane, float far_plane);
+
+// =============================================================================
+// TELEMETRY
+// =============================================================================
+
+/**
+ * Enable or disable telemetry collection.
+ * When disabled, all telemetry operations have ZERO overhead.
+ * @param engine Engine handle
+ * @param enabled Whether to enable telemetry
+ */
+ASTRAEUS_API void astraeus_enable_telemetry(EngineHandle engine, bool enabled);
+
+/**
+ * Check if telemetry is enabled.
+ * @param engine Engine handle
+ * @return true if telemetry is enabled, false otherwise
+ */
+ASTRAEUS_API bool astraeus_is_telemetry_enabled(EngineHandle engine);
+
+/**
+ * Get telemetry frame statistics for the current frame.
+ * @param engine Engine handle
+ * @param out_stats Output telemetry frame stats (must not be NULL)
+ */
+ASTRAEUS_API void astraeus_get_telemetry_frame_stats(EngineHandle engine, TelemetryFrameStats* out_stats);
+
+/**
+ * Get telemetry history (ring buffer).
+ * @param engine Engine handle
+ * @param out_buffer Output buffer for frame stats (must not be NULL)
+ * @param max_frames Maximum number of frames to retrieve
+ * @return Number of frames actually written
+ */
+ASTRAEUS_API uint32_t astraeus_get_telemetry_history(EngineHandle engine, TelemetryFrameStats* out_buffer, uint32_t max_frames);
+
+/**
+ * Get the number of render passes in the current frame.
+ * @param engine Engine handle
+ * @return Number of render passes
+ */
+ASTRAEUS_API uint32_t astraeus_get_pass_count(EngineHandle engine);
+
+/**
+ * Get timing information for a specific render pass.
+ * @param engine Engine handle
+ * @param pass_index Index of the pass (0 to pass_count-1)
+ * @param out_name_buffer Output buffer for pass name (must not be NULL)
+ * @param name_buffer_size Size of the name buffer in bytes
+ * @param out_time_ms Output pass timing in milliseconds (must not be NULL)
+ * @return true if pass exists and data was retrieved, false otherwise
+ */
+ASTRAEUS_API bool astraeus_get_pass_timing(EngineHandle engine, uint32_t pass_index, 
+                               char* out_name_buffer, uint32_t name_buffer_size, 
+                               double* out_time_ms);
 
 #ifdef __cplusplus
 }
