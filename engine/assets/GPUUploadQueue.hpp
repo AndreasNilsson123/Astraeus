@@ -100,11 +100,12 @@ public:
         request.index_data = mesh.get_indices();
         request.index_count = static_cast<uint32_t>(request.index_data.size());
 
-        upload_queue_.push(std::move(request));
-        
+        // Log before moving
         std::cout << "[GPUUploadQueue] Enqueued upload for asset " << asset_id 
                   << " (" << request.vertex_count << " vertices, " 
                   << request.index_count / 3 << " triangles)" << std::endl;
+
+        upload_queue_.push(std::move(request));
     }
 
     /**
@@ -164,7 +165,13 @@ public:
     inline bool release(uint32_t asset_id) {
         auto it = gpu_meshes_.find(asset_id);
         if (it == gpu_meshes_.end()) {
-            std::cerr << "[GPUUploadQueue] Asset " << asset_id << " not found for release" << std::endl;
+            // Asset not found - might be in upload queue or already deleted
+            return false;
+        }
+
+        // Prevent underflow
+        if (it->second.ref_count == 0) {
+            std::cerr << "[GPUUploadQueue] Warning: ref_count already 0 for asset " << asset_id << std::endl;
             return false;
         }
 

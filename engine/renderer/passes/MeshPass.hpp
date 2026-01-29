@@ -169,6 +169,12 @@ inline void MeshPass::scale_matrix(float sx, float sy, float sz, float* out) {
 }
 
 inline void MeshPass::perspective_matrix(float fov, float aspect, float near, float far, float* out) {
+    // Validate parameters
+    if (aspect < 1e-6f || near <= 0.0f || far <= near) {
+        identity_matrix(out);
+        return;
+    }
+    
     float f = 1.0f / std::tan(fov * 0.5f);
     
     for (int i = 0; i < 16; i++) out[i] = 0.0f;
@@ -188,6 +194,13 @@ inline void MeshPass::look_at_matrix(float eye_x, float eye_y, float eye_z,
     float fy = center_y - eye_y;
     float fz = center_z - eye_z;
     float f_len = std::sqrt(fx*fx + fy*fy + fz*fz);
+    
+    // Avoid division by zero
+    if (f_len < 1e-6f) {
+        identity_matrix(out);
+        return;
+    }
+    
     fx /= f_len; fy /= f_len; fz /= f_len;
     
     // Right vector (cross product of forward and up)
@@ -195,6 +208,13 @@ inline void MeshPass::look_at_matrix(float eye_x, float eye_y, float eye_z,
     float ry = fz * up_x - fx * up_z;
     float rz = fx * up_y - fy * up_x;
     float r_len = std::sqrt(rx*rx + ry*ry + rz*rz);
+    
+    // Avoid division by zero
+    if (r_len < 1e-6f) {
+        identity_matrix(out);
+        return;
+    }
+    
     rx /= r_len; ry /= r_len; rz /= r_len;
     
     // Up vector (cross product of right and forward)
@@ -203,9 +223,9 @@ inline void MeshPass::look_at_matrix(float eye_x, float eye_y, float eye_z,
     float uz = rx * fy - ry * fx;
     
     identity_matrix(out);
-    out[0] = rx;  out[4] = rx;  out[8]  = -fx; out[12] = -(rx*eye_x + ry*eye_y + rz*eye_z);
-    out[1] = uy;  out[5] = uy;  out[9]  = -fy; out[13] = -(ux*eye_x + uy*eye_y + uz*eye_z);
-    out[2] = -fz; out[6] = rz;  out[10] = fz;  out[14] = (fx*eye_x + fy*eye_y + fz*eye_z);
+    out[0] = rx;  out[4] = ry;  out[8]  = rz;  out[12] = -(rx*eye_x + ry*eye_y + rz*eye_z);
+    out[1] = ux;  out[5] = uy;  out[9]  = uz;  out[13] = -(ux*eye_x + uy*eye_y + uz*eye_z);
+    out[2] = -fx; out[6] = -fy; out[10] = -fz; out[14] = (fx*eye_x + fy*eye_y + fz*eye_z);
     out[3] = 0;   out[7] = 0;   out[11] = 0;   out[15] = 1;
 }
 
