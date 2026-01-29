@@ -208,6 +208,7 @@ public:
     RenderGraph* get_render_graph() const { return render_graph_.get(); }
     World* get_world() const { return world_.get(); }
     Telemetry* get_telemetry() const { return telemetry_.get(); }
+    AssetManager* get_asset_manager() const { return asset_manager_.get(); }
 
 private:
     Config config_;
@@ -333,6 +334,11 @@ inline void EngineContext::begin_frame(double delta_time) {
 }
 
 inline void EngineContext::end_frame() {
+    // Process pending GPU uploads
+    if (asset_manager_) {
+        asset_manager_->process_uploads();
+    }
+    
     if (render_graph_) {
         render_graph_->execute();
     }

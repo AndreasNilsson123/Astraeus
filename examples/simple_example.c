@@ -109,7 +109,8 @@ int main() {
 
     // Test picking (will return no hit since we have no actual rendering)
     printf("Testing picking at screen coordinates (960, 540)...\n");
-    PickResult pick_result = astraeus_pick(engine, 960, 540);
+    PickResult pick_result;
+    astraeus_pick(engine, 960, 540, &pick_result);
     if (pick_result.hit) {
         printf("Hit entity %u at depth %.3f, world position (%.2f, %.2f, %.2f)\n",
                pick_result.entity_id,
