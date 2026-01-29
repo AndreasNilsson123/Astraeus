@@ -86,6 +86,7 @@ find_package(Threads REQUIRED)
 
 # ---- GLAD (third_party) ----
 add_library(glad STATIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad/src/glad.c)
+set_target_properties(glad PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad/include)
 
@@ -167,6 +168,14 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     add_executable(ingest_demo examples/ingest_demo.cpp ${ASTRAEUS_ENGINE_SOURCES}) # Include engine sources directly due to symbol linkage errors on windows
     target_include_directories(ingest_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/engine)
     target_link_libraries(ingest_demo PRIVATE Threads::Threads OpenGL::GL glad)
+
+    add_executable(asset_test examples/asset_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
+    target_include_directories(asset_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/engine)
+    target_link_libraries(asset_test PRIVATE Threads::Threads OpenGL::GL glad)
+
+    add_executable(asset_unit_test examples/asset_unit_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
+    target_include_directories(asset_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/engine)
+    target_link_libraries(asset_unit_test PRIVATE Threads::Threads OpenGL::GL glad)
 
 endif()
 
