@@ -491,6 +491,76 @@ public class NativeEngine implements AutoCloseable {
     }
     
     /**
+     * Set entity transform (position, rotation, scale).
+     * @param entityId Entity ID
+     * @param posX Position X
+     * @param posY Position Y
+     * @param posZ Position Z
+     * @param rotX Rotation X (radians)
+     * @param rotY Rotation Y (radians)
+     * @param rotZ Rotation Z (radians)
+     * @param scaleX Scale X
+     * @param scaleY Scale Y
+     * @param scaleZ Scale Z
+     */
+    public void setEntityTransform(int entityId, float posX, float posY, float posZ,
+                                   float rotX, float rotY, float rotZ,
+                                   float scaleX, float scaleY, float scaleZ) {
+        checkClosed();
+        try {
+            EngineBindings.SET_ENTITY_TRANSFORM.invoke(engineHandle, entityId,
+                posX, posY, posZ, rotX, rotY, rotZ, scaleX, scaleY, scaleZ);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to set entity transform", e);
+        }
+    }
+    
+    /**
+     * Set entity renderable (visibility) state.
+     * @param entityId Entity ID
+     * @param visible Whether entity should be rendered
+     */
+    public void setEntityRenderable(int entityId, boolean visible) {
+        checkClosed();
+        try {
+            EngineBindings.SET_ENTITY_RENDERABLE.invoke(engineHandle, entityId, visible);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to set entity renderable state", e);
+        }
+    }
+    
+    /**
+     * Set entity color.
+     * @param entityId Entity ID
+     * @param r Red component [0-1]
+     * @param g Green component [0-1]
+     * @param b Blue component [0-1]
+     * @param a Alpha component [0-1]
+     */
+    public void setEntityColor(int entityId, float r, float g, float b, float a) {
+        checkClosed();
+        try {
+            EngineBindings.SET_ENTITY_COLOR.invoke(engineHandle, entityId, r, g, b, a);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to set entity color", e);
+        }
+    }
+    
+    /**
+     * Set entity trail (enable trail rendering with specified max length).
+     * @param entityId Entity ID
+     * @param maxPoints Maximum number of trail points
+     */
+    public void setEntityTrail(int entityId, int maxPoints) {
+        checkClosed();
+        try {
+            EngineBindings.SET_ENTITY_TRAIL.invoke(engineHandle, entityId, maxPoints);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to set entity trail", e);
+        }
+    }
+    
+    /**
      * Check if engine is valid.
      * @return true if valid
      */
