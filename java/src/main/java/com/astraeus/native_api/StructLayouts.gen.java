@@ -2,7 +2,7 @@
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generated from: abi_structs_schema.yaml
 // Schema version: 1.0.0
-// Generated at: 2026-01-30 17:37:10
+// Generated at: 2026-01-30 17:39:43
 // Schema hash: 019b094a389af9f3
 // ============================================================================
 
@@ -21,7 +21,7 @@ public class StructLayouts {
 
     // Schema metadata
     public static final String SCHEMA_VERSION = "1.0.0";
-    public static final String GENERATION_TIMESTAMP = "2026-01-30 17:37:10";
+    public static final String GENERATION_TIMESTAMP = "2026-01-30 17:39:43";
     public static final String SCHEMA_HASH = "019b094a389af9f3";
 
     // Frame statistics (exposed to Java)
