@@ -194,14 +194,18 @@ public class NativeEngine implements AutoCloseable {
 
         long addr = view.dataAddress();
         int backingSize = view.getMaxBackingSize();
-        int needed = Math.multiplyExact(view.getStride(), view.getHeight());
+        
+        // Calculate needed size with overflow detection
+        int needed;
+        try {
+            needed = Math.multiplyExact(view.getStride(), view.getHeight());
+        } catch (ArithmeticException e) {
+            throw new IllegalStateException("Viewport size calculation overflowed: stride=" + 
+                    view.getStride() + " * height=" + view.getHeight() + " exceeds Integer.MAX_VALUE", e);
+        }
 
         if (addr == 0 || backingSize <= 0) {
             throw new IllegalStateException("Invalid color view: addr=" + addr + " backingSize=" + backingSize);
-        }
-        if (needed < 0) {
-            throw new IllegalStateException("Viewport size calculation overflowed: stride=" + 
-                    view.getStride() + " * height=" + view.getHeight() + " exceeds Integer.MAX_VALUE");
         }
         if (needed > backingSize) {
             throw new IllegalStateException("Color view size mismatch: needed=" + needed + " backingSize=" + backingSize +
@@ -264,14 +268,18 @@ public class NativeEngine implements AutoCloseable {
 
         long addr = view.dataAddress();
         int backingSize = view.getMaxBackingSize();
-        int needed = Math.multiplyExact(view.getStride(), view.getHeight());
+        
+        // Calculate needed size with overflow detection
+        int needed;
+        try {
+            needed = Math.multiplyExact(view.getStride(), view.getHeight());
+        } catch (ArithmeticException e) {
+            throw new IllegalStateException("ID buffer size calculation overflowed: stride=" + 
+                    view.getStride() + " * height=" + view.getHeight() + " exceeds Integer.MAX_VALUE", e);
+        }
 
         if (addr == 0 || backingSize <= 0) {
             throw new IllegalStateException("Invalid id view: addr=" + addr + " backingSize=" + backingSize);
-        }
-        if (needed < 0) {
-            throw new IllegalStateException("ID buffer size calculation overflowed: stride=" + 
-                    view.getStride() + " * height=" + view.getHeight() + " exceeds Integer.MAX_VALUE");
         }
         if (needed > backingSize) {
             throw new IllegalStateException("ID view size mismatch: needed=" + needed + " backingSize=" + backingSize +
