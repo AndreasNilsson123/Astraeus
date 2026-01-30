@@ -160,15 +160,17 @@ public class FxViewport extends Pane {
     public void updateDisplay() {
         // Dev-mode assertion: verify ByteBuffer state remains stable
         if (Boolean.getBoolean("astraeus.debug.assertBufferState")) {
-            ByteBuffer buffer = colorBuffer.getByteBuffer();
-            if (buffer != null) {
-                int pos = buffer.position();
-                int lim = buffer.limit();
-                int cap = buffer.capacity();
-                if (pos != 0 || lim != cap) {
-                    System.err.println("[FxViewport] WARNING: ByteBuffer state corrupted! " +
-                            "position=" + pos + " limit=" + lim + " capacity=" + cap);
-                    System.err.println("[FxViewport] Expected: position=0 limit=capacity=" + cap);
+            if (colorBuffer != null) {
+                ByteBuffer buffer = colorBuffer.getByteBuffer();
+                if (buffer != null) {
+                    int pos = buffer.position();
+                    int lim = buffer.limit();
+                    int cap = buffer.capacity();
+                    if (pos != 0 || lim != cap) {
+                        System.err.println("[FxViewport] WARNING: ByteBuffer state corrupted! " +
+                                "position=" + pos + " limit=" + lim + " capacity=" + cap);
+                        System.err.println("[FxViewport] Expected: position=0 limit=capacity=" + cap);
+                    }
                 }
             }
         }

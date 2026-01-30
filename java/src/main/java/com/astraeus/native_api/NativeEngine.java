@@ -167,6 +167,10 @@ public class NativeEngine implements AutoCloseable {
      * SAFETY: The ByteBuffer returned is the STABLE, FULL-CAPACITY buffer for JavaFX PixelBuffer.
      * Its position/limit state is NEVER mutated after initial creation.
      * This buffer should be given to JavaFX PixelBuffer and never modified.
+     * 
+     * THREAD-SAFETY: This method is NOT thread-safe. It must be called from a single thread only
+     * (typically the JavaFX application thread). Concurrent calls can lead to race conditions
+     * when updating the buffer state.
      */
     // Cached backing for JavaFX PixelBuffer (STABLE, IMMUTABLE STATE)
     private MemorySegment colorDataSeg;
@@ -195,7 +199,11 @@ public class NativeEngine implements AutoCloseable {
         if (addr == 0 || backingSize <= 0) {
             throw new IllegalStateException("Invalid color view: addr=" + addr + " backingSize=" + backingSize);
         }
-        if (needed < 0 || needed > backingSize) {
+        if (needed < 0) {
+            throw new IllegalStateException("Viewport size calculation overflowed: stride=" + 
+                    view.getStride() + " * height=" + view.getHeight() + " exceeds Integer.MAX_VALUE");
+        }
+        if (needed > backingSize) {
             throw new IllegalStateException("Color view size mismatch: needed=" + needed + " backingSize=" + backingSize +
                     " stride=" + view.getStride() + " height=" + view.getHeight());
         }
@@ -231,6 +239,10 @@ public class NativeEngine implements AutoCloseable {
      * 
      * SAFETY: The ByteBuffer returned is the STABLE, FULL-CAPACITY buffer.
      * Its position/limit state is NEVER mutated after initial creation.
+     * 
+     * THREAD-SAFETY: This method is NOT thread-safe. It must be called from a single thread only
+     * (typically the JavaFX application thread). Concurrent calls can lead to race conditions
+     * when updating the buffer state.
      */
     private MemorySegment idDataSeg;
     private ByteBuffer idByteBufferStable;  // STABLE buffer - never mutate position/limit after creation
@@ -257,7 +269,11 @@ public class NativeEngine implements AutoCloseable {
         if (addr == 0 || backingSize <= 0) {
             throw new IllegalStateException("Invalid id view: addr=" + addr + " backingSize=" + backingSize);
         }
-        if (needed < 0 || needed > backingSize) {
+        if (needed < 0) {
+            throw new IllegalStateException("ID buffer size calculation overflowed: stride=" + 
+                    view.getStride() + " * height=" + view.getHeight() + " exceeds Integer.MAX_VALUE");
+        }
+        if (needed > backingSize) {
             throw new IllegalStateException("ID view size mismatch: needed=" + needed + " backingSize=" + backingSize +
                     " stride=" + view.getStride() + " height=" + view.getHeight());
         }
@@ -490,15 +506,29 @@ public class NativeEngine implements AutoCloseable {
          * This creates a new ByteBuffer object that shares the same native memory
          * but has its own position/limit/mark state.
          * 
+         * IMPORTANT: This method returns valid data only after calling getColorBuffer() or
+         * getIdBuffer(). The viewport size is captured at that moment. If the viewport is
+         * resized, you must call getColorBuffer()/getIdBuffer() again before calling this method.
+         * 
          * Use this when you need a sized view for internal operations
          * (e.g., reading specific viewport data).
          * 
          * @return A duplicate ByteBuffer with limit set to viewportByteSize
+         * @throws IllegalStateException if the buffer is not initialized or viewportByteSize is invalid
          */
         public ByteBuffer getViewportBuffer() {
             if (stableByteBuffer == null) {
-                return null;
+                throw new IllegalStateException("Buffer not initialized - call getColorBuffer() or getIdBuffer() first");
             }
+            if (viewportByteSize <= 0) {
+                throw new IllegalStateException("Invalid viewport size: " + viewportByteSize + 
+                        " - call getColorBuffer() or getIdBuffer() first");
+            }
+            if (viewportByteSize > stableByteBuffer.capacity()) {
+                throw new IllegalStateException("Viewport size " + viewportByteSize + 
+                        " exceeds buffer capacity " + stableByteBuffer.capacity());
+            }
+            
             // Create a duplicate with sized limit for internal use
             ByteBuffer duplicate = stableByteBuffer.duplicate();
             duplicate.position(0);
