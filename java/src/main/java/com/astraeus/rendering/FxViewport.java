@@ -64,10 +64,10 @@ public class FxViewport extends Pane {
         // Configure readback buffers with fixed size
         engine.configureReadback(maxWidth, maxHeight, false);
 
-        // Fetch view (this also refreshes bb.position/limit for current viewport)
+        // Fetch view with stable ByteBuffer (position=0, limit=capacity, never mutated)
         NativeEngine.PixelBufferView colorView = engine.getColorBuffer();
 
-        // IMPORTANT: use the cached, engine-lifetime ByteBuffer (NOT a per-call MemorySegment)
+        // IMPORTANT: use the stable ByteBuffer that has immutable state for JavaFX
         ByteBuffer backingBuffer = colorView.getByteBuffer();
         if (backingBuffer == null) {
             throw new IllegalStateException("Color ByteBuffer not attached (engine.getColorBuffer() must attach it)");
