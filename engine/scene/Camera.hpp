@@ -2,13 +2,12 @@
 #define ASTRAEUS_CAMERA_HPP
 
 #include <cstdint>
-#include <cmath>
 #include <cstring>
+#include "core/util/Math.hpp"
 
 namespace astraeus {
 
 // Constants
-constexpr float PI = 3.14159265359f;
 constexpr float MAX_ELEVATION_DEGREES = 89.0f;
 
 // Helper functions for matrix math
@@ -34,7 +33,7 @@ inline void mat4_multiply(float* result, const float* a, const float* b) {
 }
 
 inline void vec3_normalize(float& x, float& y, float& z) {
-    float length = std::sqrt(x * x + y * y + z * z);
+    float length = math::sqrt(x * x + y * y + z * z);
     if (length > 1e-6f) {
         x /= length;
         y /= length;
@@ -182,35 +181,35 @@ inline void Camera::set_projection(float fov_degrees, float aspect_ratio,
 
 inline void Camera::orbit(float delta_azimuth, float delta_elevation) {
     // Convert angles to radians
-    float azimuth_rad = delta_azimuth * PI / 180.0f;
-    float elevation_rad = delta_elevation * PI / 180.0f;
+    float azimuth_rad = delta_azimuth * math::deg_to_rad<float>();
+    float elevation_rad = delta_elevation * math::deg_to_rad<float>();
 
     // Compute vector from target to eye
     float dx = eye_x_ - target_x_;
     float dy = eye_y_ - target_y_;
     float dz = eye_z_ - target_z_;
     
-    float radius = std::sqrt(dx * dx + dy * dy + dz * dz);
+    float radius = math::sqrt(dx * dx + dy * dy + dz * dz);
     
     // Convert to spherical coordinates
-    float current_azimuth = std::atan2(dx, dz);
-    float horizontal_dist = std::sqrt(dx * dx + dz * dz);
-    float current_elevation = std::atan2(dy, horizontal_dist);
+    float current_azimuth = math::atan2(dx, dz);
+    float horizontal_dist = math::sqrt(dx * dx + dz * dz);
+    float current_elevation = math::atan2(dy, horizontal_dist);
     
     // Apply deltas
     current_azimuth += azimuth_rad;
     current_elevation += elevation_rad;
     
     // Clamp elevation to avoid gimbal lock
-    const float max_elevation = MAX_ELEVATION_DEGREES * PI / 180.0f;
+    const float max_elevation = MAX_ELEVATION_DEGREES * math::deg_to_rad<float>();
     if (current_elevation > max_elevation) current_elevation = max_elevation;
     if (current_elevation < -max_elevation) current_elevation = -max_elevation;
     
     // Convert back to cartesian
-    horizontal_dist = radius * std::cos(current_elevation);
-    eye_x_ = target_x_ + horizontal_dist * std::sin(current_azimuth);
-    eye_y_ = target_y_ + radius * std::sin(current_elevation);
-    eye_z_ = target_z_ + horizontal_dist * std::cos(current_azimuth);
+    horizontal_dist = radius * math::cos(current_elevation);
+    eye_x_ = target_x_ + horizontal_dist * math::sin(current_azimuth);
+    eye_y_ = target_y_ + radius * math::sin(current_elevation);
+    eye_z_ = target_z_ + horizontal_dist * math::cos(current_azimuth);
     
     view_dirty_ = true;
 }
@@ -253,7 +252,7 @@ inline void Camera::zoom(float delta_distance) {
     float dy = eye_y_ - target_y_;
     float dz = eye_z_ - target_z_;
     
-    float current_distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+    float current_distance = math::sqrt(dx * dx + dy * dy + dz * dz);
     float new_distance = current_distance - delta_distance;
     
     // Clamp to reasonable limits
@@ -328,8 +327,8 @@ inline void Camera::compute_view_matrix() {
 
 inline void Camera::compute_projection_matrix(float aspect_ratio) {
     // Perspective projection matrix
-    float fov_rad = fov_degrees_ * PI / 180.0f;
-    float tan_half_fov = std::tan(fov_rad / 2.0f);
+    float fov_rad = fov_degrees_ * math::deg_to_rad<float>();
+    float tan_half_fov = math::tan(fov_rad / 2.0f);
     
     std::memset(projection_matrix_, 0, 16 * sizeof(float));
     

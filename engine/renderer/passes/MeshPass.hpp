@@ -6,9 +6,9 @@
 #include "../MaterialLibrary.hpp"
 #include "../../scene/World.hpp"
 #include "../../assets/AssetManager.hpp"
+#include "../../core/util/Math.hpp"
 
 #include <glad/glad.h>
-#include <cmath>
 
 namespace astraeus {
 
@@ -223,7 +223,7 @@ inline void MeshPass::look_at_matrix(float eye_x, float eye_y, float eye_z,
     float fx = center_x - eye_x;
     float fy = center_y - eye_y;
     float fz = center_z - eye_z;
-    float f_len = std::sqrt(fx*fx + fy*fy + fz*fz);
+    float f_len = math::sqrt(fx*fx + fy*fy + fz*fz);
     
     // Avoid division by zero
     if (f_len < 1e-6f) {
@@ -237,7 +237,7 @@ inline void MeshPass::look_at_matrix(float eye_x, float eye_y, float eye_z,
     float rx = fy * up_z - fz * up_y;
     float ry = fz * up_x - fx * up_z;
     float rz = fx * up_y - fy * up_x;
-    float r_len = std::sqrt(rx*rx + ry*ry + rz*rz);
+    float r_len = math::sqrt(rx*rx + ry*ry + rz*rz);
     
     // Avoid division by zero
     if (r_len < 1e-6f) {

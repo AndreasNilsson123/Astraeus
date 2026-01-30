@@ -11,6 +11,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Platform-specific compile definitions
+if(WIN32)
+    # Prevent Windows.h from defining min/max macros
+    add_compile_definitions(NOMINMAX)
+    # Reduce Windows.h header size
+    add_compile_definitions(WIN32_LEAN_AND_MEAN)
+endif()
+
 # Output layout
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
