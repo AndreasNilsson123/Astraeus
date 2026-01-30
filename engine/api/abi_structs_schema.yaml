@@ -182,3 +182,85 @@ structs:
       - name: log_file_path
         type: char_pointer
         description: "Path to log file (const char*, can be NULL)"
+
+  - name: CameraDesc
+    description: "Camera state snapshot (read-only view from Java)"
+    fields:
+      - name: pos_x
+        type: float32
+        description: "Camera position X"
+      - name: pos_y
+        type: float32
+        description: "Camera position Y"
+      - name: pos_z
+        type: float32
+        description: "Camera position Z"
+      - name: target_x
+        type: float32
+        description: "Look-at target X"
+      - name: target_y
+        type: float32
+        description: "Look-at target Y"
+      - name: target_z
+        type: float32
+        description: "Look-at target Z"
+      - name: up_x
+        type: float32
+        description: "Up vector X"
+      - name: up_y
+        type: float32
+        description: "Up vector Y"
+      - name: up_z
+        type: float32
+        description: "Up vector Z"
+      - name: fov_degrees
+        type: float32
+        description: "Field of view in degrees"
+      - name: near_plane
+        type: float32
+        description: "Near clipping plane"
+      - name: far_plane
+        type: float32
+        description: "Far clipping plane"
+      - name: mode
+        type: uint32
+        description: "Camera mode enum (0=orbit, 1=fly, 2=pan)"
+      - name: _padding
+        type: uint8
+        array_size: 4
+        description: "Padding for alignment"
+
+  - name: MaterialDesc
+    description: "Material parameters (PBR-style)"
+    fields:
+      - name: base_color_r
+        type: float32
+        description: "Base color red component [0-1]"
+      - name: base_color_g
+        type: float32
+        description: "Base color green component [0-1]"
+      - name: base_color_b
+        type: float32
+        description: "Base color blue component [0-1]"
+      - name: base_color_a
+        type: float32
+        description: "Base color alpha component [0-1]"
+      - name: metallic
+        type: float32
+        description: "Metallic factor [0-1]"
+      - name: roughness
+        type: float32
+        description: "Roughness factor [0-1]"
+      - name: alpha_mode
+        type: uint32
+        description: "Alpha mode enum (0=opaque, 1=blend, 2=mask)"
+      - name: base_color_texture_id
+        type: uint32
+        description: "Base color texture ID (0=none)"
+      - name: normal_texture_id
+        type: uint32
+        description: "Normal map texture ID (0=none)"
+      - name: _padding
+        type: uint8
+        array_size: 4
+        description: "Alignment padding"
