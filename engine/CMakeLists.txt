@@ -177,6 +177,10 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     target_include_directories(asset_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/engine)
     target_link_libraries(asset_unit_test PRIVATE Threads::Threads OpenGL::GL glad)
 
+    add_executable(scene_hierarchy_test examples/scene_hierarchy_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
+    target_include_directories(scene_hierarchy_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/engine)
+    target_link_libraries(scene_hierarchy_test PRIVATE Threads::Threads OpenGL::GL glad)
+
 endif()
 
 # ==================================================
