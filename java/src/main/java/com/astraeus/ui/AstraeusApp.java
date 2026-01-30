@@ -1,6 +1,7 @@
 package com.astraeus.ui;
 
 import com.astraeus.native_api.NativeEngine;
+import com.astraeus.rendering.ViewportPane;
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -22,6 +23,7 @@ public class AstraeusApp extends Application {
     private NativeEngine engine;
     private WorkspaceWindow workspace;
     private AnimationTimer updateTimer;
+    private ViewportPane mainViewport;
     
     private long lastStatusUpdate = 0;
     private static final long STATUS_UPDATE_INTERVAL_NS = 100_000_000; // 100ms (10 Hz)
@@ -130,15 +132,78 @@ public class AstraeusApp extends Application {
             workspace.getConsolePane().info("Resolution: 1280x720");
             workspace.getConsolePane().info("Telemetry: " + (engine.isTelemetryEnabled() ? "Enabled" : "Disabled"));
             
-            // Note: In a full implementation, you would now:
-            // 1. Create a viewport tab with the engine
-            // 2. Connect scene inspector to viewport picking
-            // 3. Enable telemetry pane updates
-            workspace.getConsolePane().info("Tip: Add a viewport to the center tab area");
+            // Create and add viewport tab
+            createViewportTab();
+            
+            workspace.getConsolePane().info("Viewport created successfully");
+            workspace.getConsolePane().info("Camera controls: Left-click drag = rotate, Scroll = zoom, 1/2/3 = switch modes");
             
         } catch (Exception e) {
             workspace.getConsolePane().error("Failed to initialize engine", e);
             showError("Engine Initialization Failed", e.getMessage());
+        }
+    }
+    
+    /**
+     * Create and add a viewport tab to the center pane.
+     */
+    private void createViewportTab() {
+        if (engine == null || !engine.isValid()) {
+            workspace.getConsolePane().error("Cannot create viewport: engine not initialized");
+            return;
+        }
+        
+        try {
+            // Create viewport with max 2560x1440, initial 1280x720
+            mainViewport = new ViewportPane(engine, 2560, 1440, 1280, 720);
+            
+            // Setup picking callback to update scene inspector
+            mainViewport.setOnEntitySelected(pickResult -> {
+                if (pickResult.hasValidEntity()) {
+                    int entityId = pickResult.getEntityId();
+                    workspace.getConsolePane().info("Selected entity: " + entityId);
+                    
+                    // Update selection model
+                    if (workspace.getSelectionModel() != null) {
+                        workspace.getSelectionModel().select(entityId);
+                    }
+                } else {
+                    workspace.getConsolePane().info("Clicked on background (no entity)");
+                    
+                    // Clear selection
+                    if (workspace.getSelectionModel() != null) {
+                        workspace.getSelectionModel().clearSelection();
+                    }
+                }
+            });
+            
+            // Create tab
+            Tab viewportTab = new Tab("Viewport 3D");
+            viewportTab.setContent(mainViewport);
+            viewportTab.setClosable(false); // Don't allow closing the main viewport
+            
+            // Add to center tab pane
+            TabPane centerTabPane = workspace.getCenterTabPane();
+            centerTabPane.getTabs().add(viewportTab);
+            
+            // Select the viewport tab
+            centerTabPane.getSelectionModel().select(viewportTab);
+            
+            // Start render loop when tab is selected
+            centerTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+                if (newTab == viewportTab && mainViewport != null) {
+                    mainViewport.start();
+                } else if (oldTab == viewportTab && mainViewport != null) {
+                    mainViewport.stop();
+                }
+            });
+            
+            // Start immediately since we just selected it
+            mainViewport.start();
+            
+        } catch (Exception e) {
+            workspace.getConsolePane().error("Failed to create viewport", e);
+            showError("Viewport Creation Failed", e.getMessage());
         }
     }
     
@@ -285,6 +350,11 @@ public class AstraeusApp extends Application {
     
     @Override
     public void stop() {
+        // Stop viewport render loop
+        if (mainViewport != null) {
+            mainViewport.dispose();
+        }
+        
         // Stop update loop
         if (updateTimer != null) {
             updateTimer.stop();
