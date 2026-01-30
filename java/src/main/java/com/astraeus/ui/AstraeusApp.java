@@ -1,6 +1,7 @@
 package com.astraeus.ui;
 
 import com.astraeus.native_api.NativeEngine;
+import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -9,48 +10,48 @@ import javafx.stage.Stage;
 
 /**
  * Main JavaFX application for Astraeus visualization engine.
+ * 
+ * Features:
+ * - Professional workspace with docking-like layout
+ * - Scene inspector, telemetry, and console panes
+ * - Layout persistence across sessions
+ * - Toolbar for common actions
  */
 public class AstraeusApp extends Application {
     
     private NativeEngine engine;
-    private Label statusLabel;
+    private WorkspaceWindow workspace;
+    private AnimationTimer updateTimer;
+    
+    private long lastStatusUpdate = 0;
+    private static final long STATUS_UPDATE_INTERVAL_NS = 100_000_000; // 100ms (10 Hz)
     
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Astraeus - 3D Visualization Engine");
         
-        // Create UI
-        BorderPane root = new BorderPane();
+        // Initialize workspace without engine first
+        workspace = new WorkspaceWindow(primaryStage, null);
         
-        // Top toolbar
+        // Add toolbar to workspace
         ToolBar toolbar = createToolbar();
-        root.setTop(toolbar);
+        BorderPane root = workspace.getRoot();
+        VBox topContainer = new VBox();
+        topContainer.getChildren().addAll(root.getTop(), toolbar);
+        root.setTop(topContainer);
         
-        // Center viewport (placeholder for now)
-        VBox centerPane = new VBox(10);
-        centerPane.setStyle("-fx-padding: 20; -fx-alignment: center;");
-        Label titleLabel = new Label("Astraeus 3D Visualization Engine");
-        titleLabel.setStyle("-fx-font-size: 24; -fx-font-weight: bold;");
-        statusLabel = new Label("Engine not initialized");
-        statusLabel.setStyle("-fx-font-size: 14;");
-        centerPane.getChildren().addAll(titleLabel, statusLabel);
-        root.setCenter(centerPane);
-        
-        // Bottom status bar
-        HBox statusBar = new HBox(10);
-        statusBar.setStyle("-fx-padding: 5; -fx-background-color: #f0f0f0;");
-        Label versionLabel = new Label("Version 0.1.0");
-        statusBar.getChildren().add(versionLabel);
-        root.setBottom(statusBar);
-        
-        // Create scene
-        Scene scene = new Scene(root, 1280, 720);
+        // Create and set scene
+        Scene scene = workspace.createScene();
         primaryStage.setScene(scene);
         primaryStage.show();
         
-        // Note: Engine initialization would happen here
-        // For now, it's a stub since native library needs to be built first
-        updateStatus("Ready - Native engine not loaded (build C++ library first)");
+        // Start update loop for status bar
+        startUpdateLoop();
+        
+        // Log initial status
+        workspace.getConsolePane().info("Application started");
+        workspace.getConsolePane().info("Ready - Native engine not loaded (build C++ library first)");
+        workspace.getConsolePane().info("Click 'Initialize Engine' to start the engine");
     }
     
     private ToolBar createToolbar() {
@@ -81,45 +82,85 @@ public class AstraeusApp extends Application {
         return toolbar;
     }
     
+    /**
+     * Start update loop for status bar and telemetry.
+     */
+    private void startUpdateLoop() {
+        updateTimer = new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                // Throttle status updates (10 Hz)
+                if (now - lastStatusUpdate > STATUS_UPDATE_INTERVAL_NS) {
+                    workspace.updateStatus();
+                    
+                    // Update telemetry if engine is valid
+                    if (engine != null && engine.isValid() && engine.isTelemetryEnabled()) {
+                        workspace.updateTelemetry();
+                    }
+                    
+                    lastStatusUpdate = now;
+                }
+            }
+        };
+        updateTimer.start();
+    }
+    
     private void initializeEngine() {
         try {
             if (engine != null) {
-                updateStatus("Engine already initialized");
+                workspace.getConsolePane().warning("Engine already initialized");
                 return;
             }
             
+            workspace.getConsolePane().info("Initializing engine...");
             engine = new NativeEngine(1280, 720, true);
-            updateStatus("Engine initialized successfully");
+            
+            // Update workspace with engine reference
+            workspace.setEngine(engine);
+            
+            workspace.getConsolePane().info("Engine initialized successfully");
+            workspace.getConsolePane().info("Resolution: 1280x720");
+            workspace.getConsolePane().info("Telemetry: " + (engine.isTelemetryEnabled() ? "Enabled" : "Disabled"));
+            
+            // Note: In a full implementation, you would now:
+            // 1. Create a viewport tab with the engine
+            // 2. Connect scene inspector to viewport picking
+            // 3. Enable telemetry pane updates
+            workspace.getConsolePane().info("Tip: Add a viewport to the center tab area");
             
         } catch (Exception e) {
-            updateStatus("Failed to initialize: " + e.getMessage());
+            workspace.getConsolePane().error("Failed to initialize engine", e);
             showError("Engine Initialization Failed", e.getMessage());
         }
     }
     
     private void createTestEntity() {
         if (engine == null || !engine.isValid()) {
-            updateStatus("Engine not initialized");
+            workspace.getConsolePane().warning("Engine not initialized");
             return;
         }
         
         try {
             int entityId = engine.createEntity();
-            updateStatus("Created entity: " + entityId);
+            workspace.getConsolePane().info("Created entity: " + entityId);
         } catch (Exception e) {
-            updateStatus("Failed to create entity: " + e.getMessage());
+            workspace.getConsolePane().error("Failed to create entity", e);
         }
     }
     
     private void clearScene() {
         if (engine != null) {
+            workspace.getConsolePane().info("Closing engine...");
             engine.close();
             engine = null;
-            updateStatus("Engine closed");
+            workspace.getConsolePane().info("Engine closed");
+        } else {
+            workspace.getConsolePane().warning("No engine to close");
         }
     }
     
     private void showAbout() {
+        // Use workspace's about dialog
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("About Astraeus");
         alert.setHeaderText("Astraeus 3D Visualization Engine");
@@ -144,18 +185,25 @@ public class AstraeusApp extends Application {
         alert.showAndWait();
     }
     
-    private void updateStatus(String status) {
-        if (statusLabel != null) {
-            statusLabel.setText(status);
-        }
-        System.out.println("[AstraeusApp] " + status);
-    }
-    
     @Override
     public void stop() {
+        // Stop update loop
+        if (updateTimer != null) {
+            updateTimer.stop();
+        }
+        
+        // Save workspace layout
+        if (workspace != null) {
+            workspace.saveLayout();
+        }
+        
+        // Close engine
         if (engine != null) {
+            workspace.getConsolePane().info("Shutting down engine...");
             engine.close();
         }
+        
+        System.out.println("[AstraeusApp] Application stopped");
     }
     
     public static void main(String[] args) {
