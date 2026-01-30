@@ -86,6 +86,41 @@ public class EngineBindings {
         ValueLayout.ADDRESS,      // param: EngineHandle
         ValueLayout.JAVA_INT      // param: entity_id
     );
+    
+    private static final FunctionDescriptor SET_ENTITY_TRANSFORM_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,      // param: EngineHandle
+        ValueLayout.JAVA_INT,     // param: entity_id
+        ValueLayout.JAVA_FLOAT,   // param: pos_x
+        ValueLayout.JAVA_FLOAT,   // param: pos_y
+        ValueLayout.JAVA_FLOAT,   // param: pos_z
+        ValueLayout.JAVA_FLOAT,   // param: rot_x
+        ValueLayout.JAVA_FLOAT,   // param: rot_y
+        ValueLayout.JAVA_FLOAT,   // param: rot_z
+        ValueLayout.JAVA_FLOAT,   // param: scale_x
+        ValueLayout.JAVA_FLOAT,   // param: scale_y
+        ValueLayout.JAVA_FLOAT    // param: scale_z
+    );
+    
+    private static final FunctionDescriptor SET_ENTITY_RENDERABLE_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,      // param: EngineHandle
+        ValueLayout.JAVA_INT,     // param: entity_id
+        ValueLayout.JAVA_BOOLEAN  // param: visible
+    );
+    
+    private static final FunctionDescriptor SET_ENTITY_COLOR_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,      // param: EngineHandle
+        ValueLayout.JAVA_INT,     // param: entity_id
+        ValueLayout.JAVA_FLOAT,   // param: r
+        ValueLayout.JAVA_FLOAT,   // param: g
+        ValueLayout.JAVA_FLOAT,   // param: b
+        ValueLayout.JAVA_FLOAT    // param: a
+    );
+    
+    private static final FunctionDescriptor SET_ENTITY_TRAIL_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,      // param: EngineHandle
+        ValueLayout.JAVA_INT,     // param: entity_id
+        ValueLayout.JAVA_INT      // param: max_points
+    );
 
     private static final FunctionDescriptor PICK_DESC = FunctionDescriptor.ofVoid(
         ValueLayout.ADDRESS,  // EngineHandle
@@ -143,6 +178,10 @@ public class EngineBindings {
     public static final MethodHandle GET_ID_BUFFER;
     public static final MethodHandle CREATE_ENTITY;
     public static final MethodHandle DESTROY_ENTITY;
+    public static final MethodHandle SET_ENTITY_TRANSFORM;
+    public static final MethodHandle SET_ENTITY_RENDERABLE;
+    public static final MethodHandle SET_ENTITY_COLOR;
+    public static final MethodHandle SET_ENTITY_TRAIL;
     public static final MethodHandle PICK;
     public static final MethodHandle ENABLE_TELEMETRY;
     public static final MethodHandle IS_TELEMETRY_ENABLED;
@@ -196,6 +235,26 @@ public class EngineBindings {
             DESTROY_ENTITY = LINKER.downcallHandle(
                 LIBRARY.find("astraeus_destroy_entity").orElseThrow(),
                 DESTROY_ENTITY_DESC
+            );
+            
+            SET_ENTITY_TRANSFORM = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_set_entity_transform").orElseThrow(),
+                SET_ENTITY_TRANSFORM_DESC
+            );
+            
+            SET_ENTITY_RENDERABLE = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_set_entity_renderable").orElseThrow(),
+                SET_ENTITY_RENDERABLE_DESC
+            );
+            
+            SET_ENTITY_COLOR = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_set_entity_color").orElseThrow(),
+                SET_ENTITY_COLOR_DESC
+            );
+            
+            SET_ENTITY_TRAIL = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_set_entity_trail").orElseThrow(),
+                SET_ENTITY_TRAIL_DESC
             );
             
             CONFIGURE_READBACK = LINKER.downcallHandle(

@@ -1,7 +1,10 @@
 package com.astraeus.ui;
 
 import com.astraeus.native_api.NativeEngine;
+import com.astraeus.scene.SceneManager;
+import com.astraeus.tools.InspectorPane;
 import com.astraeus.tools.SceneInspector;
+import com.astraeus.tools.SceneOutlinerPane;
 import com.astraeus.tools.TelemetryPane;
 import javafx.geometry.Orientation;
 import javafx.scene.control.*;
@@ -18,8 +21,8 @@ import javafx.stage.Stage;
  * ├──────┬────────────────────────────┬─────────┤
  * │      │                            │         │
  * │ Left │      Center Viewport       │ Right   │
- * │Scene │         (TabPane)          │Properties│
- * │Insp. │                            │         │
+ * │Scene │         (TabPane)          │Insp/Tel │
+ * │Outl. │                            │         │
  * │      │                            │         │
  * ├──────┴────────────────────────────┴─────────┤
  * │ Bottom Console / Log Pane                   │
@@ -46,6 +49,8 @@ public class WorkspaceWindow {
     
     private final Stage stage;
     private NativeEngine engine;
+    private SceneManager sceneManager;
+    private SelectionModel selectionModel;
     private final LayoutConfig layoutConfig;
     
     // Layout components
@@ -55,14 +60,16 @@ public class WorkspaceWindow {
     private SplitPane rightVerticalSplit;
     
     // Panes
-    private SceneInspector sceneInspector;
+    private SceneOutlinerPane sceneOutlinerPane;
+    private InspectorPane inspectorPane;
     private TelemetryPane telemetryPane;
     private TabPane centerTabPane;
     private ConsolePane consolePane;
     
     // Menu items for pane visibility
-    private CheckMenuItem sceneInspectorMenuItem;
-    private CheckMenuItem propertiesMenuItem;
+    private CheckMenuItem sceneOutlinerMenuItem;
+    private CheckMenuItem inspectorMenuItem;
+    private CheckMenuItem telemetryMenuItem;
     private CheckMenuItem consoleMenuItem;
     
     // Status bar
@@ -74,6 +81,14 @@ public class WorkspaceWindow {
         this.stage = stage;
         this.engine = engine;
         this.layoutConfig = LayoutConfig.load();
+        
+        // Create selection model (shared across panes)
+        this.selectionModel = new SelectionModel();
+        
+        // Create scene manager if engine is available
+        if (engine != null) {
+            this.sceneManager = new SceneManager(engine);
+        }
         
         buildUI();
         setupMenuBar();
@@ -89,6 +104,15 @@ public class WorkspaceWindow {
      */
     public void setEngine(NativeEngine engine) {
         this.engine = engine;
+        
+        // Create scene manager when engine is set
+        if (engine != null && sceneManager == null) {
+            this.sceneManager = new SceneManager(engine);
+            
+            // Rebuild UI with new scene manager
+            rebuildRightPanes();
+        }
+        
         updateStatus();
     }
     
@@ -110,8 +134,15 @@ public class WorkspaceWindow {
      * Build main workspace with split panes.
      */
     private void buildMainWorkspace() {
-        // Left: Scene Inspector
-        sceneInspector = new SceneInspector();
+        // Left: Scene Outliner
+        if (sceneManager != null) {
+            sceneOutlinerPane = new SceneOutlinerPane(sceneManager, selectionModel);
+        } else {
+            // Placeholder until engine is initialized
+            VBox placeholder = createPlaceholder("Scene Outliner", "Initialize engine to view scene");
+            sceneOutlinerPane = null;
+            // We'll use the placeholder as temporary left pane
+        }
         
         // Center: Tabbed viewport area
         centerTabPane = new TabPane();
@@ -130,26 +161,33 @@ public class WorkspaceWindow {
         welcomeTab.setContent(welcomeContent);
         centerTabPane.getTabs().add(welcomeTab);
         
-        // Right: Properties / Telemetry pane
-        // Note: TelemetryPane requires engine, so we create a placeholder region if engine is null
-        Region propertiesPane;
+        // Right: Inspector and Telemetry panes in tabs
+        TabPane rightTabPane = new TabPane();
+        rightTabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        rightTabPane.setMinWidth(300);
+        rightTabPane.setPrefWidth(350);
+        
+        // Inspector tab
+        Tab inspectorTab = new Tab("Inspector");
+        if (sceneManager != null) {
+            inspectorPane = new InspectorPane(sceneManager, selectionModel);
+            inspectorTab.setContent(inspectorPane);
+        } else {
+            inspectorTab.setContent(createPlaceholder("Inspector", "Initialize engine to edit properties"));
+            inspectorPane = null;
+        }
+        
+        // Telemetry tab
+        Tab telemetryTab = new Tab("Telemetry");
         if (engine != null) {
             telemetryPane = new TelemetryPane(engine);
-            propertiesPane = telemetryPane;
+            telemetryTab.setContent(telemetryPane);
         } else {
-            // Create placeholder until engine is available
-            VBox placeholder = new VBox(10);
-            placeholder.setStyle("-fx-padding: 10; -fx-background-color: #f5f5f5;");
-            Label label = new Label("Properties");
-            label.setStyle("-fx-font-size: 16; -fx-font-weight: bold;");
-            Label info = new Label("Initialize engine to view properties");
-            info.setStyle("-fx-text-fill: #666666;");
-            placeholder.getChildren().addAll(label, info);
-            placeholder.setMinWidth(300);
-            placeholder.setPrefWidth(350);
-            propertiesPane = placeholder;
+            telemetryTab.setContent(createPlaceholder("Telemetry", "Initialize engine to view telemetry"));
             telemetryPane = null;
         }
+        
+        rightTabPane.getTabs().addAll(inspectorTab, telemetryTab);
         
         // Bottom: Console pane
         consolePane = new ConsolePane();
@@ -159,12 +197,13 @@ public class WorkspaceWindow {
         // Right vertical split (center + right properties)
         rightVerticalSplit = new SplitPane();
         rightVerticalSplit.setOrientation(Orientation.HORIZONTAL);
-        rightVerticalSplit.getItems().addAll(centerTabPane, propertiesPane);
+        rightVerticalSplit.getItems().addAll(centerTabPane, rightTabPane);
         
         // Main vertical split (left + right)
         mainVerticalSplit = new SplitPane();
         mainVerticalSplit.setOrientation(Orientation.HORIZONTAL);
-        mainVerticalSplit.getItems().addAll(sceneInspector, rightVerticalSplit);
+        Region leftPane = sceneOutlinerPane != null ? sceneOutlinerPane : createPlaceholder("Scene Outliner", "Initialize engine");
+        mainVerticalSplit.getItems().addAll(leftPane, rightVerticalSplit);
         
         // Main horizontal split (top + bottom console)
         mainHorizontalSplit = new SplitPane();
@@ -172,6 +211,65 @@ public class WorkspaceWindow {
         mainHorizontalSplit.getItems().addAll(mainVerticalSplit, consolePane);
         
         root.setCenter(mainHorizontalSplit);
+    }
+    
+    /**
+     * Create a placeholder pane.
+     */
+    private VBox createPlaceholder(String title, String message) {
+        VBox placeholder = new VBox(10);
+        placeholder.setStyle("-fx-padding: 10; -fx-background-color: #f5f5f5;");
+        Label label = new Label(title);
+        label.setStyle("-fx-font-size: 16; -fx-font-weight: bold;");
+        Label info = new Label(message);
+        info.setStyle("-fx-text-fill: #666666;");
+        placeholder.getChildren().addAll(label, info);
+        placeholder.setMinWidth(250);
+        placeholder.setPrefWidth(300);
+        return placeholder;
+    }
+    
+    /**
+     * Rebuild right panes when engine becomes available.
+     */
+    private void rebuildRightPanes() {
+        // Create new panes with scene manager
+        if (sceneManager != null && sceneOutlinerPane == null) {
+            sceneOutlinerPane = new SceneOutlinerPane(sceneManager, selectionModel);
+            // Replace left pane
+            if (mainVerticalSplit.getItems().size() > 0) {
+                mainVerticalSplit.getItems().set(0, sceneOutlinerPane);
+            }
+        }
+        
+        if (sceneManager != null && inspectorPane == null) {
+            inspectorPane = new InspectorPane(sceneManager, selectionModel);
+            // Find and update inspector tab
+            updateRightTabContent("Inspector", inspectorPane);
+        }
+        
+        if (engine != null && telemetryPane == null) {
+            telemetryPane = new TelemetryPane(engine);
+            updateRightTabContent("Telemetry", telemetryPane);
+        }
+    }
+    
+    /**
+     * Update content of a tab in the right pane.
+     */
+    private void updateRightTabContent(String tabName, Region newContent) {
+        if (rightVerticalSplit.getItems().size() > 1) {
+            Region rightPane = (Region) rightVerticalSplit.getItems().get(1);
+            if (rightPane instanceof TabPane) {
+                TabPane tabPane = (TabPane) rightPane;
+                for (Tab tab : tabPane.getTabs()) {
+                    if (tab.getText().equals(tabName)) {
+                        tab.setContent(newContent);
+                        break;
+                    }
+                }
+            }
+        }
     }
     
     /**
@@ -194,21 +292,26 @@ public class WorkspaceWindow {
         // === View Menu ===
         Menu viewMenu = new Menu("View");
         
-        sceneInspectorMenuItem = new CheckMenuItem("Scene Inspector");
-        sceneInspectorMenuItem.setSelected(layoutConfig.isPaneVisible("scene-inspector", true));
-        sceneInspectorMenuItem.setOnAction(e -> togglePane("scene-inspector", sceneInspector, sceneInspectorMenuItem));
+        sceneOutlinerMenuItem = new CheckMenuItem("Scene Outliner");
+        sceneOutlinerMenuItem.setSelected(layoutConfig.isPaneVisible("scene-outliner", true));
+        sceneOutlinerMenuItem.setOnAction(e -> togglePane("scene-outliner", sceneOutlinerPane, sceneOutlinerMenuItem));
         
-        propertiesMenuItem = new CheckMenuItem("Properties");
-        propertiesMenuItem.setSelected(layoutConfig.isPaneVisible("properties", true));
-        propertiesMenuItem.setOnAction(e -> togglePane("properties", telemetryPane, propertiesMenuItem));
+        inspectorMenuItem = new CheckMenuItem("Inspector");
+        inspectorMenuItem.setSelected(layoutConfig.isPaneVisible("inspector", true));
+        inspectorMenuItem.setOnAction(e -> toggleRightTab("Inspector", inspectorMenuItem));
+        
+        telemetryMenuItem = new CheckMenuItem("Telemetry");
+        telemetryMenuItem.setSelected(layoutConfig.isPaneVisible("telemetry", true));
+        telemetryMenuItem.setOnAction(e -> toggleRightTab("Telemetry", telemetryMenuItem));
         
         consoleMenuItem = new CheckMenuItem("Console");
         consoleMenuItem.setSelected(layoutConfig.isPaneVisible("console", true));
         consoleMenuItem.setOnAction(e -> togglePane("console", consolePane, consoleMenuItem));
         
         viewMenu.getItems().addAll(
-            sceneInspectorMenuItem,
-            propertiesMenuItem,
+            sceneOutlinerMenuItem,
+            inspectorMenuItem,
+            telemetryMenuItem,
             consoleMenuItem,
             new SeparatorMenuItem(),
             createResetLayoutMenuItem()
@@ -304,13 +407,24 @@ public class WorkspaceWindow {
     }
     
     /**
+     * Toggle right tab visibility (Inspector/Telemetry).
+     * Note: Currently only tracks state in config. Future enhancement could
+     * dynamically add/remove tabs from TabPane.
+     */
+    private void toggleRightTab(String tabName, CheckMenuItem menuItem) {
+        boolean visible = menuItem.isSelected();
+        layoutConfig.setPaneVisible(tabName.toLowerCase(), visible);
+        
+        // TODO: Implement actual tab visibility control
+        // Currently tabs remain visible but state is tracked for future use
+    }
+    
+    /**
      * Get parent split pane for a given pane.
      */
     private SplitPane getParentSplit(Region pane) {
-        if (pane == sceneInspector) {
+        if (pane == sceneOutlinerPane) {
             return mainVerticalSplit;
-        } else if (pane == telemetryPane) {
-            return rightVerticalSplit;
         } else if (pane == consolePane) {
             return mainHorizontalSplit;
         }
@@ -321,15 +435,10 @@ public class WorkspaceWindow {
      * Add pane to correct position in split.
      */
     private void addPaneToCorrectPosition(SplitPane split, Region pane, String paneName) {
-        if (pane == sceneInspector) {
+        if (pane == sceneOutlinerPane) {
             // Add at start
             if (!split.getItems().contains(pane)) {
                 split.getItems().add(0, pane);
-            }
-        } else if (pane == telemetryPane) {
-            // Add at end
-            if (!split.getItems().contains(pane)) {
-                split.getItems().add(pane);
             }
         } else if (pane == consolePane) {
             // Add at end
@@ -366,11 +475,8 @@ public class WorkspaceWindow {
         
         // Pane visibility - remove panes that should be hidden
         // Note: Menu items already reflect correct state from initialization
-        if (!sceneInspectorMenuItem.isSelected()) {
-            mainVerticalSplit.getItems().remove(sceneInspector);
-        }
-        if (!propertiesMenuItem.isSelected()) {
-            rightVerticalSplit.getItems().remove(telemetryPane);
+        if (!sceneOutlinerMenuItem.isSelected() && sceneOutlinerPane != null) {
+            mainVerticalSplit.getItems().remove(sceneOutlinerPane);
         }
         if (!consoleMenuItem.isSelected()) {
             mainHorizontalSplit.getItems().remove(consolePane);
@@ -435,16 +541,14 @@ public class WorkspaceWindow {
         mainHorizontalSplit.setDividerPositions(0.75);
         
         // Show all panes
-        sceneInspectorMenuItem.setSelected(true);
-        propertiesMenuItem.setSelected(true);
+        sceneOutlinerMenuItem.setSelected(true);
+        inspectorMenuItem.setSelected(true);
+        telemetryMenuItem.setSelected(true);
         consoleMenuItem.setSelected(true);
         
         // Ensure panes are visible
-        if (!mainVerticalSplit.getItems().contains(sceneInspector)) {
-            mainVerticalSplit.getItems().add(0, sceneInspector);
-        }
-        if (!rightVerticalSplit.getItems().contains(telemetryPane)) {
-            rightVerticalSplit.getItems().add(telemetryPane);
+        if (sceneOutlinerPane != null && !mainVerticalSplit.getItems().contains(sceneOutlinerPane)) {
+            mainVerticalSplit.getItems().add(0, sceneOutlinerPane);
         }
         if (!mainHorizontalSplit.getItems().contains(consolePane)) {
             mainHorizontalSplit.getItems().add(consolePane);
@@ -498,10 +602,31 @@ public class WorkspaceWindow {
     }
     
     /**
-     * Get scene inspector.
+     * Get scene outliner pane.
      */
-    public SceneInspector getSceneInspector() {
-        return sceneInspector;
+    public SceneOutlinerPane getSceneOutlinerPane() {
+        return sceneOutlinerPane;
+    }
+    
+    /**
+     * Get inspector pane.
+     */
+    public InspectorPane getInspectorPane() {
+        return inspectorPane;
+    }
+    
+    /**
+     * Get scene manager.
+     */
+    public SceneManager getSceneManager() {
+        return sceneManager;
+    }
+    
+    /**
+     * Get selection model.
+     */
+    public SelectionModel getSelectionModel() {
+        return selectionModel;
     }
     
     /**
