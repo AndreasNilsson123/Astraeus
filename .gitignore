@@ -15,7 +15,7 @@ CMakeFiles/
 cmake_install.cmake
 Makefile
 *.cmake
-!CMakeLists.txt
+!engine/CMakeLists.txt
 
 # Java Build Artifacts
 target/
@@ -40,3 +40,6 @@ target/
 # CodeQL
 _codeql_*/
 /cmake-build-debug-visual-studio/
+/java/src/main/java/com/astraeus/generated/
+/engine/generated/
+/astraeus-java.iml

@@ -61,4 +61,4 @@ To add a new example:
 
 ## API Reference
 
-See the main [README.md](../README.md) for API documentation, or refer to [engine/api/EngineAPI.h](../engine/api/EngineAPI.h) for the complete C API reference.
+See the main [README.md](../../README.md) for API documentation, or refer to [engine/api/EngineAPI.h](../api/EngineAPI.h) for the complete C API reference.

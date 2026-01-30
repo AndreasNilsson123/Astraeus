@@ -84,11 +84,10 @@ structs:
         description: "Padding for alignment"
 
   - name: PixelBufferView
-    description: |
-      Pixel buffer view for readback (zero-copy, fixed backing size).
+    description: """ Pixel buffer view for readback (zero-copy, fixed backing size). 
       IMPORTANT: The backing memory (data pointer) is allocated once with max_backing_size
       and remains stable for the engine's lifetime. Only the viewport region (width, height)
-      changes on resize. This ensures JavaFX PixelBuffer memory stability.
+      changes on resize. This ensures JavaFX PixelBuffer memory stability."""
     fields:
       - name: data
         type: pointer
@@ -169,9 +168,17 @@ structs:
       - name: enable_validation
         type: bool
         description: "Enable validation layers"
+      - name: _padding1
+        type: uint8
+        array_size: 3
+        description: "Padding for alignment"
       - name: enable_debug_output
         type: bool
         description: "Enable debug output"
+      - name: _padding2
+        type: uint8
+        array_size: 3
+        description: "Padding for alignment"
       - name: log_file_path
-        type: pointer
+        type: char_pointer
         description: "Path to log file (const char*, can be NULL)"

@@ -1,5 +1,7 @@
 package com.astraeus.native_api;
 
+import com.astraeus.generated.StructLayouts;
+
 import java.lang.foreign.*;
 import java.lang.invoke.MethodHandle;
 
@@ -21,12 +23,12 @@ public class EngineBindings {
     public static final int PIXEL_FORMAT_R32UI = 3;
     
     // Use generated struct layouts from StructLayouts.gen.java
-    public static final StructLayout READBACK_CONFIG_LAYOUT = StructLayouts.READBACKCONFIG_LAYOUT;
-    public static final StructLayout PIXEL_BUFFER_VIEW_LAYOUT = StructLayouts.PIXELBUFFERVIEW_LAYOUT;
-    public static final StructLayout ENGINE_CONFIG_LAYOUT = StructLayouts.ENGINECONFIG_LAYOUT;
-    public static final StructLayout FRAME_STATS_LAYOUT = StructLayouts.FRAMESTATS_LAYOUT;
-    public static final StructLayout PICK_RESULT_LAYOUT = StructLayouts.PICKRESULT_LAYOUT;
-    public static final StructLayout TELEMETRY_FRAME_STATS_LAYOUT = StructLayouts.TELEMETRYFRAMESTATS_LAYOUT;
+    public static final StructLayout READBACK_CONFIG_LAYOUT = StructLayouts.READBACK_CONFIG_LAYOUT;
+    public static final StructLayout PIXEL_BUFFER_VIEW_LAYOUT = StructLayouts.PIXEL_BUFFER_VIEW_LAYOUT;
+    public static final StructLayout ENGINE_CONFIG_LAYOUT = StructLayouts.ENGINE_CONFIG_LAYOUT;
+    public static final StructLayout FRAME_STATS_LAYOUT = StructLayouts.FRAME_STATS_LAYOUT;
+    public static final StructLayout PICK_RESULT_LAYOUT = StructLayouts.PICK_RESULT_LAYOUT;
+    public static final StructLayout TELEMETRY_FRAME_STATS_LAYOUT = StructLayouts.TELEMETRY_FRAME_STATS_LAYOUT;
     
     // Function descriptors (C ABI signatures)
     private static final FunctionDescriptor CREATE_ENGINE_DESC = FunctionDescriptor.of(

@@ -9,7 +9,7 @@ extern "C" {
 #include <stdbool.h>
 
 // Include generated ABI structs
-#include "EngineABI_Structs.gen.h"
+#include "generated/EngineABI_Structs.h"
 
 #if defined(_WIN32)
     #if defined(ASTRAEUS_BUILDING_DLL)

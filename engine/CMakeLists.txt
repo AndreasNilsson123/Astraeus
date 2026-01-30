@@ -48,7 +48,7 @@ endif()
 
 # Minimal stub file to satisfy CMake library requirements (all implementations are inline/header-only)
 set(ASTRAEUS_ENGINE_SOURCES
-        engine/api/EngineAPI_stub.cpp
+        api/EngineAPI_stub.cpp
 )
 
 # Note: WGL and EGL backend modules are now header-only
@@ -73,7 +73,7 @@ set_target_properties(astraeus_engine PROPERTIES
 
 target_include_directories(astraeus_engine
         PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/engine>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:include>
 )
 
