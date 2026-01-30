@@ -40,13 +40,29 @@ extern "C" {
 // =============================================================================
 
 typedef struct AstraeusEngine* EngineHandle;
+typedef struct AstraeusViewport* ViewportHandle;
+typedef struct AstraeusCamera* CameraHandle;
+typedef struct AstraeusMaterial* MaterialHandle;
+
+// =============================================================================
+// RESULT CODES
+// =============================================================================
+
+typedef enum {
+    ASTRAEUS_SUCCESS = 0,
+    ASTRAEUS_ERROR_INVALID_HANDLE = 1,
+    ASTRAEUS_ERROR_INVALID_PARAMETER = 2,
+    ASTRAEUS_ERROR_OUT_OF_MEMORY = 3,
+    ASTRAEUS_ERROR_NOT_INITIALIZED = 4,
+    ASTRAEUS_ERROR_UNKNOWN = 255
+} AstraeusResult;
 
 // =============================================================================
 // POD STRUCTS FOR FFM
 // =============================================================================
 // NOTE: ABI POD structs are now defined in EngineABI_Structs.gen.h (auto-generated)
 // This includes: FrameStats, TelemetryFrameStats, ViewportConfig, PixelBufferView,
-// ReadbackConfig, PickResult, EngineConfig
+// ReadbackConfig, PickResult, EngineConfig, CameraDesc, MaterialDesc
 
 // Pixel format enumeration
 typedef enum {
@@ -56,9 +72,37 @@ typedef enum {
     PIXEL_FORMAT_R32UI = 3     // 32-bit unsigned int (for ID buffer)
 } PixelFormat;
 
+// Camera mode enumeration
+typedef enum {
+    CAMERA_MODE_ORBIT = 0,
+    CAMERA_MODE_FLY = 1,
+    CAMERA_MODE_PAN = 2
+} CameraMode;
+
+// Alpha mode enumeration
+typedef enum {
+    ALPHA_MODE_OPAQUE = 0,
+    ALPHA_MODE_BLEND = 1,
+    ALPHA_MODE_MASK = 2
+} AlphaMode;
+
 // =============================================================================
 // ENGINE LIFECYCLE
 // =============================================================================
+
+/**
+ * Get the API version number.
+ * Version format: (MAJOR << 16) | (MINOR << 8) | PATCH
+ * @return API version number
+ */
+ASTRAEUS_API uint32_t astraeus_api_version(void);
+
+/**
+ * Get the last error message for the engine.
+ * @param engine Engine handle
+ * @return Error message string (valid until next call, or NULL if no error)
+ */
+ASTRAEUS_API const char* astraeus_last_error(EngineHandle engine);
 
 /**
  * Create a new engine instance.
@@ -88,14 +132,16 @@ ASTRAEUS_API bool astraeus_is_valid(EngineHandle engine);
  * Begin a new frame.
  * @param engine Engine handle
  * @param delta_time Time since last frame in seconds
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
  */
-ASTRAEUS_API void astraeus_begin_frame(EngineHandle engine, double delta_time);
+ASTRAEUS_API AstraeusResult astraeus_begin_frame(EngineHandle engine, double delta_time);
 
 /**
  * End the current frame and present.
  * @param engine Engine handle
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
  */
-ASTRAEUS_API void astraeus_end_frame(EngineHandle engine);
+ASTRAEUS_API AstraeusResult astraeus_end_frame(EngineHandle engine);
 
 /**
  * Resize the viewport.
@@ -142,6 +188,137 @@ ASTRAEUS_API void astraeus_get_color_buffer(EngineHandle engine, PixelBufferView
  * @param out_view Output pixel buffer view (must not be NULL)
  */
 ASTRAEUS_API void astraeus_get_id_buffer(EngineHandle engine, PixelBufferView* out_view);
+
+// =============================================================================
+// VIEWPORT API (Render Session)
+// =============================================================================
+
+/**
+ * Create a new viewport for rendering.
+ * For MVP, creates a 1:1 mapping with the engine context.
+ * @param engine Engine handle
+ * @param config Viewport configuration
+ * @param out_viewport Output viewport handle (must not be NULL)
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_viewport_create(EngineHandle engine, 
+                                        const ViewportConfig* config, 
+                                        ViewportHandle* out_viewport);
+
+/**
+ * Destroy a viewport and free its resources.
+ * @param viewport Viewport handle
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_viewport_destroy(ViewportHandle viewport);
+
+/**
+ * Resize the viewport.
+ * @param viewport Viewport handle
+ * @param width New viewport width
+ * @param height New viewport height
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_viewport_resize(ViewportHandle viewport, 
+                                        uint32_t width, uint32_t height);
+
+/**
+ * Get the color buffer from the viewport.
+ * @param viewport Viewport handle
+ * @param out_view Output pixel buffer view (must not be NULL)
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_viewport_get_color(ViewportHandle viewport, 
+                                           PixelBufferView* out_view);
+
+/**
+ * Get the ID buffer from the viewport for picking.
+ * @param viewport Viewport handle
+ * @param out_view Output pixel buffer view (must not be NULL)
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_viewport_get_idbuffer(ViewportHandle viewport, 
+                                              PixelBufferView* out_view);
+
+// =============================================================================
+// CAMERA API (Render Session)
+// =============================================================================
+
+/**
+ * Get the active camera for a viewport.
+ * @param viewport Viewport handle
+ * @param out_camera Output camera handle (must not be NULL)
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_camera_get_active(ViewportHandle viewport, 
+                                          CameraHandle* out_camera);
+
+/**
+ * Get camera descriptor (read camera state).
+ * @param camera Camera handle
+ * @param out_desc Output camera descriptor (must not be NULL)
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_camera_get_desc(CameraHandle camera, 
+                                        CameraDesc* out_desc);
+
+/**
+ * Set camera descriptor (update camera state).
+ * @param camera Camera handle
+ * @param desc Camera descriptor (must not be NULL)
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_camera_set_desc(CameraHandle camera, 
+                                        const CameraDesc* desc);
+
+/**
+ * Destroy a camera handle (lightweight, does NOT destroy the actual camera).
+ * @param camera Camera handle
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_camera_destroy(CameraHandle camera);
+
+// =============================================================================
+// MATERIALS API (MVP - Render Session)
+// =============================================================================
+
+/**
+ * Create a new material.
+ * @param engine Engine handle
+ * @param desc Material descriptor (must not be NULL)
+ * @param out_material Output material handle (must not be NULL)
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_material_create(EngineHandle engine, 
+                                        const MaterialDesc* desc, 
+                                        MaterialHandle* out_material);
+
+/**
+ * Update an existing material.
+ * @param material Material handle
+ * @param desc Material descriptor (must not be NULL)
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_material_update(MaterialHandle material, 
+                                        const MaterialDesc* desc);
+
+/**
+ * Destroy a material and free its resources.
+ * @param material Material handle
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_material_destroy(MaterialHandle material);
+
+/**
+ * Assign a material to an entity.
+ * @param engine Engine handle
+ * @param entity_id Entity ID
+ * @param material Material handle
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_entity_set_material(EngineHandle engine, 
+                                            uint32_t entity_id, 
+                                            MaterialHandle material);
 
 // =============================================================================
 // SCENE MANAGEMENT

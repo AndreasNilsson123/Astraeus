@@ -70,11 +70,13 @@ public class NativeEngine implements AutoCloseable {
     /**
      * Begin a new frame.
      * @param deltaTime Time since last frame in seconds
+     * @return true on success, false on failure
      */
-    public void beginFrame(double deltaTime) {
+    public boolean beginFrame(double deltaTime) {
         checkClosed();
         try {
-            EngineBindings.BEGIN_FRAME.invoke(engineHandle, deltaTime);
+            int result = (int) EngineBindings.BEGIN_FRAME.invoke(engineHandle, deltaTime);
+            return result == EngineBindings.ASTRAEUS_SUCCESS;
         } catch (Throwable e) {
             throw new RuntimeException("Failed to begin frame", e);
         }
@@ -82,11 +84,13 @@ public class NativeEngine implements AutoCloseable {
     
     /**
      * End the current frame.
+     * @return true on success, false on failure
      */
-    public void endFrame() {
+    public boolean endFrame() {
         checkClosed();
         try {
-            EngineBindings.END_FRAME.invoke(engineHandle);
+            int result = (int) EngineBindings.END_FRAME.invoke(engineHandle);
+            return result == EngineBindings.ASTRAEUS_SUCCESS;
         } catch (Throwable e) {
             throw new RuntimeException("Failed to end frame", e);
         }
@@ -573,6 +577,134 @@ public class NativeEngine implements AutoCloseable {
             return (boolean) EngineBindings.IS_VALID.invoke(engineHandle);
         } catch (Throwable e) {
             return false;
+        }
+    }
+    
+    /**
+     * Get the API version number.
+     * Format: (MAJOR << 16) | (MINOR << 8) | PATCH
+     */
+    public int getApiVersion() {
+        try {
+            return (int) EngineBindings.API_VERSION.invoke();
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to get API version", e);
+        }
+    }
+    
+    /**
+     * Get the last error message from the engine.
+     */
+    public String getLastError() {
+        try {
+            MemorySegment errorPtr = (MemorySegment) EngineBindings.LAST_ERROR.invoke(engineHandle);
+            if (errorPtr == null || errorPtr.equals(MemorySegment.NULL)) {
+                return null;
+            }
+            return errorPtr.reinterpret(Long.MAX_VALUE).getString(0);
+        } catch (Throwable e) {
+            return "Failed to retrieve error: " + e.getMessage();
+        }
+    }
+    
+    /**
+     * Create a viewport for rendering.
+     * @param width Viewport width
+     * @param height Viewport height
+     */
+    public NativeViewport createViewport(int width, int height) {
+        checkClosed();
+        try {
+            // Allocate ViewportConfig
+            MemorySegment config = arena.allocate(EngineBindings.VIEWPORT_CONFIG_LAYOUT);
+            
+            VarHandle widthHandle = EngineBindings.VIEWPORT_CONFIG_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("width"));
+            VarHandle heightHandle = EngineBindings.VIEWPORT_CONFIG_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("height"));
+            VarHandle aspectHandle = EngineBindings.VIEWPORT_CONFIG_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("aspect_ratio"));
+            
+            widthHandle.set(config, 0L, width);
+            heightHandle.set(config, 0L, height);
+            aspectHandle.set(config, 0L, (float) width / (float) height);
+            
+            // Allocate output pointer for viewport handle
+            MemorySegment viewportHandlePtr = arena.allocate(ValueLayout.ADDRESS);
+            
+            int result = (int) EngineBindings.VIEWPORT_CREATE.invoke(
+                engineHandle, config, viewportHandlePtr);
+            
+            if (result != EngineBindings.ASTRAEUS_SUCCESS) {
+                String error = getLastError();
+                throw new RuntimeException("Failed to create viewport, error code: " + result + 
+                                         (error != null ? ", message: " + error : ""));
+            }
+            
+            MemorySegment viewportHandle = viewportHandlePtr.get(ValueLayout.ADDRESS, 0L);
+            return new NativeViewport(viewportHandle, this, arena);
+            
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to create viewport", e);
+        }
+    }
+    
+    /**
+     * Create a material.
+     * @param desc Material descriptor
+     */
+    public NativeMaterial createMaterial(NativeMaterial.MaterialDesc desc) {
+        checkClosed();
+        try {
+            // Allocate MaterialDesc
+            MemorySegment descSegment = arena.allocate(EngineBindings.MATERIAL_DESC_LAYOUT);
+            
+            VarHandle base_r_handle = EngineBindings.MATERIAL_DESC_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("base_color_r"));
+            VarHandle base_g_handle = EngineBindings.MATERIAL_DESC_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("base_color_g"));
+            VarHandle base_b_handle = EngineBindings.MATERIAL_DESC_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("base_color_b"));
+            VarHandle base_a_handle = EngineBindings.MATERIAL_DESC_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("base_color_a"));
+            VarHandle metallic_handle = EngineBindings.MATERIAL_DESC_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("metallic"));
+            VarHandle roughness_handle = EngineBindings.MATERIAL_DESC_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("roughness"));
+            VarHandle alpha_mode_handle = EngineBindings.MATERIAL_DESC_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("alpha_mode"));
+            VarHandle base_tex_handle = EngineBindings.MATERIAL_DESC_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("base_color_texture_id"));
+            VarHandle normal_tex_handle = EngineBindings.MATERIAL_DESC_LAYOUT.varHandle(
+                MemoryLayout.PathElement.groupElement("normal_texture_id"));
+            
+            base_r_handle.set(descSegment, 0L, desc.baseColorR());
+            base_g_handle.set(descSegment, 0L, desc.baseColorG());
+            base_b_handle.set(descSegment, 0L, desc.baseColorB());
+            base_a_handle.set(descSegment, 0L, desc.baseColorA());
+            metallic_handle.set(descSegment, 0L, desc.metallic());
+            roughness_handle.set(descSegment, 0L, desc.roughness());
+            alpha_mode_handle.set(descSegment, 0L, desc.alphaMode());
+            base_tex_handle.set(descSegment, 0L, desc.baseColorTextureId());
+            normal_tex_handle.set(descSegment, 0L, desc.normalTextureId());
+            
+            // Allocate output pointer for material handle
+            MemorySegment materialHandlePtr = arena.allocate(ValueLayout.ADDRESS);
+            
+            int result = (int) EngineBindings.MATERIAL_CREATE.invoke(
+                engineHandle, descSegment, materialHandlePtr);
+            
+            if (result != EngineBindings.ASTRAEUS_SUCCESS) {
+                String error = getLastError();
+                throw new RuntimeException("Failed to create material, error code: " + result +
+                                         (error != null ? ", message: " + error : ""));
+            }
+            
+            MemorySegment materialHandle = materialHandlePtr.get(ValueLayout.ADDRESS, 0L);
+            return new NativeMaterial(materialHandle, arena);
+            
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to create material", e);
         }
     }
     

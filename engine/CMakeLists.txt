@@ -49,6 +49,7 @@ endif()
 # Minimal stub file to satisfy CMake library requirements (all implementations are inline/header-only)
 set(ASTRAEUS_ENGINE_SOURCES
         api/EngineAPI_stub.cpp
+        api/EngineAPI_RenderSession.cpp
 )
 
 # Note: WGL and EGL backend modules are now header-only

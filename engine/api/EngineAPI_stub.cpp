@@ -88,25 +88,8 @@ bool astraeus_is_valid(EngineHandle engine) {
     return is_valid_engine(engine);
 }
 
-void astraeus_begin_frame(EngineHandle engine, double delta_time) {
-    if (!is_valid_engine(engine)) {
-        return;
-    }
-    
-    engine->context->begin_frame(delta_time);
-}
-
-void astraeus_end_frame(EngineHandle engine) {
-    if (!is_valid_engine(engine)) {
-        return;
-    }
-    
-    engine->context->end_frame();
-    
-    // Update frame stats
-    engine->current_stats.frame_number++;
-    engine->context->get_frame_stats(engine->current_stats);
-}
+// NOTE: astraeus_begin_frame and astraeus_end_frame are now implemented in EngineAPI_RenderSession.cpp
+// They have been updated to return AstraeusResult instead of void
 
 void astraeus_resize_viewport(EngineHandle engine, uint32_t width, uint32_t height) {
     if (!is_valid_engine(engine)) {
