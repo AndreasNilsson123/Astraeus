@@ -3,7 +3,7 @@
 
 #include "../RenderGraph.hpp"
 #include "../opengl/GLRenderDevice.hpp"
-#include "../UnlitShader.hpp"
+#include "../MaterialLibrary.hpp"
 #include "../../scene/World.hpp"
 #include "../../assets/AssetManager.hpp"
 
@@ -14,16 +14,17 @@ namespace astraeus {
 
 /**
  * MeshPass: Renders meshes loaded via AssetManager.
- * Uses simple unlit shading with vertex colors or flat color.
+ * Uses Material system for flexible rendering with multiple materials.
  */
 class MeshPass : public RenderPass {
 public:
-    inline MeshPass(AssetManager* asset_manager);
+    inline MeshPass(AssetManager* asset_manager, MaterialLibrary* material_library);
     ~MeshPass() override = default;
 
     inline bool initialize(RenderDevice* device) override;
     inline void execute(RenderDevice* device, World* world) override;
     inline void on_resize(uint32_t width, uint32_t height) override;
+    inline const char* get_name() const override { return "Mesh"; }
 
 private:
     inline void compute_mvp_matrix(const Transform& transform, const Camera& camera, 
@@ -39,16 +40,17 @@ private:
 
     GLRenderDevice* gl_device_;
     AssetManager* asset_manager_;
-    UnlitShader shader_;
+    MaterialLibrary* material_library_;
     uint32_t viewport_width_;
     uint32_t viewport_height_;
 };
 
 // Implementation
 
-inline MeshPass::MeshPass(AssetManager* asset_manager)
+inline MeshPass::MeshPass(AssetManager* asset_manager, MaterialLibrary* material_library)
     : gl_device_(nullptr)
     , asset_manager_(asset_manager)
+    , material_library_(material_library)
     , viewport_width_(1280)
     , viewport_height_(720)
 {
@@ -60,9 +62,9 @@ inline bool MeshPass::initialize(RenderDevice* device) {
         return false;
     }
 
-    // Compile shader
-    if (!shader_.compile()) {
-        std::cerr << "[MeshPass] Failed to compile shader" << std::endl;
+    // Material library is initialized externally
+    if (!material_library_) {
+        std::cerr << "[MeshPass] Material library not provided" << std::endl;
         return false;
     }
 
@@ -73,21 +75,25 @@ inline bool MeshPass::initialize(RenderDevice* device) {
 inline void MeshPass::execute(RenderDevice* device, World* world) {
     (void)device;
 
-    if (!gl_device_ || !asset_manager_ || !world) {
+    if (!gl_device_ || !asset_manager_ || !world || !material_library_) {
         return;
     }
 
     gl_device_->push_debug_group("MeshPass");
 
-    // Enable depth testing
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-
-    // Use shader
-    shader_.use();
+    // Get default unlit material
+    Material* default_material = material_library_->get_default_unlit();
+    if (!default_material) {
+        std::cerr << "[MeshPass] No default material available" << std::endl;
+        gl_device_->pop_debug_group();
+        return;
+    }
 
     // Get camera
     const Camera& camera = world->get_camera();
+
+    // Track last bound material to avoid redundant binds
+    Material* last_material = nullptr;
 
     // Render all entities with mesh components
     const auto& entities = world->get_renderable_entities();
@@ -111,18 +117,44 @@ inline void MeshPass::execute(RenderDevice* device, World* world) {
             continue;
         }
 
+        // Get material (use default for now; future: per-entity materials)
+        Material* material = default_material;
+
+        // Bind material only if it changed (avoid redundant state changes)
+        if (material != last_material) {
+            material->bind(device);
+            last_material = material;
+        }
+
         // Compute MVP matrix
         float mvp[16];
         compute_mvp_matrix(*transform, camera, viewport_width_, viewport_height_, mvp);
-        shader_.set_mvp(mvp);
+        
+        // Set MVP parameter
+        MaterialParameter mvp_param;
+        mvp_param.type = MaterialParameterType::Mat4;
+        std::memcpy(mvp_param.data.mat4_value, mvp, sizeof(float) * 16);
+        material->set_parameter("mvp", mvp_param);
 
         // Set color (use entity color if available, otherwise white)
+        MaterialParameter color_param;
+        color_param.type = MaterialParameterType::Vec4;
         const Color* color = world->get_entity_color(entity_id);
         if (color) {
-            shader_.set_color(color->r, color->g, color->b, color->a);
+            color_param.data.vec4_value[0] = color->r;
+            color_param.data.vec4_value[1] = color->g;
+            color_param.data.vec4_value[2] = color->b;
+            color_param.data.vec4_value[3] = color->a;
         } else {
-            shader_.set_color(1.0f, 1.0f, 1.0f, 1.0f);
+            color_param.data.vec4_value[0] = 1.0f;
+            color_param.data.vec4_value[1] = 1.0f;
+            color_param.data.vec4_value[2] = 1.0f;
+            color_param.data.vec4_value[3] = 1.0f;
         }
+        material->set_parameter("baseColor", color_param);
+
+        // Apply all parameters
+        material->apply_parameters(device);
 
         // Bind VAO and draw
         glBindVertexArray(gpu_mesh->vao);
@@ -135,8 +167,6 @@ inline void MeshPass::execute(RenderDevice* device, World* world) {
         
         glBindVertexArray(0);
     }
-
-    glDisable(GL_DEPTH_TEST);
 
     gl_device_->pop_debug_group();
 }
