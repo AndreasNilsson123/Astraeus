@@ -1,0 +1,177 @@
+# ABI Struct Schema Definition
+# This is the single source of truth for all ABI structs shared between C++ and Java
+# Generation timestamp will be added automatically during codegen
+
+version: "1.0.0"
+namespace: "astraeus"
+
+# Type mappings between schema types and language-specific types
+# Schema types: uint8, uint16, uint32, uint64, int8, int16, int32, int64, float32, float64, bool, pointer
+# C types: uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t, float, double, bool, void*
+# Java types: JAVA_BYTE, JAVA_SHORT, JAVA_INT, JAVA_LONG, JAVA_BYTE, JAVA_SHORT, JAVA_INT, JAVA_LONG, JAVA_FLOAT, JAVA_DOUBLE, JAVA_BOOLEAN, ADDRESS
+
+structs:
+  - name: FrameStats
+    description: "Frame statistics (exposed to Java)"
+    fields:
+      - name: frame_number
+        type: uint64
+        description: "Current frame number"
+      - name: delta_time_ms
+        type: float64
+        description: "Time since last frame in milliseconds"
+      - name: render_time_ms
+        type: float64
+        description: "Render time for this frame in milliseconds"
+      - name: draw_calls
+        type: uint32
+        description: "Number of draw calls this frame"
+      - name: triangle_count
+        type: uint32
+        description: "Total triangles rendered this frame"
+      - name: entity_count
+        type: uint32
+        description: "Number of active entities"
+      - name: _padding
+        type: uint8
+        array_size: 4
+        description: "Padding for 64-bit alignment"
+
+  - name: TelemetryFrameStats
+    description: "Telemetry frame statistics (for telemetry system)"
+    fields:
+      - name: frame_number
+        type: uint64
+        description: "Current frame number"
+      - name: cpu_time_ms
+        type: float64
+        description: "CPU time in milliseconds"
+      - name: gpu_time_ms
+        type: float64
+        description: "GPU time in milliseconds (placeholder)"
+      - name: total_time_ms
+        type: float64
+        description: "Total frame time in milliseconds"
+      - name: draw_calls
+        type: uint32
+        description: "Number of draw calls"
+      - name: triangle_count
+        type: uint32
+        description: "Total triangles rendered"
+      - name: pass_count
+        type: uint8
+        description: "Number of active passes this frame"
+      - name: _padding
+        type: uint8
+        array_size: 7
+        description: "Explicit padding for 64-bit alignment"
+
+  - name: ViewportConfig
+    description: "Viewport configuration"
+    fields:
+      - name: width
+        type: uint32
+        description: "Viewport width in pixels"
+      - name: height
+        type: uint32
+        description: "Viewport height in pixels"
+      - name: aspect_ratio
+        type: float32
+        description: "Aspect ratio (width/height)"
+      - name: _padding
+        type: uint8
+        array_size: 4
+        description: "Padding for alignment"
+
+  - name: PixelBufferView
+    description: |
+      Pixel buffer view for readback (zero-copy, fixed backing size).
+      IMPORTANT: The backing memory (data pointer) is allocated once with max_backing_size
+      and remains stable for the engine's lifetime. Only the viewport region (width, height)
+      changes on resize. This ensures JavaFX PixelBuffer memory stability.
+    fields:
+      - name: data
+        type: pointer
+        description: "Pointer to backing buffer (stable, never reallocated)"
+      - name: width
+        type: uint32
+        description: "Current viewport width (may be <= max_backing_width)"
+      - name: height
+        type: uint32
+        description: "Current viewport height (may be <= max_backing_height)"
+      - name: stride
+        type: uint32
+        description: "Row stride in bytes"
+      - name: format
+        type: uint32
+        description: "PixelFormat enum value"
+      - name: max_backing_width
+        type: uint32
+        description: "Maximum width of backing buffer"
+      - name: max_backing_height
+        type: uint32
+        description: "Maximum height of backing buffer"
+      - name: max_backing_size
+        type: uint32
+        description: "Total size of backing buffer in bytes"
+
+  - name: ReadbackConfig
+    description: "Configuration for readback buffers"
+    fields:
+      - name: max_width
+        type: uint32
+        description: "Maximum expected viewport width"
+      - name: max_height
+        type: uint32
+        description: "Maximum expected viewport height"
+      - name: format
+        type: uint32
+        description: "PixelFormat enum value"
+      - name: enable_double_buffer
+        type: bool
+        description: "Enable double-buffered readback (safer, slightly slower)"
+
+  - name: PickResult
+    description: "Picking result"
+    fields:
+      - name: entity_id
+        type: uint32
+        description: "ID of picked entity (0 if no hit)"
+      - name: depth
+        type: float32
+        description: "Depth value at pick location"
+      - name: world_x
+        type: float32
+        description: "World space X coordinate"
+      - name: world_y
+        type: float32
+        description: "World space Y coordinate"
+      - name: world_z
+        type: float32
+        description: "World space Z coordinate"
+      - name: hit
+        type: bool
+        description: "Whether a valid entity was hit"
+      - name: _padding
+        type: uint8
+        array_size: 3
+        description: "Padding for alignment"
+
+  - name: EngineConfig
+    description: "Engine configuration"
+    fields:
+      - name: initial_width
+        type: uint32
+        description: "Initial viewport width"
+      - name: initial_height
+        type: uint32
+        description: "Initial viewport height"
+      - name: enable_validation
+        type: bool
+        description: "Enable validation layers"
+      - name: enable_debug_output
+        type: bool
+        description: "Enable debug output"
+      - name: log_file_path
+        type: pointer
+        description: "Path to log file (const char*, can be NULL)"

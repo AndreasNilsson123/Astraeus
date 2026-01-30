@@ -8,6 +8,9 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
+// Include generated ABI structs
+#include "EngineABI_Structs.gen.h"
+
 #if defined(_WIN32)
     #if defined(ASTRAEUS_BUILDING_DLL)
         #define ASTRAEUS_API __declspec(dllexport)
@@ -41,35 +44,9 @@ typedef struct AstraeusEngine* EngineHandle;
 // =============================================================================
 // POD STRUCTS FOR FFM
 // =============================================================================
-
-// Frame statistics (exposed to Java)
-typedef struct {
-    uint64_t frame_number;
-    double delta_time_ms;
-    double render_time_ms;
-    uint32_t draw_calls;
-    uint32_t triangle_count;
-    uint32_t entity_count;
-} FrameStats;
-
-// Telemetry frame statistics (for telemetry system)
-typedef struct {
-    uint64_t frame_number;
-    double cpu_time_ms;
-    double gpu_time_ms;      // Placeholder for now (requires GPU queries)
-    double total_time_ms;
-    uint32_t draw_calls;
-    uint32_t triangle_count;
-    uint8_t pass_count;      // Number of active passes this frame
-    uint8_t _padding[7];     // Explicit padding for 64-bit alignment
-} TelemetryFrameStats;
-
-// Viewport configuration
-typedef struct {
-    uint32_t width;
-    uint32_t height;
-    float aspect_ratio;
-} ViewportConfig;
+// NOTE: ABI POD structs are now defined in EngineABI_Structs.gen.h (auto-generated)
+// This includes: FrameStats, TelemetryFrameStats, ViewportConfig, PixelBufferView,
+// ReadbackConfig, PickResult, EngineConfig
 
 // Pixel format enumeration
 typedef enum {
@@ -78,48 +55,6 @@ typedef enum {
     PIXEL_FORMAT_ARGB8 = 2,    // ARGB format
     PIXEL_FORMAT_R32UI = 3     // 32-bit unsigned int (for ID buffer)
 } PixelFormat;
-
-// Pixel buffer view for readback (zero-copy, fixed backing size)
-// IMPORTANT: The backing memory (data pointer) is allocated once with max_backing_size
-// and remains stable for the engine's lifetime. Only the viewport region (width, height)
-// changes on resize. This ensures JavaFX PixelBuffer memory stability.
-typedef struct {
-    void* data;                    // Pointer to backing buffer (stable, never reallocated)
-    uint32_t width;                // Current viewport width (may be <= max_backing_width)
-    uint32_t height;               // Current viewport height (may be <= max_backing_height)
-    uint32_t stride;               // Row stride in bytes
-    uint32_t format;               // PixelFormat enum value
-    uint32_t max_backing_width;    // Maximum width of backing buffer
-    uint32_t max_backing_height;   // Maximum height of backing buffer
-    uint32_t max_backing_size;     // Total size of backing buffer in bytes
-} PixelBufferView;
-
-// Configuration for readback buffers
-typedef struct {
-    uint32_t max_width;            // Maximum expected viewport width
-    uint32_t max_height;           // Maximum expected viewport height
-    uint32_t format;               // PixelFormat enum value
-    bool enable_double_buffer;     // Enable double-buffered readback (safer, slightly slower)
-} ReadbackConfig;
-
-// Picking result
-typedef struct {
-    uint32_t entity_id;
-    float depth;
-    float world_x;
-    float world_y;
-    float world_z;
-    bool hit;
-} PickResult;
-
-// Engine configuration
-typedef struct {
-    uint32_t initial_width;
-    uint32_t initial_height;
-    bool enable_validation;
-    bool enable_debug_output;
-    const char* log_file_path;
-} EngineConfig;
 
 // =============================================================================
 // ENGINE LIFECYCLE
