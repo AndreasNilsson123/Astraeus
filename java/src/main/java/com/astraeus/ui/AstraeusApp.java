@@ -63,7 +63,13 @@ public class AstraeusApp extends Application {
         Button testButton = new Button("Create Entity");
         testButton.setOnAction(e -> createTestEntity());
         
-        Button clearButton = new Button("Clear");
+        Button test1000Button = new Button("Create 1000");
+        test1000Button.setOnAction(e -> createManyEntities(1000));
+        
+        Button test50kButton = new Button("Create 50k");
+        test50kButton.setOnAction(e -> createManyEntities(50000));
+        
+        Button clearButton = new Button("Clear All");
         clearButton.setOnAction(e -> clearScene());
         
         Separator separator = new Separator();
@@ -74,6 +80,8 @@ public class AstraeusApp extends Application {
         toolbar.getItems().addAll(
             initButton,
             testButton,
+            test1000Button,
+            test50kButton,
             clearButton,
             separator,
             aboutButton
@@ -140,22 +148,114 @@ public class AstraeusApp extends Application {
             return;
         }
         
+        if (workspace.getSceneManager() == null) {
+            workspace.getConsolePane().warning("Scene manager not available");
+            return;
+        }
+        
         try {
-            int entityId = engine.createEntity();
-            workspace.getConsolePane().info("Created entity: " + entityId);
+            var entity = workspace.getSceneManager().createEntity();
+            
+            // Set random position
+            entity.setPosX(Math.random() * 20 - 10);
+            entity.setPosY(Math.random() * 20 - 10);
+            entity.setPosZ(Math.random() * 20 - 10);
+            
+            // Set random color
+            entity.setColorR(Math.random());
+            entity.setColorG(Math.random());
+            entity.setColorB(Math.random());
+            
+            // Sync to engine
+            workspace.getSceneManager().syncTransformToEngine(entity);
+            workspace.getSceneManager().syncColorToEngine(entity);
+            
+            workspace.getConsolePane().info("Created entity: " + entity.getEntityId());
         } catch (Exception e) {
             workspace.getConsolePane().error("Failed to create entity", e);
         }
     }
     
+    private void createManyEntities(int count) {
+        if (engine == null || !engine.isValid()) {
+            workspace.getConsolePane().warning("Engine not initialized");
+            return;
+        }
+        
+        if (workspace.getSceneManager() == null) {
+            workspace.getConsolePane().warning("Scene manager not available");
+            return;
+        }
+        
+        try {
+            workspace.getConsolePane().info("Creating " + count + " entities...");
+            long startTime = System.currentTimeMillis();
+            
+            for (int i = 0; i < count; i++) {
+                var entity = workspace.getSceneManager().createEntity();
+                
+                // Set position in a grid pattern for large counts
+                if (count > 100) {
+                    int gridSize = (int) Math.ceil(Math.cbrt(count));
+                    int x = i % gridSize;
+                    int y = (i / gridSize) % gridSize;
+                    int z = i / (gridSize * gridSize);
+                    
+                    entity.setPosX(x * 2.0);
+                    entity.setPosY(y * 2.0);
+                    entity.setPosZ(z * 2.0);
+                } else {
+                    // Random positions for small counts
+                    entity.setPosX(Math.random() * 20 - 10);
+                    entity.setPosY(Math.random() * 20 - 10);
+                    entity.setPosZ(Math.random() * 20 - 10);
+                }
+                
+                // Set color gradient
+                float hue = (float) i / count;
+                entity.setColorR(Math.sin(hue * Math.PI));
+                entity.setColorG(Math.cos(hue * Math.PI));
+                entity.setColorB(Math.sin(hue * Math.PI * 2));
+                
+                // Sync every 100 entities to avoid too many individual calls
+                if (i % 100 == 0 || i == count - 1) {
+                    workspace.getSceneManager().syncTransformToEngine(entity);
+                    workspace.getSceneManager().syncColorToEngine(entity);
+                }
+            }
+            
+            long elapsed = System.currentTimeMillis() - startTime;
+            workspace.getConsolePane().info(
+                String.format("Created %d entities in %d ms (%.1f entities/sec)",
+                    count, elapsed, count * 1000.0 / elapsed));
+            
+            // Refresh outliner
+            if (workspace.getSceneOutlinerPane() != null) {
+                workspace.getSceneOutlinerPane().refresh();
+            }
+            
+        } catch (Exception e) {
+            workspace.getConsolePane().error("Failed to create entities", e);
+        }
+    }
+    
     private void clearScene() {
-        if (engine != null) {
+        if (workspace.getSceneManager() != null) {
+            workspace.getConsolePane().info("Clearing all entities...");
+            workspace.getSceneManager().clearAll();
+            workspace.getConsolePane().info("Scene cleared");
+            
+            // Refresh outliner
+            if (workspace.getSceneOutlinerPane() != null) {
+                workspace.getSceneOutlinerPane().refresh();
+            }
+        } else if (engine != null) {
             workspace.getConsolePane().info("Closing engine...");
             engine.close();
             engine = null;
             workspace.getConsolePane().info("Engine closed");
         } else {
-            workspace.getConsolePane().warning("No engine to close");
+            workspace.getConsolePane().warning("Nothing to clear");
         }
     }
     

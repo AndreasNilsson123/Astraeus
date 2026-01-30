@@ -389,7 +389,7 @@ public class NativeEngine implements AutoCloseable {
             }
             
             // Read pass name (null-terminated string)
-            String passName = nameBuffer.getString(0);
+            String passName = nameBuffer.getUtf8String(0);
             double time = timeMs.get(ValueLayout.JAVA_DOUBLE, 0);
             
             return new PassTiming(passName, time);
