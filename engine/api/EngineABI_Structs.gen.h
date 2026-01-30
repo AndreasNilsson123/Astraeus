@@ -2,7 +2,7 @@
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generated from: abi_structs_schema.yaml
 // Schema version: 1.0.0
-// Generated at: 2026-01-30 17:33:56
+// Generated at: 2026-01-30 17:37:10
 // Schema hash: 019b094a389af9f3
 // ============================================================================
 
@@ -19,7 +19,7 @@ extern "C" {
 
 // Schema version and generation metadata
 #define ASTRAEUS_ABI_SCHEMA_VERSION "1.0.0"
-#define ASTRAEUS_ABI_GENERATION_TIMESTAMP "2026-01-30 17:33:56"
+#define ASTRAEUS_ABI_GENERATION_TIMESTAMP "2026-01-30 17:37:10"
 #define ASTRAEUS_ABI_SCHEMA_HASH "019b094a389af9f3"
 
 // Frame statistics (exposed to Java)

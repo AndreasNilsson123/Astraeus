@@ -6,6 +6,8 @@ import java.lang.invoke.MethodHandle;
 /**
  * Native FFM bindings for Astraeus engine C API.
  * Uses Java 21+ Foreign Function & Memory API (FFM).
+ * 
+ * NOTE: Struct layouts are now auto-generated in StructLayouts.gen.java
  */
 public class EngineBindings {
     
@@ -18,139 +20,13 @@ public class EngineBindings {
     public static final int PIXEL_FORMAT_ARGB8 = 2;
     public static final int PIXEL_FORMAT_R32UI = 3;
     
-    /**
-     * Memory layout for ReadbackConfig struct.
-     * 
-     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
-     * In production, consider generating layouts from native headers or using jextract.
-     */
-    public static final StructLayout READBACK_CONFIG_LAYOUT = MemoryLayout.structLayout(
-        ValueLayout.JAVA_INT.withName("max_width"),
-        ValueLayout.JAVA_INT.withName("max_height"),
-        ValueLayout.JAVA_INT.withName("format"),
-        ValueLayout.JAVA_BOOLEAN.withName("enable_double_buffer"),
-        MemoryLayout.paddingLayout(3)  // Padding for alignment
-    );
-    
-    /**
-     * Memory layout for PixelBufferView struct.
-     * 
-     * IMPORTANT: This layout is manually defined and platform-dependent.
-     * Assumes x64 Linux/Windows with standard alignment.
-     * 
-     * Layout breakdown:
-     * - ADDRESS (data): 8 bytes
-     * - INT (width): 4 bytes (no padding needed, total now 12)
-     * - INT (height): 4 bytes (total now 16, aligned)
-     * - INT (stride): 4 bytes (total now 20)
-     * - INT (format): 4 bytes (total now 24, aligned)
-     * - INT (max_backing_width): 4 bytes (total now 28)
-     * - INT (max_backing_height): 4 bytes (total now 32, aligned)
-     * - INT (max_backing_size): 4 bytes (total now 36)
-     * 
-     * C struct alignment typically aligns to largest field (8 bytes for pointer),
-     * so no explicit padding needed between INT fields after the ADDRESS field.
-     * 
-     * For production use, consider:
-     * 1. Using jextract tool to generate layouts from C headers automatically
-     * 2. Testing on all target platforms to verify layout compatibility
-     * 3. Using runtime layout queries if available
-     * 4. Documenting supported platforms explicitly
-     */
-    public static final StructLayout PIXEL_BUFFER_VIEW_LAYOUT = MemoryLayout.structLayout(
-        ValueLayout.ADDRESS.withName("data"),
-        ValueLayout.JAVA_INT.withName("width"),
-        ValueLayout.JAVA_INT.withName("height"),
-        ValueLayout.JAVA_INT.withName("stride"),
-        ValueLayout.JAVA_INT.withName("format"),
-        ValueLayout.JAVA_INT.withName("max_backing_width"),
-        ValueLayout.JAVA_INT.withName("max_backing_height"),
-        ValueLayout.JAVA_INT.withName("max_backing_size")
-    );
-    
-    /**
-     * Memory layout for EngineConfig struct.
-     * 
-     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
-     * In production, consider generating layouts from native headers or using jextract.
-     */
-    public static final StructLayout ENGINE_CONFIG_LAYOUT = MemoryLayout.structLayout(
-        ValueLayout.JAVA_INT.withName("initial_width"),
-        ValueLayout.JAVA_INT.withName("initial_height"),
-        ValueLayout.JAVA_BOOLEAN.withName("enable_validation"),
-        MemoryLayout.paddingLayout(3), // Padding for alignment
-        ValueLayout.JAVA_BOOLEAN.withName("enable_debug_output"),
-        MemoryLayout.paddingLayout(3), // Padding for alignment
-        ValueLayout.ADDRESS.withName("log_file_path")
-    );
-    
-    /**
-     * Memory layout for FrameStats struct.
-     * 
-     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
-     * In production, consider generating layouts from native headers or using jextract.
-     */
-    public static final StructLayout FRAME_STATS_LAYOUT = MemoryLayout.structLayout(
-        ValueLayout.JAVA_LONG.withName("frame_number"),
-        ValueLayout.JAVA_DOUBLE.withName("delta_time_ms"),
-        ValueLayout.JAVA_DOUBLE.withName("render_time_ms"),
-        ValueLayout.JAVA_INT.withName("draw_calls"),
-        ValueLayout.JAVA_INT.withName("triangle_count"),
-        ValueLayout.JAVA_INT.withName("entity_count"),
-        MemoryLayout.paddingLayout(4) // Padding for alignment
-    );
-    
-    /**
-     * Memory layout for PickResult struct.
-     * 
-     * Layout breakdown (C struct):
-     * - UINT32 (entity_id): 4 bytes
-     * - FLOAT (depth): 4 bytes (total 8)
-     * - FLOAT (world_x): 4 bytes (total 12)
-     * - FLOAT (world_y): 4 bytes (total 16)
-     * - FLOAT (world_z): 4 bytes (total 20)
-     * - BOOL (hit): 1 byte
-     * - PADDING: 3 bytes (alignment to 4-byte boundary, total 24)
-     * 
-     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
-     * In production, consider generating layouts from native headers or using jextract.
-     */
-    public static final StructLayout PICK_RESULT_LAYOUT = MemoryLayout.structLayout(
-        ValueLayout.JAVA_INT.withName("entity_id"),
-        ValueLayout.JAVA_FLOAT.withName("depth"),
-        ValueLayout.JAVA_FLOAT.withName("world_x"),
-        ValueLayout.JAVA_FLOAT.withName("world_y"),
-        ValueLayout.JAVA_FLOAT.withName("world_z"),
-        ValueLayout.JAVA_BOOLEAN.withName("hit"),
-        MemoryLayout.paddingLayout(3) // Padding for alignment
-    );
-    
-    /**
-     * Memory layout for TelemetryFrameStats struct.
-     * 
-     * Layout breakdown (C struct):
-     * - UINT64 (frame_number): 8 bytes
-     * - DOUBLE (cpu_time_ms): 8 bytes (total 16)
-     * - DOUBLE (gpu_time_ms): 8 bytes (total 24)
-     * - DOUBLE (total_time_ms): 8 bytes (total 32)
-     * - UINT32 (draw_calls): 4 bytes (total 36)
-     * - UINT32 (triangle_count): 4 bytes (total 40)
-     * - UINT8 (pass_count): 1 byte (total 41)
-     * - PADDING: 7 bytes (alignment to 8-byte boundary, total 48)
-     * 
-     * Note: Manual padding is platform-dependent. This layout assumes x64 Linux/Windows.
-     * In production, consider generating layouts from native headers or using jextract.
-     */
-    public static final StructLayout TELEMETRY_FRAME_STATS_LAYOUT = MemoryLayout.structLayout(
-        ValueLayout.JAVA_LONG.withName("frame_number"),
-        ValueLayout.JAVA_DOUBLE.withName("cpu_time_ms"),
-        ValueLayout.JAVA_DOUBLE.withName("gpu_time_ms"),
-        ValueLayout.JAVA_DOUBLE.withName("total_time_ms"),
-        ValueLayout.JAVA_INT.withName("draw_calls"),
-        ValueLayout.JAVA_INT.withName("triangle_count"),
-        ValueLayout.JAVA_BYTE.withName("pass_count"),
-        MemoryLayout.paddingLayout(7) // Padding for alignment
-    );
+    // Use generated struct layouts from StructLayouts.gen.java
+    public static final StructLayout READBACK_CONFIG_LAYOUT = StructLayouts.READBACKCONFIG_LAYOUT;
+    public static final StructLayout PIXEL_BUFFER_VIEW_LAYOUT = StructLayouts.PIXELBUFFERVIEW_LAYOUT;
+    public static final StructLayout ENGINE_CONFIG_LAYOUT = StructLayouts.ENGINECONFIG_LAYOUT;
+    public static final StructLayout FRAME_STATS_LAYOUT = StructLayouts.FRAMESTATS_LAYOUT;
+    public static final StructLayout PICK_RESULT_LAYOUT = StructLayouts.PICKRESULT_LAYOUT;
+    public static final StructLayout TELEMETRY_FRAME_STATS_LAYOUT = StructLayouts.TELEMETRYFRAMESTATS_LAYOUT;
     
     // Function descriptors (C ABI signatures)
     private static final FunctionDescriptor CREATE_ENGINE_DESC = FunctionDescriptor.of(
