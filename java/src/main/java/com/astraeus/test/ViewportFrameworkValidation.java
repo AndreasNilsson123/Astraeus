@@ -88,13 +88,12 @@ public class ViewportFrameworkValidation {
     }
     
     private static void testOverlayStack() {
-        System.out.println("[TEST 2] OverlayStack instantiation and API");
+        System.out.println("[TEST 2] OverlayStack API validation");
         
-        // Note: This test will fail if JavaFX is not initialized
-        // In a real test environment, this would be run within JavaFX context
+        // Note: Full overlay testing requires JavaFX initialization
+        // For compile-time validation, we call testOverlayLayers()
+        testOverlayLayers();
         
-        // For now, just validate the API exists
-        System.out.println("  ✓ OverlayStack API validated (requires JavaFX runtime for full test)");
         System.out.println("[TEST 2] PASSED\n");
     }
     

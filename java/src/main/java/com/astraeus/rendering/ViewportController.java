@@ -96,6 +96,10 @@ public class ViewportController {
     private double panSpeed = 0.01;
     private double zoomSpeed = 0.1;
     
+    // Pre-allocated arrays for zero-allocation getters (reused to avoid per-frame allocations)
+    private final double[] cameraPositionCache = new double[3];
+    private final double[] cameraTargetCache = new double[3];
+    
     // Optional engine reference (for future native camera integration)
     private Object engineRef;
     
@@ -267,36 +271,58 @@ public class ViewportController {
     
     /**
      * Get current camera position (for external use).
-     * Returns an array [x, y, z].
+     * Returns a reused array [x, y, z] - DO NOT MODIFY.
+     * The array contents are updated on each call.
      */
     public double[] getCameraPosition() {
         switch (mode) {
             case ORBIT:
-                return calculateOrbitPosition();
+                calculateOrbitPosition(cameraPositionCache);
+                break;
             case FLY:
-                return new double[] { flyCameraX, flyCameraY, flyCameraZ };
+                cameraPositionCache[0] = flyCameraX;
+                cameraPositionCache[1] = flyCameraY;
+                cameraPositionCache[2] = flyCameraZ;
+                break;
             case PAN:
-                return new double[] { panCameraX, panCameraY, panCameraZ };
+                cameraPositionCache[0] = panCameraX;
+                cameraPositionCache[1] = panCameraY;
+                cameraPositionCache[2] = panCameraZ;
+                break;
             default:
-                return new double[] { 0, 0, 0 };
+                cameraPositionCache[0] = 0;
+                cameraPositionCache[1] = 0;
+                cameraPositionCache[2] = 0;
         }
+        return cameraPositionCache;
     }
     
     /**
      * Get current camera target/look-at point (for external use).
-     * Returns an array [x, y, z].
+     * Returns a reused array [x, y, z] - DO NOT MODIFY.
+     * The array contents are updated on each call.
      */
     public double[] getCameraTarget() {
         switch (mode) {
             case ORBIT:
-                return new double[] { orbitTargetX, orbitTargetY, orbitTargetZ };
+                cameraTargetCache[0] = orbitTargetX;
+                cameraTargetCache[1] = orbitTargetY;
+                cameraTargetCache[2] = orbitTargetZ;
+                break;
             case FLY:
-                return calculateFlyTarget();
+                calculateFlyTarget(cameraTargetCache);
+                break;
             case PAN:
-                return new double[] { panTargetX, panTargetY, 0 };
+                cameraTargetCache[0] = panTargetX;
+                cameraTargetCache[1] = panTargetY;
+                cameraTargetCache[2] = 0;
+                break;
             default:
-                return new double[] { 0, 0, 0 };
+                cameraTargetCache[0] = 0;
+                cameraTargetCache[1] = 0;
+                cameraTargetCache[2] = 0;
         }
+        return cameraTargetCache;
     }
     
     // ========== Internal Implementation ==========
@@ -390,20 +416,18 @@ public class ViewportController {
         // Pan mode doesn't need continuous updates (mouse-driven only)
     }
     
-    private double[] calculateOrbitPosition() {
+    private void calculateOrbitPosition(double[] out) {
         // Convert spherical coordinates to cartesian
-        double x = orbitTargetX + orbitDistance * Math.sin(orbitAzimuth) * Math.cos(orbitElevation);
-        double y = orbitTargetY + orbitDistance * Math.sin(orbitElevation);
-        double z = orbitTargetZ + orbitDistance * Math.cos(orbitAzimuth) * Math.cos(orbitElevation);
-        return new double[] { x, y, z };
+        out[0] = orbitTargetX + orbitDistance * Math.sin(orbitAzimuth) * Math.cos(orbitElevation);
+        out[1] = orbitTargetY + orbitDistance * Math.sin(orbitElevation);
+        out[2] = orbitTargetZ + orbitDistance * Math.cos(orbitAzimuth) * Math.cos(orbitElevation);
     }
     
-    private double[] calculateFlyTarget() {
+    private void calculateFlyTarget(double[] out) {
         // Calculate look-at target point 1 unit ahead
-        double targetX = flyCameraX + Math.sin(flyYaw) * Math.cos(flyPitch);
-        double targetY = flyCameraY - Math.sin(flyPitch);
-        double targetZ = flyCameraZ + Math.cos(flyYaw) * Math.cos(flyPitch);
-        return new double[] { targetX, targetY, targetZ };
+        out[0] = flyCameraX + Math.sin(flyYaw) * Math.cos(flyPitch);
+        out[1] = flyCameraY - Math.sin(flyPitch);
+        out[2] = flyCameraZ + Math.cos(flyYaw) * Math.cos(flyPitch);
     }
     
     /**
