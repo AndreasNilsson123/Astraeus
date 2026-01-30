@@ -184,6 +184,13 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     add_executable(material_system_test examples/material_system_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
     target_include_directories(material_system_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(material_system_test PRIVATE Threads::Threads OpenGL::GL glad)
+    add_executable(camera_system_test examples/camera_system_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
+    target_include_directories(camera_system_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(camera_system_test PRIVATE Threads::Threads OpenGL::GL glad)
+
+    add_executable(camera_component_test examples/camera_component_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
+    target_include_directories(camera_component_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(camera_component_test PRIVATE Threads::Threads OpenGL::GL glad)
 
 endif()
 

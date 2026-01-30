@@ -9,6 +9,8 @@
 #include <cstring>
 #include <cmath>
 #include "Camera.hpp"
+#include "CameraComponent.hpp"
+#include "CameraSystem.hpp"
 
 namespace astraeus {
 
@@ -309,6 +311,58 @@ public:
      */
     void update_camera(float aspect_ratio);
 
+    // ========================================================================
+    // Camera Component API (new component-based camera system)
+    // ========================================================================
+    
+    /**
+     * Set entity camera component (creates if doesn't exist).
+     */
+    void set_entity_camera(uint32_t entity_id, CameraProjectionType projection_type);
+    
+    /**
+     * Get entity camera component.
+     */
+    CameraComponent* get_entity_camera(uint32_t entity_id);
+    const CameraComponent* get_entity_camera(uint32_t entity_id) const;
+    
+    /**
+     * Remove camera component from entity.
+     */
+    void remove_entity_camera(uint32_t entity_id);
+    
+    /**
+     * Set active camera entity (the camera used for rendering).
+     */
+    void set_active_camera(uint32_t entity_id);
+    
+    /**
+     * Get active camera entity ID (0 if none).
+     */
+    uint32_t get_active_camera_entity() const;
+    
+    /**
+     * Get active camera component (returns nullptr if no active camera).
+     */
+    CameraComponent* get_active_camera();
+    const CameraComponent* get_active_camera() const;
+    
+    /**
+     * Update camera component matrices from entity transform.
+     * Should be called after updating entity transform and before rendering.
+     */
+    void update_entity_camera(uint32_t entity_id, float aspect_ratio);
+    
+    /**
+     * Update all camera components.
+     */
+    void update_all_cameras(float aspect_ratio);
+    
+    /**
+     * Build camera uniforms from camera component and entity position.
+     */
+    void build_camera_uniforms(uint32_t camera_entity_id, CameraUniforms& out_uniforms) const;
+
 private:
     // Handle-based entity storage
     uint32_t next_entity_id_;
@@ -322,7 +376,9 @@ private:
     std::vector<uint32_t> active_entities_;
     std::vector<uint32_t> renderable_entities_cache_;
     
-    Camera camera_;
+    Camera camera_;  // Legacy orbit camera (kept for backward compatibility)
+    std::unordered_map<uint32_t, CameraComponent> camera_components_;  // New component-based cameras
+    uint32_t active_camera_entity_;  // Entity ID of active camera (0 = none)
     bool is_initialized_;
     
     // Helper methods for transform propagation
@@ -338,6 +394,9 @@ private:
 
 inline World::World()
     : next_entity_id_(1) // Start at 1, 0 is reserved for "null"
+    , camera_() // Legacy orbit camera
+    , camera_components_()
+    , active_camera_entity_(0) // No active camera initially
     , is_initialized_(false)
 {
 }
@@ -373,6 +432,8 @@ inline void World::shutdown() {
     hierarchies_.clear();
     active_entities_.clear();
     renderable_entities_cache_.clear();
+    camera_components_.clear();
+    active_camera_entity_ = 0;
     next_entity_id_ = 1;
     
     is_initialized_ = false;
@@ -459,6 +520,12 @@ inline void World::destroy_entity(uint32_t entity_id) {
     labels_.erase(entity_id);
     names_.erase(entity_id);
     hierarchies_.erase(entity_id);
+    
+    // Remove camera component if exists
+    if (active_camera_entity_ == entity_id) {
+        active_camera_entity_ = 0;
+    }
+    camera_components_.erase(entity_id);
     
     // Remove from active list
     auto it = std::find(active_entities_.begin(), active_entities_.end(), entity_id);
@@ -972,6 +1039,192 @@ inline bool World::get_entity_bounding_box(uint32_t entity_id, AABB& out_aabb) c
     }
     
     return false;
+}
+
+// ============================================================================
+// Camera Component Implementation
+// ============================================================================
+
+inline void World::set_entity_camera(uint32_t entity_id, CameraProjectionType projection_type) {
+    if (entity_id == 0) {
+        return;
+    }
+    
+    auto it = camera_components_.find(entity_id);
+    if (it == camera_components_.end()) {
+        // Create new camera component
+        CameraComponent camera;
+        camera.projection_type = projection_type;
+        camera_components_[entity_id] = camera;
+    } else {
+        // Update existing camera
+        it->second.projection_type = projection_type;
+        it->second.projection_dirty = true;
+    }
+}
+
+inline CameraComponent* World::get_entity_camera(uint32_t entity_id) {
+    if (entity_id == 0) {
+        return nullptr;
+    }
+    
+    auto it = camera_components_.find(entity_id);
+    if (it != camera_components_.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+inline const CameraComponent* World::get_entity_camera(uint32_t entity_id) const {
+    if (entity_id == 0) {
+        return nullptr;
+    }
+    
+    auto it = camera_components_.find(entity_id);
+    if (it != camera_components_.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+inline void World::remove_entity_camera(uint32_t entity_id) {
+    if (entity_id == 0) {
+        return;
+    }
+    
+    // If this was the active camera, clear it
+    if (active_camera_entity_ == entity_id) {
+        active_camera_entity_ = 0;
+    }
+    
+    camera_components_.erase(entity_id);
+}
+
+inline void World::set_active_camera(uint32_t entity_id) {
+    // Mark old active camera as inactive
+    if (active_camera_entity_ != 0) {
+        auto old_it = camera_components_.find(active_camera_entity_);
+        if (old_it != camera_components_.end()) {
+            old_it->second.is_active = false;
+        }
+    }
+    
+    if (entity_id != 0) {
+        // Verify camera component exists
+        auto it = camera_components_.find(entity_id);
+        if (it == camera_components_.end()) {
+            std::cerr << "[World] Warning: Cannot set active camera - entity " << entity_id 
+                     << " does not have a camera component" << std::endl;
+            return;
+        }
+        
+        // Mark new camera as active
+        it->second.is_active = true;
+    }
+    
+    active_camera_entity_ = entity_id;
+}
+
+inline uint32_t World::get_active_camera_entity() const {
+    return active_camera_entity_;
+}
+
+inline CameraComponent* World::get_active_camera() {
+    if (active_camera_entity_ == 0) {
+        return nullptr;
+    }
+    return get_entity_camera(active_camera_entity_);
+}
+
+inline const CameraComponent* World::get_active_camera() const {
+    if (active_camera_entity_ == 0) {
+        return nullptr;
+    }
+    return get_entity_camera(active_camera_entity_);
+}
+
+inline void World::update_entity_camera(uint32_t entity_id, float aspect_ratio) {
+    if (entity_id == 0) {
+        return;
+    }
+    
+    auto camera_it = camera_components_.find(entity_id);
+    if (camera_it == camera_components_.end()) {
+        return;
+    }
+    
+    auto trans_it = transforms_.find(entity_id);
+    if (trans_it == transforms_.end()) {
+        std::cerr << "[World] Warning: Camera entity " << entity_id 
+                 << " does not have a transform component" << std::endl;
+        return;
+    }
+    
+    CameraComponent& camera = camera_it->second;
+    const Transform& transform = trans_it->second;
+    
+    // Extract camera position from world matrix
+    float eye_x = transform.world_matrix[12];
+    float eye_y = transform.world_matrix[13];
+    float eye_z = transform.world_matrix[14];
+    
+    // Extract forward direction from world matrix (negative Z axis)
+    float forward_x = -transform.world_matrix[8];
+    float forward_y = -transform.world_matrix[9];
+    float forward_z = -transform.world_matrix[10];
+    
+    // Calculate target point (some distance ahead of camera)
+    float target_distance = 1.0f;
+    float target_x = eye_x + forward_x * target_distance;
+    float target_y = eye_y + forward_y * target_distance;
+    float target_z = eye_z + forward_z * target_distance;
+    
+    // Extract up vector from world matrix (Y axis)
+    float up_x = transform.world_matrix[4];
+    float up_y = transform.world_matrix[5];
+    float up_z = transform.world_matrix[6];
+    
+    // Update camera matrices
+    CameraSystem::update_camera(camera, eye_x, eye_y, eye_z, 
+                                target_x, target_y, target_z,
+                                up_x, up_y, up_z, aspect_ratio);
+}
+
+inline void World::update_all_cameras(float aspect_ratio) {
+    for (auto& pair : camera_components_) {
+        update_entity_camera(pair.first, aspect_ratio);
+    }
+}
+
+inline void World::build_camera_uniforms(uint32_t camera_entity_id, CameraUniforms& out_uniforms) const {
+    if (camera_entity_id == 0) {
+        std::cerr << "[World] Warning: Cannot build camera uniforms - invalid entity ID" << std::endl;
+        return;
+    }
+    
+    auto camera_it = camera_components_.find(camera_entity_id);
+    if (camera_it == camera_components_.end()) {
+        std::cerr << "[World] Warning: Entity " << camera_entity_id 
+                 << " does not have a camera component" << std::endl;
+        return;
+    }
+    
+    auto trans_it = transforms_.find(camera_entity_id);
+    if (trans_it == transforms_.end()) {
+        std::cerr << "[World] Warning: Camera entity " << camera_entity_id 
+                 << " does not have a transform component" << std::endl;
+        return;
+    }
+    
+    const CameraComponent& camera = camera_it->second;
+    const Transform& transform = trans_it->second;
+    
+    // Extract position from world matrix
+    float pos_x = transform.world_matrix[12];
+    float pos_y = transform.world_matrix[13];
+    float pos_z = transform.world_matrix[14];
+    
+    CameraSystem::build_camera_uniforms(camera, pos_x, pos_y, pos_z, out_uniforms);
 }
 
 } // namespace astraeus
