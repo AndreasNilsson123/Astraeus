@@ -66,15 +66,6 @@ public:
             return;
         }
 
-        // Check if already uploaded
-        if (gpu_meshes_.find(asset_id) != gpu_meshes_.end()) {
-            // Already uploaded, just increment ref count
-            gpu_meshes_[asset_id].ref_count++;
-            std::cout << "[GPUUploadQueue] Asset " << asset_id 
-                      << " already uploaded, ref_count=" << gpu_meshes_[asset_id].ref_count << std::endl;
-            return;
-        }
-
         GPUUploadRequest request;
         request.asset_id = asset_id;
         
@@ -130,6 +121,15 @@ public:
                           << " to GPU (VAO=" << gpu_mesh.vao << ")" << std::endl;
             } else {
                 std::cerr << "[GPUUploadQueue] Failed to upload asset " << request.asset_id << std::endl;
+            }
+
+            // Check if already uploaded
+            if (gpu_meshes_.find(request.asset_id) != gpu_meshes_.end()) {
+                // Already uploaded, just increment ref count
+                gpu_meshes_[request.asset_id].ref_count++;
+                std::cout << "[GPUUploadQueue] Asset " << request.asset_id
+                          << " already uploaded, ref_count=" << gpu_meshes_[request.asset_id].ref_count << std::endl;
+                return;
             }
 
             upload_queue_.pop();

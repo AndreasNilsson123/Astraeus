@@ -41,7 +41,7 @@ int main() {
     }
 
     std::cout << "Cube asset loaded with ID: " << cube_asset_id << std::endl;
-
+    asset_manager->process_uploads();
     // Load the same cube again (should use cache)
     uint32_t cube_asset_id_2 = asset_manager->load_model(cube_path);
     std::cout << "Second load of cube: " << cube_asset_id_2 << std::endl;

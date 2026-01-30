@@ -27,6 +27,12 @@ import javafx.stage.Stage;
  * - Telemetry can be toggled on/off at runtime
  */
 public class TelemetryIntegrationExample extends Application {
+
+    static class Starter {
+        public static void main(String[] args) {
+            TelemetryIntegrationExample.main(args);
+        }
+    }
     
     private NativeEngine engine;
     private TelemetryOverlay overlay;

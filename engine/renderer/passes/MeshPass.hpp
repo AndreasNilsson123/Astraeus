@@ -168,9 +168,9 @@ inline void MeshPass::scale_matrix(float sx, float sy, float sz, float* out) {
     out[10] = sz;
 }
 
-inline void MeshPass::perspective_matrix(float fov, float aspect, float near, float far, float* out) {
+inline void MeshPass::perspective_matrix(float fov, float aspect, float near_dist, float far_dist, float* out) {
     // Validate parameters
-    if (aspect < 1e-6f || near <= 0.0f || far <= near) {
+    if (aspect < 1e-6f || near_dist <= 0.0f || far_dist <= near_dist) {
         identity_matrix(out);
         return;
     }
@@ -181,9 +181,9 @@ inline void MeshPass::perspective_matrix(float fov, float aspect, float near, fl
     
     out[0] = f / aspect;
     out[5] = f;
-    out[10] = (far + near) / (near - far);
+    out[10] = (far_dist + near_dist) / (near_dist - far_dist);
     out[11] = -1.0f;
-    out[14] = (2.0f * far * near) / (near - far);
+    out[14] = (2.0f * far_dist * near_dist) / (near_dist - far_dist);
 }
 
 inline void MeshPass::look_at_matrix(float eye_x, float eye_y, float eye_z,
