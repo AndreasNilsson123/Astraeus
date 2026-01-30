@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cmath>
+#include <cstring>
 #include <scene/World.hpp>
 
 using namespace astraeus;
@@ -279,6 +280,32 @@ int main() {
     
     std::cout << "SUCCESS: Entity deletion with hierarchy works" << std::endl;
     
+    // Test 10: Circular reference detection
+    std::cout << "\n=== Test 10: Circular Reference Detection ===" << std::endl;
+    
+    uint32_t a = world.create_entity();
+    uint32_t b = world.create_entity();
+    uint32_t c = world.create_entity();
+    
+    world.set_entity_name(a, "A");
+    world.set_entity_name(b, "B");
+    world.set_entity_name(c, "C");
+    
+    // Create chain: A -> B -> C
+    world.set_entity_parent(b, a);
+    world.set_entity_parent(c, b);
+    
+    // Try to create cycle: A -> B -> C -> A (should be rejected)
+    world.set_entity_parent(a, c);
+    
+    // Verify A still has no parent (cycle was rejected)
+    if (world.get_entity_parent(a) != 0) {
+        std::cerr << "FAILED: Circular reference was not detected" << std::endl;
+        return 1;
+    }
+    
+    std::cout << "SUCCESS: Circular reference detection works" << std::endl;
+    
     std::cout << "\n=== All Tests Passed ===" << std::endl;
     std::cout << "\nSummary:" << std::endl;
     std::cout << "✓ Entity naming and lookup works" << std::endl;
@@ -289,6 +316,7 @@ int main() {
     std::cout << "✓ Bounding box computation (stub) works" << std::endl;
     std::cout << "✓ Deep hierarchies (100 levels) work efficiently" << std::endl;
     std::cout << "✓ Entity deletion with hierarchy works" << std::endl;
+    std::cout << "✓ Circular reference detection works" << std::endl;
     
     world.shutdown();
     

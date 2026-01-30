@@ -115,8 +115,9 @@ struct EntityName {
     
     explicit EntityName(const char* n) {
         if (n) {
-            strncpy(name, n, 63);
-            name[63] = '\0';
+            // Use snprintf for safe string copy
+            snprintf(name, sizeof(name), "%s", n);
+            name[sizeof(name) - 1] = '\0'; // Ensure null termination
         } else {
             name[0] = '\0';
         }
@@ -442,6 +443,11 @@ inline void World::destroy_entity(uint32_t entity_id) {
             if (child_hierarchy_it != hierarchies_.end()) {
                 child_hierarchy_it->second.parent = 0;
             }
+            // Mark child transform as dirty since parent changed
+            auto child_trans = transforms_.find(child_id);
+            if (child_trans != transforms_.end()) {
+                child_trans->second.dirty = true;
+            }
         }
     }
 
@@ -715,9 +721,28 @@ inline void World::set_entity_parent(uint32_t entity_id, uint32_t parent_id) {
         return;
     }
     
-    // Don't allow self-parenting or circular references (simple check)
+    // Don't allow self-parenting
     if (entity_id == parent_id) {
         return;
+    }
+    
+    // Check for circular references: verify parent is not a descendant of entity
+    if (parent_id != 0) {
+        uint32_t ancestor = parent_id;
+        while (ancestor != 0) {
+            if (ancestor == entity_id) {
+                // Circular reference detected
+                std::cerr << "[World] Warning: Circular reference detected, cannot set parent" << std::endl;
+                return;
+            }
+            ancestor = get_entity_parent(ancestor);
+        }
+        
+        // Verify parent exists
+        if (transforms_.find(parent_id) == transforms_.end()) {
+            std::cerr << "[World] Warning: Parent entity " << parent_id << " does not exist" << std::endl;
+            return;
+        }
     }
     
     // Remove from old parent's children list
@@ -752,10 +777,11 @@ inline void World::set_entity_parent(uint32_t entity_id, uint32_t parent_id) {
         parent_it->second.children.push_back(entity_id);
     }
     
-    // Mark transform as dirty
+    // Mark transform as dirty (and all descendants)
     auto trans_it = transforms_.find(entity_id);
     if (trans_it != transforms_.end()) {
         trans_it->second.dirty = true;
+        mark_descendants_dirty(entity_id);
     }
 }
 
@@ -871,8 +897,12 @@ inline void World::update_entity_world_transform(uint32_t entity_id) {
         // Has parent - multiply by parent's world matrix
         auto parent_trans_it = transforms_.find(hier_it->second.parent);
         if (parent_trans_it != transforms_.end()) {
-            // Ensure parent is up to date first (recursive)
-            update_entity_world_transform(hier_it->second.parent);
+            // Ensure parent is up to date first
+            // Note: Recursion depth is bounded by hierarchy depth. If needed,
+            // this could be converted to iterative with explicit stack/queue
+            if (parent_trans_it->second.dirty) {
+                update_entity_world_transform(hier_it->second.parent);
+            }
             
             // world = parent_world * local
             matrix_multiply(parent_trans_it->second.world_matrix, local_matrix, t.world_matrix);
@@ -913,23 +943,30 @@ inline bool World::get_entity_bounding_box(uint32_t entity_id, AABB& out_aabb) c
         return false;
     }
     
-    // Stub implementation: return a unit cube at the entity's position
+    // Note: This is a stub implementation. In production, this would compute
+    // the AABB from actual mesh geometry and transform it by the world matrix.
+    // For now, we extract position from world matrix and use unit scale.
+    
     auto trans_it = transforms_.find(entity_id);
     if (trans_it != transforms_.end()) {
         const Transform& t = trans_it->second;
         
-        // Simple bounding box based on position and scale
-        float half_x = t.scale_x * 0.5f;
-        float half_y = t.scale_y * 0.5f;
-        float half_z = t.scale_z * 0.5f;
+        // Extract world position from world matrix (translation component)
+        float world_x = t.world_matrix[12];
+        float world_y = t.world_matrix[13];
+        float world_z = t.world_matrix[14];
         
-        out_aabb.min_x = t.pos_x - half_x;
-        out_aabb.min_y = t.pos_y - half_y;
-        out_aabb.min_z = t.pos_z - half_z;
+        // Simple unit cube bounds at world position
+        // TODO: Apply full transformation to local mesh bounds
+        float half_size = 0.5f;
         
-        out_aabb.max_x = t.pos_x + half_x;
-        out_aabb.max_y = t.pos_y + half_y;
-        out_aabb.max_z = t.pos_z + half_z;
+        out_aabb.min_x = world_x - half_size;
+        out_aabb.min_y = world_y - half_size;
+        out_aabb.min_z = world_z - half_size;
+        
+        out_aabb.max_x = world_x + half_size;
+        out_aabb.max_y = world_y + half_size;
+        out_aabb.max_z = world_z + half_size;
         
         return true;
     }
