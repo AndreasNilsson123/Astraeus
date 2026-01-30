@@ -162,10 +162,25 @@ inline void CameraSystem::update_view_matrix(CameraComponent& camera,
 
 inline void CameraSystem::update_projection_matrix(CameraComponent& camera, float aspect_ratio) {
     constexpr float PI = 3.14159265359f;
+    constexpr float EPSILON = 1e-6f;
     
     std::memset(camera.projection_matrix, 0, 16 * sizeof(float));
     
     if (camera.projection_type == CameraProjectionType::Perspective) {
+        // Validate parameters
+        if (aspect_ratio <= EPSILON) {
+            std::cerr << "[CameraSystem] Warning: aspect_ratio must be > 0, using 1.0" << std::endl;
+            aspect_ratio = 1.0f;
+        }
+        if (camera.fov_degrees <= EPSILON || camera.fov_degrees >= 180.0f) {
+            std::cerr << "[CameraSystem] Warning: fov_degrees must be in (0, 180), clamping" << std::endl;
+            camera.fov_degrees = std::max(1.0f, std::min(179.0f, camera.fov_degrees));
+        }
+        if (camera.far_plane <= camera.near_plane + EPSILON) {
+            std::cerr << "[CameraSystem] Warning: far_plane must be > near_plane" << std::endl;
+            camera.far_plane = camera.near_plane + 1.0f;
+        }
+        
         // Perspective projection
         float fov_rad = camera.fov_degrees * PI / 180.0f;
         float tan_half_fov = std::tan(fov_rad / 2.0f);
@@ -176,11 +191,28 @@ inline void CameraSystem::update_projection_matrix(CameraComponent& camera, floa
         camera.projection_matrix[11] = -1.0f;
         camera.projection_matrix[14] = -(2.0f * camera.far_plane * camera.near_plane) / (camera.far_plane - camera.near_plane);
     } else {
-        // Orthographic projection
+        // Validate parameters
         float width = camera.ortho_right - camera.ortho_left;
         float height = camera.ortho_top - camera.ortho_bottom;
         float depth = camera.far_plane - camera.near_plane;
         
+        if (std::abs(width) <= EPSILON) {
+            std::cerr << "[CameraSystem] Warning: ortho_right must != ortho_left" << std::endl;
+            camera.ortho_right = camera.ortho_left + 1.0f;
+            width = 1.0f;
+        }
+        if (std::abs(height) <= EPSILON) {
+            std::cerr << "[CameraSystem] Warning: ortho_top must != ortho_bottom" << std::endl;
+            camera.ortho_top = camera.ortho_bottom + 1.0f;
+            height = 1.0f;
+        }
+        if (std::abs(depth) <= EPSILON) {
+            std::cerr << "[CameraSystem] Warning: far_plane must != near_plane" << std::endl;
+            camera.far_plane = camera.near_plane + 1.0f;
+            depth = 1.0f;
+        }
+        
+        // Orthographic projection
         camera.projection_matrix[0] = 2.0f / width;
         camera.projection_matrix[5] = 2.0f / height;
         camera.projection_matrix[10] = -2.0f / depth;
@@ -278,8 +310,9 @@ inline void CameraSystem::build_camera_uniforms(const CameraComponent& camera,
     uniforms.camera_position[1] = pos_y;
     uniforms.camera_position[2] = pos_z;
     
-    // Extract camera direction from view matrix (negative Z axis of inverse view)
-    // For a view matrix, the direction is the negated third row (forward vector)
+    // Extract camera forward direction from view matrix
+    // The view matrix transforms from world to view space.
+    // The third column (negated) gives the camera's forward direction in world space.
     uniforms.camera_direction[0] = -camera.view_matrix[2];
     uniforms.camera_direction[1] = -camera.view_matrix[6];
     uniforms.camera_direction[2] = -camera.view_matrix[10];

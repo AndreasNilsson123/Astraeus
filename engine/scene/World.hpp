@@ -394,6 +394,8 @@ private:
 
 inline World::World()
     : next_entity_id_(1) // Start at 1, 0 is reserved for "null"
+    , camera_() // Legacy orbit camera
+    , camera_components_()
     , active_camera_entity_(0) // No active camera initially
     , is_initialized_(false)
 {
@@ -430,6 +432,8 @@ inline void World::shutdown() {
     hierarchies_.clear();
     active_entities_.clear();
     renderable_entities_cache_.clear();
+    camera_components_.clear();
+    active_camera_entity_ = 0;
     next_entity_id_ = 1;
     
     is_initialized_ = false;
@@ -1097,6 +1101,14 @@ inline void World::remove_entity_camera(uint32_t entity_id) {
 }
 
 inline void World::set_active_camera(uint32_t entity_id) {
+    // Mark old active camera as inactive
+    if (active_camera_entity_ != 0) {
+        auto old_it = camera_components_.find(active_camera_entity_);
+        if (old_it != camera_components_.end()) {
+            old_it->second.is_active = false;
+        }
+    }
+    
     if (entity_id != 0) {
         // Verify camera component exists
         auto it = camera_components_.find(entity_id);
@@ -1104,14 +1116,6 @@ inline void World::set_active_camera(uint32_t entity_id) {
             std::cerr << "[World] Warning: Cannot set active camera - entity " << entity_id 
                      << " does not have a camera component" << std::endl;
             return;
-        }
-        
-        // Mark old active camera as inactive
-        if (active_camera_entity_ != 0) {
-            auto old_it = camera_components_.find(active_camera_entity_);
-            if (old_it != camera_components_.end()) {
-                old_it->second.is_active = false;
-            }
         }
         
         // Mark new camera as active
