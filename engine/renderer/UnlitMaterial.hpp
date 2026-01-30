@@ -127,6 +127,7 @@ inline void UnlitMaterial::bind(RenderDevice* device) {
     // Apply pipeline state
     if (pipeline_state_.depth_test_enabled) {
         glEnable(GL_DEPTH_TEST);
+        glDepthFunc(pipeline_state_.depth_func);
         if (pipeline_state_.depth_write_enabled) {
             glDepthMask(GL_TRUE);
         } else {

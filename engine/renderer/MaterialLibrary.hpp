@@ -53,16 +53,18 @@ public:
     }
 
     /**
-     * Register a material with a unique name
+     * Register a material with a unique name.
+     * Returns true if successful, false if name already exists.
      */
-    void register_material(const std::string& name, std::unique_ptr<Material> material) {
+    bool register_material(const std::string& name, std::unique_ptr<Material> material) {
         if (materials_.find(name) != materials_.end()) {
             std::cerr << "[MaterialLibrary] Material '" << name << "' already registered" << std::endl;
-            return;
+            return false;
         }
         
         materials_[name] = std::move(material);
         std::cout << "[MaterialLibrary] Registered material: " << name << std::endl;
+        return true;
     }
 
     /**

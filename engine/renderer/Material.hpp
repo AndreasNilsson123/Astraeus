@@ -2,6 +2,7 @@
 #define ASTRAEUS_MATERIAL_HPP
 
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <unordered_map>
 #include <memory>
@@ -40,7 +41,8 @@ struct MaterialParameter {
     } data;
 
     MaterialParameter() : type(MaterialParameterType::Float) {
-        data.float_value = 0.0f;
+        // Zero-initialize the entire union
+        std::memset(&data, 0, sizeof(data));
     }
 };
 
@@ -51,6 +53,7 @@ struct PipelineState {
     // Depth testing
     bool depth_test_enabled = true;
     bool depth_write_enabled = true;
+    uint32_t depth_func = 0x0201; // GL_LESS
     
     // Blending
     bool blend_enabled = false;
@@ -202,6 +205,8 @@ public:
     explicit MaterialInstance(Material* base_material)
         : base_material_(base_material)
     {
+        // Note: base_material should not be null. Constructor does not validate,
+        // but bind() will check before use.
     }
 
     ~MaterialInstance() = default;
