@@ -408,25 +408,15 @@ public class WorkspaceWindow {
     
     /**
      * Toggle right tab visibility (Inspector/Telemetry).
+     * Note: Currently only tracks state in config. Future enhancement could
+     * dynamically add/remove tabs from TabPane.
      */
     private void toggleRightTab(String tabName, CheckMenuItem menuItem) {
         boolean visible = menuItem.isSelected();
         layoutConfig.setPaneVisible(tabName.toLowerCase(), visible);
         
-        // Find the right tab pane
-        if (rightVerticalSplit.getItems().size() > 1) {
-            Region rightPane = (Region) rightVerticalSplit.getItems().get(1);
-            if (rightPane instanceof TabPane) {
-                TabPane tabPane = (TabPane) rightPane;
-                for (Tab tab : tabPane.getTabs()) {
-                    if (tab.getText().equals(tabName)) {
-                        // Note: Can't hide tabs in TabPane, so we just track state
-                        // In a more advanced implementation, we could remove/add tabs
-                        break;
-                    }
-                }
-            }
-        }
+        // TODO: Implement actual tab visibility control
+        // Currently tabs remain visible but state is tracked for future use
     }
     
     /**

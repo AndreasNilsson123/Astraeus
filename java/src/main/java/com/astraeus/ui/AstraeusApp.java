@@ -217,11 +217,9 @@ public class AstraeusApp extends Application {
                 entity.setColorG(Math.cos(hue * Math.PI));
                 entity.setColorB(Math.sin(hue * Math.PI * 2));
                 
-                // Sync every 100 entities to avoid too many individual calls
-                if (i % 100 == 0 || i == count - 1) {
-                    workspace.getSceneManager().syncTransformToEngine(entity);
-                    workspace.getSceneManager().syncColorToEngine(entity);
-                }
+                // Sync to engine immediately (properties already set)
+                workspace.getSceneManager().syncTransformToEngine(entity);
+                workspace.getSceneManager().syncColorToEngine(entity);
             }
             
             long elapsed = System.currentTimeMillis() - startTime;

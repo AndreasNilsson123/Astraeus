@@ -115,7 +115,7 @@ public class SceneManager {
                 (float) entity.getScaleZ()
             );
         } catch (Exception e) {
-            System.err.println("Failed to sync transform for entity " + entity.getEntityId() + ": " + e.getMessage());
+            logError("Failed to sync transform for entity " + entity.getEntityId() + ": " + e.getMessage());
         }
     }
     
@@ -130,7 +130,7 @@ public class SceneManager {
         try {
             updateEntityRenderable(entity.getEntityId(), entity.isVisible());
         } catch (Exception e) {
-            System.err.println("Failed to sync visibility for entity " + entity.getEntityId() + ": " + e.getMessage());
+            logError("Failed to sync visibility for entity " + entity.getEntityId() + ": " + e.getMessage());
         }
     }
     
@@ -151,7 +151,7 @@ public class SceneManager {
                 (float) entity.getColorA()
             );
         } catch (Exception e) {
-            System.err.println("Failed to sync color for entity " + entity.getEntityId() + ": " + e.getMessage());
+            logError("Failed to sync color for entity " + entity.getEntityId() + ": " + e.getMessage());
         }
     }
     
@@ -166,8 +166,17 @@ public class SceneManager {
         try {
             updateEntityTrail(entity.getEntityId(), entity.getTrailMaxPoints());
         } catch (Exception e) {
-            System.err.println("Failed to sync trail for entity " + entity.getEntityId() + ": " + e.getMessage());
+            logError("Failed to sync trail for entity " + entity.getEntityId() + ": " + e.getMessage());
         }
+    }
+    
+    /**
+     * Log error message to console.
+     */
+    private void logError(String message) {
+        // Print to stderr as fallback
+        System.err.println("[SceneManager] " + message);
+        // TODO: Could add callback to report to UI console pane
     }
     
     // ==================== Native Engine Wrappers ====================
