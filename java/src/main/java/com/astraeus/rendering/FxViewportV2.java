@@ -485,14 +485,14 @@ public class FxViewportV2 extends StackPane {
     /**
      * Get maximum viewport width.
      */
-    public int getMaxWidth() {
+    public int getViewportMaxWidth() {
         return maxWidth;
     }
     
     /**
      * Get maximum viewport height.
      */
-    public int getMaxHeight() {
+    public int getViewportMaxHeight() {
         return maxHeight;
     }
 }

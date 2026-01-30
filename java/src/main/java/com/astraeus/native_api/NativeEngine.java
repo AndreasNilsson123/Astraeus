@@ -3,6 +3,7 @@ package com.astraeus.native_api;
 import java.lang.foreign.*;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 /**
  * High-level Java wrapper around the native Astraeus engine.
@@ -389,7 +390,7 @@ public class NativeEngine implements AutoCloseable {
             }
             
             // Read pass name (null-terminated string)
-            String passName = nameBuffer.getUtf8String(0);
+            String passName = nameBuffer.getString(0, StandardCharsets.UTF_8);
             double time = timeMs.get(ValueLayout.JAVA_DOUBLE, 0);
             
             return new PassTiming(passName, time);

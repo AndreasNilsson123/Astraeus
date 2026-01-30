@@ -166,19 +166,19 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     set_target_properties(pointer_stability_test PROPERTIES LINKER_LANGUAGE CXX)
 
     add_executable(ingest_demo examples/ingest_demo.cpp ${ASTRAEUS_ENGINE_SOURCES}) # Include engine sources directly due to symbol linkage errors on windows
-    target_include_directories(ingest_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/engine)
+    target_include_directories(ingest_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(ingest_demo PRIVATE Threads::Threads OpenGL::GL glad)
 
     add_executable(asset_test examples/asset_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
-    target_include_directories(asset_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/engine)
+    target_include_directories(asset_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(asset_test PRIVATE Threads::Threads OpenGL::GL glad)
 
     add_executable(asset_unit_test examples/asset_unit_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
-    target_include_directories(asset_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/engine)
+    target_include_directories(asset_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(asset_unit_test PRIVATE Threads::Threads OpenGL::GL glad)
 
     add_executable(scene_hierarchy_test examples/scene_hierarchy_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
-    target_include_directories(scene_hierarchy_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/engine)
+    target_include_directories(scene_hierarchy_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(scene_hierarchy_test PRIVATE Threads::Threads OpenGL::GL glad)
 
 endif()
