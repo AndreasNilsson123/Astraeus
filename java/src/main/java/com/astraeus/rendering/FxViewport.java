@@ -64,10 +64,10 @@ public class FxViewport extends Pane {
         // Configure readback buffers with fixed size
         engine.configureReadback(maxWidth, maxHeight, false);
 
-        // Fetch view (this also refreshes bb.position/limit for current viewport)
+        // Fetch view with stable ByteBuffer (position=0, limit=capacity, never mutated)
         NativeEngine.PixelBufferView colorView = engine.getColorBuffer();
 
-        // IMPORTANT: use the cached, engine-lifetime ByteBuffer (NOT a per-call MemorySegment)
+        // IMPORTANT: use the stable ByteBuffer that has immutable state for JavaFX
         ByteBuffer backingBuffer = colorView.getByteBuffer();
         if (backingBuffer == null) {
             throw new IllegalStateException("Color ByteBuffer not attached (engine.getColorBuffer() must attach it)");
@@ -158,6 +158,23 @@ public class FxViewport extends Pane {
      * Call this after each frame is rendered.
      */
     public void updateDisplay() {
+        // Dev-mode assertion: verify ByteBuffer state remains stable
+        if (Boolean.getBoolean("astraeus.debug.assertBufferState")) {
+            if (colorBuffer != null) {
+                ByteBuffer buffer = colorBuffer.getByteBuffer();
+                if (buffer != null) {
+                    int pos = buffer.position();
+                    int lim = buffer.limit();
+                    int cap = buffer.capacity();
+                    if (pos != 0 || lim != cap) {
+                        System.err.println("[FxViewport] WARNING: ByteBuffer state corrupted! " +
+                                "position=" + pos + " limit=" + lim + " capacity=" + cap);
+                        System.err.println("[FxViewport] Expected: position=0 limit=capacity=" + cap);
+                    }
+                }
+            }
+        }
+        
         // Update PixelBuffer to trigger JavaFX redraw
         // The backing memory is already updated by the engine
         pixelBuffer.updateBuffer(pb -> {

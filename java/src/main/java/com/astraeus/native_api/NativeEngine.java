@@ -163,10 +163,18 @@ public class NativeEngine implements AutoCloseable {
      * Get the color buffer view for rendering.
      * The returned PixelBufferView has a stable data pointer that never changes.
      * Only the viewport dimensions (width/height) change on resize.
+     * 
+     * SAFETY: The ByteBuffer returned is the STABLE, FULL-CAPACITY buffer for JavaFX PixelBuffer.
+     * Its position/limit state is NEVER mutated after initial creation.
+     * This buffer should be given to JavaFX PixelBuffer and never modified.
+     * 
+     * THREAD-SAFETY: This method is NOT thread-safe. It must be called from a single thread only
+     * (typically the JavaFX application thread). Concurrent calls can lead to race conditions
+     * when updating the buffer state.
      */
-    // Cached backing for Prism upload (recreated only when addr/size changes)
+    // Cached backing for JavaFX PixelBuffer (STABLE, IMMUTABLE STATE)
     private MemorySegment colorDataSeg;
-    private ByteBuffer colorByteBuffer;
+    private ByteBuffer colorByteBufferStable;  // For JavaFX - never mutate position/limit after creation
     private long colorAddr = 0;
     private int colorBackingSize = 0;
 
@@ -186,32 +194,43 @@ public class NativeEngine implements AutoCloseable {
 
         long addr = view.dataAddress();
         int backingSize = view.getMaxBackingSize();
-        int needed = Math.multiplyExact(view.getStride(), view.getHeight());
+        
+        // Calculate needed size with overflow detection
+        int needed;
+        try {
+            needed = Math.multiplyExact(view.getStride(), view.getHeight());
+        } catch (ArithmeticException e) {
+            throw new IllegalStateException("Viewport size calculation overflowed: stride=" + 
+                    view.getStride() + " * height=" + view.getHeight() + " exceeds Integer.MAX_VALUE", e);
+        }
 
         if (addr == 0 || backingSize <= 0) {
             throw new IllegalStateException("Invalid color view: addr=" + addr + " backingSize=" + backingSize);
         }
-        if (needed < 0 || needed > backingSize) {
+        if (needed > backingSize) {
             throw new IllegalStateException("Color view size mismatch: needed=" + needed + " backingSize=" + backingSize +
                     " stride=" + view.getStride() + " height=" + view.getHeight());
         }
 
         // Rebuild only if address/size changed
-        if (colorByteBuffer == null || colorAddr != addr || colorBackingSize != backingSize) {
+        if (colorByteBufferStable == null || colorAddr != addr || colorBackingSize != backingSize) {
             colorAddr = addr;
             colorBackingSize = backingSize;
 
             // IMPORTANT: attach to engine lifetime arena/session (this.arena)
             colorDataSeg = MemorySegment.ofAddress(addr).reinterpret(backingSize, arena, null);
-            colorByteBuffer = colorDataSeg.asByteBuffer();
+            
+            // Create STABLE buffer for JavaFX with position=0, limit=capacity
+            // This buffer's state will NEVER be mutated after creation
+            colorByteBufferStable = colorDataSeg.asByteBuffer();
+            colorByteBufferStable.position(0);
+            colorByteBufferStable.limit(colorByteBufferStable.capacity());
         }
 
-        // CRITICAL: Prism reads from current position/limit
-        colorByteBuffer.position(0);
-        colorByteBuffer.limit(needed);
-
-        // Attach the ByteBuffer so your view/renderer can use it directly
-        view.attachByteBuffer(colorByteBuffer);
+        // CRITICAL: Return the stable buffer that JavaFX owns
+        // DO NOT mutate its position/limit after this point
+        // If you need a sized view internally, call view.getViewportBuffer() instead
+        view.attachByteBuffer(colorByteBufferStable, needed);
         return view;
     }
 
@@ -221,9 +240,16 @@ public class NativeEngine implements AutoCloseable {
      * Get the ID buffer view for picking.
      * The returned PixelBufferView has a stable data pointer that never changes.
      * Only the viewport dimensions (width/height) change on resize.
+     * 
+     * SAFETY: The ByteBuffer returned is the STABLE, FULL-CAPACITY buffer.
+     * Its position/limit state is NEVER mutated after initial creation.
+     * 
+     * THREAD-SAFETY: This method is NOT thread-safe. It must be called from a single thread only
+     * (typically the JavaFX application thread). Concurrent calls can lead to race conditions
+     * when updating the buffer state.
      */
     private MemorySegment idDataSeg;
-    private ByteBuffer idByteBuffer;
+    private ByteBuffer idByteBufferStable;  // STABLE buffer - never mutate position/limit after creation
     private long idAddr = 0;
     private int idBackingSize = 0;
 
@@ -242,28 +268,40 @@ public class NativeEngine implements AutoCloseable {
 
         long addr = view.dataAddress();
         int backingSize = view.getMaxBackingSize();
-        int needed = Math.multiplyExact(view.getStride(), view.getHeight());
+        
+        // Calculate needed size with overflow detection
+        int needed;
+        try {
+            needed = Math.multiplyExact(view.getStride(), view.getHeight());
+        } catch (ArithmeticException e) {
+            throw new IllegalStateException("ID buffer size calculation overflowed: stride=" + 
+                    view.getStride() + " * height=" + view.getHeight() + " exceeds Integer.MAX_VALUE", e);
+        }
 
         if (addr == 0 || backingSize <= 0) {
             throw new IllegalStateException("Invalid id view: addr=" + addr + " backingSize=" + backingSize);
         }
-        if (needed < 0 || needed > backingSize) {
+        if (needed > backingSize) {
             throw new IllegalStateException("ID view size mismatch: needed=" + needed + " backingSize=" + backingSize +
                     " stride=" + view.getStride() + " height=" + view.getHeight());
         }
 
-        if (idByteBuffer == null || idAddr != addr || idBackingSize != backingSize) {
+        if (idByteBufferStable == null || idAddr != addr || idBackingSize != backingSize) {
             idAddr = addr;
             idBackingSize = backingSize;
 
             idDataSeg = MemorySegment.ofAddress(addr).reinterpret(backingSize, arena, null);
-            idByteBuffer = idDataSeg.asByteBuffer();
+            
+            // Create STABLE buffer with position=0, limit=capacity
+            // This buffer's state will NEVER be mutated after creation
+            idByteBufferStable = idDataSeg.asByteBuffer();
+            idByteBufferStable.position(0);
+            idByteBufferStable.limit(idByteBufferStable.capacity());
         }
 
-        idByteBuffer.position(0);
-        idByteBuffer.limit(needed);
-
-        view.attachByteBuffer(idByteBuffer);
+        // Return the stable buffer
+        // DO NOT mutate its position/limit after this point
+        view.attachByteBuffer(idByteBufferStable, needed);
         return view;
     }
 
@@ -401,7 +439,7 @@ public class NativeEngine implements AutoCloseable {
 
 
     /**
-     * Wrapper for PickingView struct.
+     * Wrapper for PixelBufferView struct.
      * Provides safe access to backing buffer without memory hazards.
      */
     public static class PixelBufferView {
@@ -414,8 +452,11 @@ public class NativeEngine implements AutoCloseable {
         private final int maxBackingHeight;
         private final int maxBackingSize;
 
-        // Optional: store ByteBuffer for convenience (set by NativeEngine)
-        private ByteBuffer byteBuffer;
+        // STABLE ByteBuffer for JavaFX (position=0, limit=capacity, never mutated)
+        private ByteBuffer stableByteBuffer;
+        
+        // Current viewport size in bytes (for creating duplicates)
+        private int viewportByteSize;
 
         public PixelBufferView(MemorySegment structSegment) {
             VarHandle dataHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
@@ -457,10 +498,55 @@ public class NativeEngine implements AutoCloseable {
         public int getMaxBackingHeight() { return maxBackingHeight; }
         public int getMaxBackingSize() { return maxBackingSize; }
 
-        public ByteBuffer getByteBuffer() { return byteBuffer; }
+        /**
+         * Get the stable ByteBuffer for JavaFX PixelBuffer.
+         * WARNING: This buffer has position=0 and limit=capacity.
+         * DO NOT mutate its position/limit/mark after giving it to JavaFX PixelBuffer.
+         * 
+         * @return Stable ByteBuffer with immutable state
+         */
+        public ByteBuffer getByteBuffer() { 
+            return stableByteBuffer; 
+        }
+        
+        /**
+         * Get a duplicate ByteBuffer sized to the current viewport.
+         * This creates a new ByteBuffer object that shares the same native memory
+         * but has its own position/limit/mark state.
+         * 
+         * IMPORTANT: This method returns valid data only after calling getColorBuffer() or
+         * getIdBuffer(). The viewport size is captured at that moment. If the viewport is
+         * resized, you must call getColorBuffer()/getIdBuffer() again before calling this method.
+         * 
+         * Use this when you need a sized view for internal operations
+         * (e.g., reading specific viewport data).
+         * 
+         * @return A duplicate ByteBuffer with limit set to viewportByteSize
+         * @throws IllegalStateException if the buffer is not initialized or viewportByteSize is invalid
+         */
+        public ByteBuffer getViewportBuffer() {
+            if (stableByteBuffer == null) {
+                throw new IllegalStateException("Buffer not initialized - call getColorBuffer() or getIdBuffer() first");
+            }
+            if (viewportByteSize <= 0) {
+                throw new IllegalStateException("Invalid viewport size: " + viewportByteSize + 
+                        " - call getColorBuffer() or getIdBuffer() first");
+            }
+            if (viewportByteSize > stableByteBuffer.capacity()) {
+                throw new IllegalStateException("Viewport size " + viewportByteSize + 
+                        " exceeds buffer capacity " + stableByteBuffer.capacity());
+            }
+            
+            // Create a duplicate with sized limit for internal use
+            ByteBuffer duplicate = stableByteBuffer.duplicate();
+            duplicate.position(0);
+            duplicate.limit(viewportByteSize);
+            return duplicate;
+        }
 
-        void attachByteBuffer(ByteBuffer bb) { // package-private
-            this.byteBuffer = bb;
+        void attachByteBuffer(ByteBuffer bb, int viewportByteSize) { // package-private
+            this.stableByteBuffer = bb;
+            this.viewportByteSize = viewportByteSize;
         }
     }
 
