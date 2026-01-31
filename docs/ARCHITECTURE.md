@@ -4,6 +4,9 @@
 
 Astraeus is designed as a **professional, scalable 3D visualization engine** for high-performance visualization of externally simulated data. The architecture separates concerns cleanly between performance-critical rendering (C++) and flexible tooling/UI (Java), connected via FFM.
 
+**See also:**
+- [DEPENDENCIES.md](DEPENDENCIES.md) - Dependency footprint and platform abstraction policy
+
 ## Architectural Layers
 
 ```
