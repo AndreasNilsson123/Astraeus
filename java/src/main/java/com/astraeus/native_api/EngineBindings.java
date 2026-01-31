@@ -1,6 +1,8 @@
 package com.astraeus.native_api;
 
 import com.astraeus.generated.StructLayouts;
+import com.astraeus.native_api.layout.Constants;
+import com.astraeus.native_api.layout.LayoutValidator;
 
 import java.lang.foreign.*;
 import java.lang.invoke.MethodHandle;
@@ -9,20 +11,44 @@ import java.lang.invoke.MethodHandle;
  * Native FFM bindings for Astraeus engine C API.
  * Uses Java 21+ Foreign Function & Memory API (FFM).
  * 
- * NOTE: Struct layouts are now auto-generated in StructLayouts.gen.java
+ * <p><b>NOTE:</b> Struct layouts are auto-generated in StructLayouts.java from abi_structs_schema.yaml
+ * 
+ * <p><b>Key Features:</b>
+ * <ul>
+ *   <li>Centralized constants in {@link Constants}</li>
+ *   <li>String utilities in {@link com.astraeus.native_api.util.NativeStrings}</li>
+ *   <li>Error handling in {@link com.astraeus.native_api.util.NativeChecks}</li>
+ *   <li>Runtime layout validation in {@link LayoutValidator}</li>
+ * </ul>
  */
 public class EngineBindings {
     
     private static final Linker LINKER = Linker.nativeLinker();
     private static final SymbolLookup LIBRARY;
     
-    // Pixel format constants (must match EngineAPI.h)
-    public static final int PIXEL_FORMAT_RGBA8 = 0;
-    public static final int PIXEL_FORMAT_BGRA8 = 1;
-    public static final int PIXEL_FORMAT_ARGB8 = 2;
-    public static final int PIXEL_FORMAT_R32UI = 3;
+    // Re-export constants for backward compatibility
+    // (New code should use Constants class directly)
+    public static final int PIXEL_FORMAT_RGBA8 = Constants.PIXEL_FORMAT_RGBA8;
+    public static final int PIXEL_FORMAT_BGRA8 = Constants.PIXEL_FORMAT_BGRA8;
+    public static final int PIXEL_FORMAT_ARGB8 = Constants.PIXEL_FORMAT_ARGB8;
+    public static final int PIXEL_FORMAT_R32UI = Constants.PIXEL_FORMAT_R32UI;
     
-    // Use generated struct layouts from StructLayouts.gen.java
+    public static final int ASTRAEUS_SUCCESS = Constants.ASTRAEUS_SUCCESS;
+    public static final int ASTRAEUS_ERROR_INVALID_HANDLE = Constants.ASTRAEUS_ERROR_INVALID_HANDLE;
+    public static final int ASTRAEUS_ERROR_INVALID_PARAMETER = Constants.ASTRAEUS_ERROR_INVALID_PARAMETER;
+    public static final int ASTRAEUS_ERROR_OUT_OF_MEMORY = Constants.ASTRAEUS_ERROR_OUT_OF_MEMORY;
+    public static final int ASTRAEUS_ERROR_NOT_INITIALIZED = Constants.ASTRAEUS_ERROR_NOT_INITIALIZED;
+    public static final int ASTRAEUS_ERROR_UNKNOWN = Constants.ASTRAEUS_ERROR_UNKNOWN;
+    
+    public static final int CAMERA_MODE_ORBIT = Constants.CAMERA_MODE_ORBIT;
+    public static final int CAMERA_MODE_FLY = Constants.CAMERA_MODE_FLY;
+    public static final int CAMERA_MODE_PAN = Constants.CAMERA_MODE_PAN;
+    
+    public static final int ALPHA_MODE_OPAQUE = Constants.ALPHA_MODE_OPAQUE;
+    public static final int ALPHA_MODE_BLEND = Constants.ALPHA_MODE_BLEND;
+    public static final int ALPHA_MODE_MASK = Constants.ALPHA_MODE_MASK;
+    
+    // Use generated struct layouts from StructLayouts.java
     public static final StructLayout READBACK_CONFIG_LAYOUT = StructLayouts.READBACK_CONFIG_LAYOUT;
     public static final StructLayout PIXEL_BUFFER_VIEW_LAYOUT = StructLayouts.PIXEL_BUFFER_VIEW_LAYOUT;
     public static final StructLayout ENGINE_CONFIG_LAYOUT = StructLayouts.ENGINE_CONFIG_LAYOUT;
@@ -32,24 +58,6 @@ public class EngineBindings {
     public static final StructLayout CAMERA_DESC_LAYOUT = StructLayouts.CAMERA_DESC_LAYOUT;
     public static final StructLayout MATERIAL_DESC_LAYOUT = StructLayouts.MATERIAL_DESC_LAYOUT;
     public static final StructLayout VIEWPORT_CONFIG_LAYOUT = StructLayouts.VIEWPORT_CONFIG_LAYOUT;
-    
-    // Result code constants (must match EngineAPI.h)
-    public static final int ASTRAEUS_SUCCESS = 0;
-    public static final int ASTRAEUS_ERROR_INVALID_HANDLE = 1;
-    public static final int ASTRAEUS_ERROR_INVALID_PARAMETER = 2;
-    public static final int ASTRAEUS_ERROR_OUT_OF_MEMORY = 3;
-    public static final int ASTRAEUS_ERROR_NOT_INITIALIZED = 4;
-    public static final int ASTRAEUS_ERROR_UNKNOWN = 255;
-    
-    // Camera mode constants
-    public static final int CAMERA_MODE_ORBIT = 0;
-    public static final int CAMERA_MODE_FLY = 1;
-    public static final int CAMERA_MODE_PAN = 2;
-    
-    // Alpha mode constants
-    public static final int ALPHA_MODE_OPAQUE = 0;
-    public static final int ALPHA_MODE_BLEND = 1;
-    public static final int ALPHA_MODE_MASK = 2;
     
     // Function descriptors (C ABI signatures)
     private static final FunctionDescriptor CREATE_ENGINE_DESC = FunctionDescriptor.of(
@@ -500,6 +508,11 @@ public class EngineBindings {
                 LIBRARY.find("astraeus_entity_set_material").orElseThrow(),
                 ENTITY_SET_MATERIAL_DESC
             );
+            
+            // Validate struct layouts in dev mode
+            if (LayoutValidator.ENABLE_VALIDATION) {
+                LayoutValidator.validateAllLayouts();
+            }
             
         } catch (Exception e) {
             throw new ExceptionInInitializerError("Failed to load Astraeus native library: " + e.getMessage());
