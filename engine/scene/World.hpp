@@ -362,6 +362,40 @@ public:
      * Build camera uniforms from camera component and entity position.
      */
     void build_camera_uniforms(uint32_t camera_entity_id, CameraUniforms& out_uniforms) const;
+    
+    // ========================================================================
+    // Lighting API
+    // ========================================================================
+    
+    /**
+     * Set directional light direction (normalized vector)
+     */
+    void set_light_direction(float x, float y, float z);
+    
+    /**
+     * Set directional light color and intensity
+     */
+    void set_light_color(float r, float g, float b, float intensity = 1.0f);
+    
+    /**
+     * Set ambient light color
+     */
+    void set_ambient_light(float r, float g, float b);
+    
+    /**
+     * Get light direction
+     */
+    void get_light_direction(float& out_x, float& out_y, float& out_z) const;
+    
+    /**
+     * Get light color and intensity
+     */
+    void get_light_color(float& out_r, float& out_g, float& out_b, float& out_intensity) const;
+    
+    /**
+     * Get ambient light color
+     */
+    void get_ambient_light(float& out_r, float& out_g, float& out_b) const;
 
 private:
     // Handle-based entity storage
@@ -381,6 +415,12 @@ private:
     uint32_t active_camera_entity_;  // Entity ID of active camera (0 = none)
     bool is_initialized_;
     
+    // Lighting
+    float light_direction_[3];    // Directional light direction (normalized)
+    float light_color_[3];         // Light color (RGB)
+    float light_intensity_;        // Light intensity multiplier
+    float ambient_light_[3];       // Ambient light color (RGB)
+    
     // Helper methods for transform propagation
     void update_entity_world_transform(uint32_t entity_id);
     void mark_descendants_dirty(uint32_t entity_id);
@@ -398,6 +438,10 @@ inline World::World()
     , camera_components_()
     , active_camera_entity_(0) // No active camera initially
     , is_initialized_(false)
+    , light_direction_{0.0f, -1.0f, 0.0f}  // Default: pointing down
+    , light_color_{1.0f, 1.0f, 1.0f}        // Default: white
+    , light_intensity_(1.0f)
+    , ambient_light_{0.2f, 0.2f, 0.2f}      // Default: 20% ambient
 {
 }
 
@@ -1225,6 +1269,57 @@ inline void World::build_camera_uniforms(uint32_t camera_entity_id, CameraUnifor
     float pos_z = transform.world_matrix[14];
     
     CameraSystem::build_camera_uniforms(camera, pos_x, pos_y, pos_z, out_uniforms);
+}
+
+// ============================================================================
+// Lighting API Implementation
+// ============================================================================
+
+inline void World::set_light_direction(float x, float y, float z) {
+    // Normalize the direction
+    float len = std::sqrt(x*x + y*y + z*z);
+    if (len < 1e-6f) {
+        // Avoid division by zero - use default down direction
+        light_direction_[0] = 0.0f;
+        light_direction_[1] = -1.0f;
+        light_direction_[2] = 0.0f;
+        return;
+    }
+    light_direction_[0] = x / len;
+    light_direction_[1] = y / len;
+    light_direction_[2] = z / len;
+}
+
+inline void World::set_light_color(float r, float g, float b, float intensity) {
+    light_color_[0] = r;
+    light_color_[1] = g;
+    light_color_[2] = b;
+    light_intensity_ = intensity;
+}
+
+inline void World::set_ambient_light(float r, float g, float b) {
+    ambient_light_[0] = r;
+    ambient_light_[1] = g;
+    ambient_light_[2] = b;
+}
+
+inline void World::get_light_direction(float& out_x, float& out_y, float& out_z) const {
+    out_x = light_direction_[0];
+    out_y = light_direction_[1];
+    out_z = light_direction_[2];
+}
+
+inline void World::get_light_color(float& out_r, float& out_g, float& out_b, float& out_intensity) const {
+    out_r = light_color_[0];
+    out_g = light_color_[1];
+    out_b = light_color_[2];
+    out_intensity = light_intensity_;
+}
+
+inline void World::get_ambient_light(float& out_r, float& out_g, float& out_b) const {
+    out_r = ambient_light_[0];
+    out_g = ambient_light_[1];
+    out_b = ambient_light_[2];
 }
 
 } // namespace astraeus
