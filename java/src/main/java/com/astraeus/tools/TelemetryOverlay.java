@@ -1,6 +1,6 @@
 package com.astraeus.tools;
 
-import com.astraeus.native_api.NativeEngine.TelemetryFrameStats;
+import com.astraeus.native_api.NativeEngine.FrameStats;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
@@ -24,7 +24,7 @@ import javafx.scene.text.FontWeight;
  * overlay.setVisible(true);
  * 
  * // In render loop:
- * TelemetryFrameStats stats = engine.getTelemetryStats();
+ * FrameStats stats = engine.getTelemetryStats();
  * overlay.update(stats);
  * </pre>
  */
@@ -97,7 +97,7 @@ public class TelemetryOverlay extends VBox {
      * 
      * @param stats Telemetry frame statistics
      */
-    public void update(TelemetryFrameStats stats) {
+    public void update(FrameStats stats) {
         if (stats == null) {
             return;
         }

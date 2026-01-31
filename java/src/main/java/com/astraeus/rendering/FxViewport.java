@@ -1,6 +1,7 @@
 package com.astraeus.rendering;
 
 import com.astraeus.native_api.NativeEngine;
+import com.astraeus.native_api.model.PixelBufferView;
 import com.astraeus.native_api.PickingView;
 import com.astraeus.tools.TelemetryOverlay;
 import javafx.geometry.Pos;
@@ -57,7 +58,7 @@ public class FxViewport extends StackPane {
     private final ImageView imageView;
     private WritableImage writableImage;
     private PixelBuffer<ByteBuffer> pixelBuffer;
-    private NativeEngine.PixelBufferView colorBuffer;
+    private PixelBufferView colorBuffer;
     
     // Viewport dimensions
     private final int maxWidth;
@@ -103,7 +104,7 @@ public class FxViewport extends StackPane {
         
         // Configure readback
         engine.configureReadback(maxWidth, maxHeight, false);
-        NativeEngine.PixelBufferView colorView = engine.getColorBuffer();
+        PixelBufferView colorView = engine.getColorBuffer();
         ByteBuffer backingBuffer = colorView.getByteBuffer();
         
         if (backingBuffer == null) {

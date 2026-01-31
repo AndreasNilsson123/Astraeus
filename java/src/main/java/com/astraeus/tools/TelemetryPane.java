@@ -1,7 +1,7 @@
 package com.astraeus.tools;
 
 import com.astraeus.native_api.NativeEngine;
-import com.astraeus.native_api.NativeEngine.TelemetryFrameStats;
+import com.astraeus.native_api.model.FrameStats;
 import com.astraeus.native_api.NativeEngine.PassTiming;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
