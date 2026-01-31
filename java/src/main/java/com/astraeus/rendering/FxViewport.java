@@ -4,6 +4,7 @@ import com.astraeus.native_api.NativeEngine;
 import com.astraeus.native_api.model.PixelBufferView;
 import com.astraeus.native_api.PickingView;
 import com.astraeus.tools.TelemetryOverlay;
+import com.astraeus.ui.viewport.PickingCoordinateTransform;
 import javafx.geometry.Pos;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelBuffer;
@@ -53,6 +54,7 @@ public class FxViewport extends StackPane {
     private final NativeEngine engine;
     private final ViewportController controller;
     private final OverlayStack overlayStack;
+    private final PickingCoordinateTransform coordinateTransform;
     
     // Image display
     private final ImageView imageView;
@@ -101,6 +103,10 @@ public class FxViewport extends StackPane {
         
         // Create controller
         controller = new ViewportController(engine);
+        
+        // Create coordinate transform for picking
+        coordinateTransform = new PickingCoordinateTransform(imageView);
+        coordinateTransform.setViewportDimensions(initialWidth, initialHeight);
         
         // Configure readback
         engine.configureReadback(maxWidth, maxHeight, false);
@@ -257,21 +263,20 @@ public class FxViewport extends StackPane {
      */
     private void handleMouseClick(MouseEvent event) {
         try {
-            // Convert scene coordinates to viewport coordinates
+            // Convert scene coordinates to viewport coordinates using robust transform
             double sceneX = event.getX();
             double sceneY = event.getY();
             
-            // Calculate scale factors
-            double scaleX = currentWidth / imageView.getFitWidth();
-            double scaleY = currentHeight / imageView.getFitHeight();
+            // Check if coordinates are within bounds
+            if (!coordinateTransform.isWithinBounds(sceneX, sceneY)) {
+                System.err.println("[FxViewport] Click outside viewport bounds");
+                return;
+            }
             
-            // Convert to viewport pixels
-            int viewportX = (int) (sceneX * scaleX);
-            int viewportY = (int) (sceneY * scaleY);
-            
-            // Clamp to bounds
-            viewportX = Math.max(0, Math.min(viewportX, currentWidth - 1));
-            viewportY = Math.max(0, Math.min(viewportY, currentHeight - 1));
+            // Transform to viewport pixel coordinates
+            int[] viewportCoords = coordinateTransform.sceneToViewport(sceneX, sceneY);
+            int viewportX = viewportCoords[0];
+            int viewportY = viewportCoords[1];
             
             // Perform pick
             PickingView result = engine.pick(viewportX, viewportY);
@@ -294,6 +299,7 @@ public class FxViewport extends StackPane {
             
         } catch (Exception e) {
             System.err.println("[FxViewport] Picking error: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -329,6 +335,11 @@ public class FxViewport extends StackPane {
     public void update(double deltaTime) {
         // Update camera controller
         controller.update(deltaTime);
+        
+        // Sync camera state to native engine (if available)
+        // Note: This requires viewport-specific camera access, which may not be
+        // available in the current MVP. For now, we'll update camera through
+        // the legacy World API in the engine's render loop.
         
         // Update camera info overlay if visible
         if (overlayStack.isOverlayVisible("camera-info")) {
@@ -398,6 +409,9 @@ public class FxViewport extends StackPane {
         
         currentWidth = width;
         currentHeight = height;
+        
+        // Update coordinate transform for picking
+        coordinateTransform.setViewportDimensions(width, height);
         
         colorBuffer = engine.getColorBuffer();
     }

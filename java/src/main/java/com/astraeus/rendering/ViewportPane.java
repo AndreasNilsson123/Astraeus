@@ -107,6 +107,9 @@ public class ViewportPane extends Region {
                 // Update viewport (camera, overlays, etc.)
                 surface.update(deltaTime);
                 
+                // Sync camera state to engine (legacy API)
+                syncCameraToEngine();
+                
                 // Render frame
                 try {
                     engine.beginFrame(deltaTime);
@@ -231,5 +234,26 @@ public class ViewportPane extends Region {
     public void dispose() {
         stop();
         System.out.println("[ViewportPane] Disposed");
+    }
+    
+    /**
+     * Sync camera state from controller to engine.
+     * Called every frame before rendering.
+     */
+    private void syncCameraToEngine() {
+        try {
+            ViewportController controller = surface.getController();
+            double[] pos = controller.getCameraPosition();
+            double[] target = controller.getCameraTarget();
+            
+            // Update engine camera using legacy API
+            engine.setCamera(
+                (float) pos[0], (float) pos[1], (float) pos[2],
+                (float) target[0], (float) target[1], (float) target[2],
+                0.0f, 1.0f, 0.0f  // Up vector (Y-up)
+            );
+        } catch (Exception e) {
+            System.err.println("[ViewportPane] Camera sync error: " + e.getMessage());
+        }
     }
 }

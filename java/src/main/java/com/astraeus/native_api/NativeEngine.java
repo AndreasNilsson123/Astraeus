@@ -539,122 +539,6 @@ public class NativeEngine implements AutoCloseable {
 
     /**
      * Create a new entity.
-     * 
-     * <p><b>Thread Safety:</b> Must be called from the owning thread only.</p>
-     * 
-     * @return Entity ID (handle-based identifier)
-     * @throws RuntimeException if entity creation fails
-     */
-        private final long dataAddress;
-        private final int width;
-        private final int height;
-        private final int stride;
-        private final int format;
-        private final int maxBackingWidth;
-        private final int maxBackingHeight;
-        private final int maxBackingSize;
-
-        // STABLE ByteBuffer for JavaFX (position=0, limit=capacity, never mutated)
-        private ByteBuffer stableByteBuffer;
-        
-        // Current viewport size in bytes (for creating duplicates)
-        private int viewportByteSize;
-
-        public PixelBufferView(MemorySegment structSegment) {
-            VarHandle dataHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                    MemoryLayout.PathElement.groupElement("data"));
-            VarHandle widthHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                    MemoryLayout.PathElement.groupElement("width"));
-            VarHandle heightHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                    MemoryLayout.PathElement.groupElement("height"));
-            VarHandle strideHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                    MemoryLayout.PathElement.groupElement("stride"));
-            VarHandle formatHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                    MemoryLayout.PathElement.groupElement("format"));
-            VarHandle maxWidthHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                    MemoryLayout.PathElement.groupElement("max_backing_width"));
-            VarHandle maxHeightHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                    MemoryLayout.PathElement.groupElement("max_backing_height"));
-            VarHandle maxSizeHandle = EngineBindings.PIXEL_BUFFER_VIEW_LAYOUT.varHandle(
-                    MemoryLayout.PathElement.groupElement("max_backing_size"));
-
-            MemorySegment dataPtr = (MemorySegment) dataHandle.get(structSegment, 0L);
-            this.dataAddress = (dataPtr == null || dataPtr.equals(MemorySegment.NULL)) ? 0L : dataPtr.address();
-
-            this.width = (int) widthHandle.get(structSegment, 0L);
-            this.height = (int) heightHandle.get(structSegment, 0L);
-            this.stride = (int) strideHandle.get(structSegment, 0L);
-            this.format = (int) formatHandle.get(structSegment, 0L);
-            this.maxBackingWidth = (int) maxWidthHandle.get(structSegment, 0L);
-            this.maxBackingHeight = (int) maxHeightHandle.get(structSegment, 0L);
-            this.maxBackingSize = (int) maxSizeHandle.get(structSegment, 0L);
-        }
-
-        public long dataAddress() { return dataAddress; }
-
-        public int getWidth() { return width; }
-        public int getHeight() { return height; }
-        public int getStride() { return stride; }
-        public int getFormat() { return format; }
-        public int getMaxBackingWidth() { return maxBackingWidth; }
-        public int getMaxBackingHeight() { return maxBackingHeight; }
-        public int getMaxBackingSize() { return maxBackingSize; }
-
-        /**
-         * Get the stable ByteBuffer for JavaFX PixelBuffer.
-         * WARNING: This buffer has position=0 and limit=capacity.
-         * DO NOT mutate its position/limit/mark after giving it to JavaFX PixelBuffer.
-         * 
-         * @return Stable ByteBuffer with immutable state
-         */
-        public ByteBuffer getByteBuffer() { 
-            return stableByteBuffer; 
-        }
-        
-        /**
-         * Get a duplicate ByteBuffer sized to the current viewport.
-         * This creates a new ByteBuffer object that shares the same native memory
-         * but has its own position/limit/mark state.
-         * 
-         * IMPORTANT: This method returns valid data only after calling getColorBuffer() or
-         * getIdBuffer(). The viewport size is captured at that moment. If the viewport is
-         * resized, you must call getColorBuffer()/getIdBuffer() again before calling this method.
-         * 
-         * Use this when you need a sized view for internal operations
-         * (e.g., reading specific viewport data).
-         * 
-         * @return A duplicate ByteBuffer with limit set to viewportByteSize
-         * @throws IllegalStateException if the buffer is not initialized or viewportByteSize is invalid
-         */
-        public ByteBuffer getViewportBuffer() {
-            if (stableByteBuffer == null) {
-                throw new IllegalStateException("Buffer not initialized - call getColorBuffer() or getIdBuffer() first");
-            }
-            if (viewportByteSize <= 0) {
-                throw new IllegalStateException("Invalid viewport size: " + viewportByteSize + 
-                        " - call getColorBuffer() or getIdBuffer() first");
-            }
-            if (viewportByteSize > stableByteBuffer.capacity()) {
-                throw new IllegalStateException("Viewport size " + viewportByteSize + 
-                        " exceeds buffer capacity " + stableByteBuffer.capacity());
-            }
-            
-            // Create a duplicate with sized limit for internal use
-            ByteBuffer duplicate = stableByteBuffer.duplicate();
-            duplicate.position(0);
-            duplicate.limit(viewportByteSize);
-            return duplicate;
-        }
-
-        void attachByteBuffer(ByteBuffer bb, int viewportByteSize) { // package-private
-            this.stableByteBuffer = bb;
-            this.viewportByteSize = viewportByteSize;
-        }
-    }
-
-
-    /**
-     * Create a new entity.
      * @return Entity ID
      */
     public int createEntity() {
@@ -746,6 +630,60 @@ public class NativeEngine implements AutoCloseable {
             EngineBindings.SET_ENTITY_TRAIL.invoke(engineHandle, entityId, maxPoints);
         } catch (Throwable e) {
             throw new RuntimeException("Failed to set entity trail", e);
+        }
+    }
+    
+    /**
+     * Set the camera position and target using the legacy API.
+     * 
+     * <p>This is the legacy World camera API that sets a single default camera.
+     * For multi-viewport applications, use the viewport-specific camera API instead.</p>
+     * 
+     * <p><b>Thread Safety:</b> Must be called from the owning thread only.</p>
+     * 
+     * @param eyeX Camera position X
+     * @param eyeY Camera position Y
+     * @param eyeZ Camera position Z
+     * @param targetX Look-at target X
+     * @param targetY Look-at target Y
+     * @param targetZ Look-at target Z
+     * @param upX Up vector X (usually 0)
+     * @param upY Up vector Y (usually 1)
+     * @param upZ Up vector Z (usually 0)
+     */
+    public void setCamera(float eyeX, float eyeY, float eyeZ,
+                         float targetX, float targetY, float targetZ,
+                         float upX, float upY, float upZ) {
+        checkClosed();
+        try {
+            EngineBindings.SET_CAMERA.invoke(engineHandle,
+                eyeX, eyeY, eyeZ,
+                targetX, targetY, targetZ,
+                upX, upY, upZ);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to set camera", e);
+        }
+    }
+    
+    /**
+     * Set the camera projection parameters using the legacy API.
+     * 
+     * <p>This sets the projection matrix for the default World camera.
+     * For multi-viewport applications, use the viewport-specific camera API instead.</p>
+     * 
+     * <p><b>Thread Safety:</b> Must be called from the owning thread only.</p>
+     * 
+     * @param fovDegrees Field of view in degrees
+     * @param nearPlane Near clipping plane distance
+     * @param farPlane Far clipping plane distance
+     */
+    public void setCameraProjection(float fovDegrees, float nearPlane, float farPlane) {
+        checkClosed();
+        try {
+            EngineBindings.SET_CAMERA_PROJECTION.invoke(engineHandle,
+                fovDegrees, nearPlane, farPlane);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to set camera projection", e);
         }
     }
     
