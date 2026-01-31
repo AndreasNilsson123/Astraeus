@@ -43,8 +43,9 @@ public class InspectorPane extends VBox {
     // Color fields (read-only for now)
     private Label colorLabel;
     
-    // Trail fields (read-only for now)
-    private Label trailLabel;
+    // Trail fields
+    private CheckBox trailEnableCheckBox;
+    private Spinner<Integer> trailMaxPointsSpinner;
     
     private EntityData currentEntity;
     private boolean updating = false;
@@ -142,13 +143,49 @@ public class InspectorPane extends VBox {
         colorLabel.setStyle("-fx-font-family: monospace;");
         colorBox.getChildren().addAll(colorTitleLabel, colorLabel);
         
-        HBox trailBox = new HBox(5);
-        Label trailTitleLabel = new Label("Trail:");
-        trailTitleLabel.setMinWidth(60);
-        trailLabel = new Label("Disabled");
-        trailBox.getChildren().addAll(trailTitleLabel, trailLabel);
+        renderingSection.getChildren().addAll(visibleCheckBox, colorBox);
         
-        renderingSection.getChildren().addAll(visibleCheckBox, colorBox, trailBox);
+        // === Trail Section ===
+        VBox trailSection = createSection("Trail");
+        
+        trailEnableCheckBox = new CheckBox("Enable Trail");
+        trailEnableCheckBox.setDisable(true);
+        
+        HBox trailPointsBox = new HBox(5);
+        Label maxPointsLabel = new Label("Max Points:");
+        maxPointsLabel.setMinWidth(80);
+        trailMaxPointsSpinner = new Spinner<>(0, 1000, 0, 10);
+        trailMaxPointsSpinner.setEditable(true);
+        trailMaxPointsSpinner.setPrefWidth(100);
+        trailMaxPointsSpinner.setDisable(true);
+        trailPointsBox.getChildren().addAll(maxPointsLabel, trailMaxPointsSpinner);
+        
+        trailSection.getChildren().addAll(trailEnableCheckBox, trailPointsBox);
+        
+        // === Material Section ===
+        VBox materialSection = createSection("Material");
+        
+        Label materialLabel = new Label("Material assignment:");
+        materialLabel.setStyle("-fx-font-size: 10; -fx-text-fill: #666666;");
+        
+        // Material dropdown placeholder (will be populated by wrapper API in J6)
+        javafx.scene.control.ComboBox<String> materialComboBox = new javafx.scene.control.ComboBox<>();
+        materialComboBox.setPromptText("Select material...");
+        materialComboBox.setDisable(true); // Disabled until J6 wrapper is implemented
+        materialComboBox.setPrefWidth(200);
+        
+        javafx.scene.control.Button assignMaterialButton = new javafx.scene.control.Button("Assign to Selected");
+        assignMaterialButton.setDisable(true); // Disabled until J6 wrapper is implemented
+        
+        Label materialNote = new Label("Note: Requires wrapper API (J6)");
+        materialNote.setStyle("-fx-font-size: 9; -fx-text-fill: #999999;");
+        
+        materialSection.getChildren().addAll(
+            materialLabel,
+            materialComboBox,
+            assignMaterialButton,
+            materialNote
+        );
         
         // === Add all sections ===
         ScrollPane scrollPane = new ScrollPane();
@@ -160,7 +197,9 @@ public class InspectorPane extends VBox {
             titleLabel,
             entitySection,
             transformSection,
-            renderingSection
+            renderingSection,
+            trailSection,
+            materialSection
         );
         
         scrollPane.setContent(content);
@@ -327,6 +366,37 @@ public class InspectorPane extends VBox {
                 sceneManager.syncVisibilityToEngine(currentEntity);
             }
         });
+        
+        // Trail controls
+        trailEnableCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            if (!updating && currentEntity != null) {
+                if (newVal) {
+                    // Enable with current max points (or default if 0)
+                    int maxPoints = trailMaxPointsSpinner.getValue();
+                    if (maxPoints == 0) {
+                        maxPoints = 50; // Default
+                        trailMaxPointsSpinner.getValueFactory().setValue(maxPoints);
+                    }
+                    currentEntity.setTrailMaxPoints(maxPoints);
+                    sceneManager.syncTrailToEngine(currentEntity);
+                    trailMaxPointsSpinner.setDisable(false);
+                } else {
+                    // Disable trail
+                    currentEntity.setTrailMaxPoints(0);
+                    sceneManager.syncTrailToEngine(currentEntity);
+                    trailMaxPointsSpinner.setDisable(true);
+                }
+            }
+        });
+        
+        trailMaxPointsSpinner.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (!updating && currentEntity != null && trailEnableCheckBox.isSelected()) {
+                if (newVal != null && newVal > 0) {
+                    currentEntity.setTrailMaxPoints(newVal);
+                    sceneManager.syncTrailToEngine(currentEntity);
+                }
+            }
+        });
     }
     
     /**
@@ -389,11 +459,13 @@ public class InspectorPane extends VBox {
         colorLabel.setText(String.format("%.2f, %.2f, %.2f, %.2f",
             entity.getColorR(), entity.getColorG(), entity.getColorB(), entity.getColorA()));
         
-        if (entity.getTrailMaxPoints() > 0) {
-            trailLabel.setText(entity.getTrailMaxPoints() + " points");
-        } else {
-            trailLabel.setText("Disabled");
-        }
+        // Update trail controls
+        int trailPoints = entity.getTrailMaxPoints();
+        boolean trailEnabled = trailPoints > 0;
+        trailEnableCheckBox.setSelected(trailEnabled);
+        trailEnableCheckBox.setDisable(false);
+        trailMaxPointsSpinner.getValueFactory().setValue(trailEnabled ? trailPoints : 50);
+        trailMaxPointsSpinner.setDisable(!trailEnabled);
         
         updating = false;
     }
@@ -434,7 +506,11 @@ public class InspectorPane extends VBox {
         visibleCheckBox.setDisable(true);
         
         colorLabel.setText("-");
-        trailLabel.setText("-");
+        
+        trailEnableCheckBox.setSelected(false);
+        trailEnableCheckBox.setDisable(true);
+        trailMaxPointsSpinner.getValueFactory().setValue(50);
+        trailMaxPointsSpinner.setDisable(true);
         
         updating = false;
     }
