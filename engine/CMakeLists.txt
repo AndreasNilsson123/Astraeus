@@ -211,6 +211,12 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     add_executable(asset_unit_test examples/asset_unit_test.cpp)
     target_link_libraries(asset_unit_test PRIVATE astraeus_engine)
 
+    add_executable(gltf_loader_test examples/gltf_loader_test.cpp)
+    target_link_libraries(gltf_loader_test PRIVATE astraeus_engine)
+
+    add_executable(asset_pipeline_example examples/asset_pipeline_example.cpp)
+    target_link_libraries(asset_pipeline_example PRIVATE astraeus_engine)
+
     add_executable(scene_hierarchy_test examples/scene_hierarchy_test.cpp)
     target_link_libraries(scene_hierarchy_test PRIVATE astraeus_engine)
 

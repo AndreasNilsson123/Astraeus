@@ -110,7 +110,25 @@ int main() {
     asset_manager->unload_asset(cube_asset_id); // Should not crash
     std::cout << "No crash when unloading already deleted asset - PASS" << std::endl;
 
+    std::cout << "\n=== Testing AssetDatabase ===" << std::endl;
+    
+    // Test asset metadata
+    const AssetMetadata* meta = asset_manager->get_asset_metadata(cube_asset_id);
+    if (meta) {
+        std::cout << "WARNING: Metadata still exists after deletion (expected)" << std::endl;
+    }
+    
+    // Test asset count
+    size_t asset_count = asset_manager->get_asset_count();
+    std::cout << "Total assets in database: " << asset_count << std::endl;
+    
+    // Test memory usage
+    uint64_t memory_usage = asset_manager->get_total_memory_usage();
+    std::cout << "Total memory usage: " << memory_usage << " bytes" << std::endl;
+
     std::cout << "\n=== All Tests Passed ===" << std::endl;
+    std::cout << "\nNote: glTF loading requires valid .gltf/.glb files." << std::endl;
+    std::cout << "      See gltf_loader_test for glTF-specific testing." << std::endl;
 
     engine.shutdown();
     return 0;
