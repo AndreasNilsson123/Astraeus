@@ -2,11 +2,11 @@
 #define ASTRAEUS_DETERMINISTIC_SIM_GENERATOR_HPP
 
 #include "FixedBinaryDecoder.hpp"
+#include "core/util/Math.hpp"
 #include <vector>
 #include <string>
 #include <cstdint>
 #include <memory>
-#include <cmath>
 #include <cstring>
 #include <iostream>
 #include <random>
@@ -224,7 +224,7 @@ inline void DeterministicSimGenerator::generate_default_entities(uint32_t count,
                 config.direction_y = dist_pos(rng) * 0.3f;
                 config.direction_z = dist_pos(rng);
                 // Normalize
-                float len = std::sqrt(config.direction_x * config.direction_x +
+                float len = math::sqrt(config.direction_x * config.direction_x +
                                     config.direction_y * config.direction_y +
                                     config.direction_z * config.direction_z);
                 if (len > 0.001f) {

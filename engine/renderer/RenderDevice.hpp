@@ -5,7 +5,7 @@
 #include <vector>
 #include <iostream>
 #include <cstring>
-#include <algorithm>
+#include "core/util/Math.hpp"
 #include "../api/EngineAPI.h"
 
 namespace astraeus {
@@ -107,8 +107,8 @@ inline bool RenderDevice::initialize() {
     // Configure default readback buffers if not already configured
     if (!readback_configured_) {
         ReadbackConfig default_color;
-        default_color.max_width = std::max(width_, 2560u);  // Default to 2560x1440 max
-        default_color.max_height = std::max(height_, 1440u);
+        default_color.max_width = math::max(width_, 2560u);  // Default to 2560x1440 max
+        default_color.max_height = math::max(height_, 1440u);
         default_color.format = PIXEL_FORMAT_BGRA8;
         default_color.enable_double_buffer = false;
         
@@ -173,8 +173,8 @@ inline void RenderDevice::resize(uint32_t width, uint32_t height) {
         std::cerr << "[RenderDevice] WARNING: Requested size (" << width << "x" << height 
                   << ") exceeds max backing size (" << color_backing_.max_width << "x" 
                   << color_backing_.max_height << "). Clamping." << std::endl;
-        width = std::min(width, color_backing_.max_width);
-        height = std::min(height, color_backing_.max_height);
+        width = math::min(width, color_backing_.max_width);
+        height = math::min(height, color_backing_.max_height);
     }
     
     width_ = width;
@@ -231,8 +231,8 @@ inline bool RenderDevice::configure_readback(const ReadbackConfig* color_config,
     if (id_config) {
         id_backing_.max_width = id_config->max_width;
         id_backing_.max_height = id_config->max_height;
-        id_backing_.current_width = std::min(width_, id_backing_.max_width);
-        id_backing_.current_height = std::min(height_, id_backing_.max_height);
+        id_backing_.current_width = math::min(width_, id_backing_.max_width);
+        id_backing_.current_height = math::min(height_, id_backing_.max_height);
         id_backing_.format = id_config->format;
         id_backing_.double_buffered = id_config->enable_double_buffer;
         

@@ -2,7 +2,7 @@
 #define ASTRAEUS_CAMERA_SYSTEM_HPP
 
 #include "CameraComponent.hpp"
-#include <cmath>
+#include "core/util/Math.hpp"
 #include <cstring>
 #include <iostream>
 
@@ -83,7 +83,7 @@ private:
 // ============================================================================
 
 inline void CameraSystem::vec3_normalize(float& x, float& y, float& z) {
-    float length = std::sqrt(x * x + y * y + z * z);
+    float length = math::sqrt(x * x + y * y + z * z);
     if (length > 1e-6f) {
         x /= length;
         y /= length;
@@ -161,7 +161,6 @@ inline void CameraSystem::update_view_matrix(CameraComponent& camera,
 }
 
 inline void CameraSystem::update_projection_matrix(CameraComponent& camera, float aspect_ratio) {
-    constexpr float PI = 3.14159265359f;
     constexpr float EPSILON = 1e-6f;
     
     std::memset(camera.projection_matrix, 0, 16 * sizeof(float));
@@ -174,7 +173,7 @@ inline void CameraSystem::update_projection_matrix(CameraComponent& camera, floa
         }
         if (camera.fov_degrees <= EPSILON || camera.fov_degrees >= 180.0f) {
             std::cerr << "[CameraSystem] Warning: fov_degrees must be in (0, 180), clamping" << std::endl;
-            camera.fov_degrees = std::max(1.0f, std::min(179.0f, camera.fov_degrees));
+            camera.fov_degrees = math::max(1.0f, math::min(179.0f, camera.fov_degrees));
         }
         if (camera.far_plane <= camera.near_plane + EPSILON) {
             std::cerr << "[CameraSystem] Warning: far_plane must be > near_plane" << std::endl;
@@ -182,8 +181,8 @@ inline void CameraSystem::update_projection_matrix(CameraComponent& camera, floa
         }
         
         // Perspective projection
-        float fov_rad = camera.fov_degrees * PI / 180.0f;
-        float tan_half_fov = std::tan(fov_rad / 2.0f);
+        float fov_rad = camera.fov_degrees * math::deg_to_rad<float>();
+        float tan_half_fov = math::tan(fov_rad / 2.0f);
         
         camera.projection_matrix[0] = 1.0f / (aspect_ratio * tan_half_fov);
         camera.projection_matrix[5] = 1.0f / tan_half_fov;
@@ -196,17 +195,17 @@ inline void CameraSystem::update_projection_matrix(CameraComponent& camera, floa
         float height = camera.ortho_top - camera.ortho_bottom;
         float depth = camera.far_plane - camera.near_plane;
         
-        if (std::abs(width) <= EPSILON) {
+        if (math::abs(width) <= EPSILON) {
             std::cerr << "[CameraSystem] Warning: ortho_right must != ortho_left" << std::endl;
             camera.ortho_right = camera.ortho_left + 1.0f;
             width = 1.0f;
         }
-        if (std::abs(height) <= EPSILON) {
+        if (math::abs(height) <= EPSILON) {
             std::cerr << "[CameraSystem] Warning: ortho_top must != ortho_bottom" << std::endl;
             camera.ortho_top = camera.ortho_bottom + 1.0f;
             height = 1.0f;
         }
-        if (std::abs(depth) <= EPSILON) {
+        if (math::abs(depth) <= EPSILON) {
             std::cerr << "[CameraSystem] Warning: far_plane must != near_plane" << std::endl;
             camera.far_plane = camera.near_plane + 1.0f;
             depth = 1.0f;
