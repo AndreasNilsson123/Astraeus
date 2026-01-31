@@ -54,10 +54,29 @@ endif()
 # Note: Ingest modules are now header-only (see engine/ingest/*.hpp)
 # Note: Asset and geometry modules are now header-only (see engine/assets/*.hpp, engine/geometry/*.hpp)
 
+# Platform abstraction module (compiled separately)
+# Only these files may contain platform-specific code and includes
+set(ASTRAEUS_PLATFORM_SOURCES
+        platform/Platform.hpp
+)
+
+if(WIN32)
+    list(APPEND ASTRAEUS_PLATFORM_SOURCES
+            platform/Win32/Win32Platform.cpp
+            platform/Win32/Win32Headers.hpp
+    )
+elseif(UNIX)
+    list(APPEND ASTRAEUS_PLATFORM_SOURCES
+            platform/Linux/LinuxPlatform.cpp
+            platform/Linux/X11Headers.hpp
+    )
+endif()
+
 # Minimal stub file to satisfy CMake library requirements (all implementations are inline/header-only)
 set(ASTRAEUS_ENGINE_SOURCES
         api/EngineAPI_stub.cpp
         api/EngineAPI_RenderSession.cpp
+        ${ASTRAEUS_PLATFORM_SOURCES}
 )
 
 # Note: WGL and EGL backend modules are now header-only
@@ -122,6 +141,11 @@ target_link_libraries(astraeus_engine
         OpenGL::GL
         Threads::Threads
 )
+
+# Platform-specific libraries
+if(WIN32)
+    target_link_libraries(astraeus_engine PRIVATE winmm)  # For timeBeginPeriod
+endif()
 
 # Linux EGL path
 if(ASTRAEUS_ENABLE_EGL)
