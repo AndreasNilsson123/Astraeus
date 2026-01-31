@@ -9,7 +9,7 @@ import java.util.function.Consumer;
 /**
  * FxViewportSurface - Binds a native surface/viewport to JavaFX presentation.
  * 
- * This is a thin wrapper around FxViewportV2 that provides a cleaner API
+ * This is a thin wrapper around FxViewport that provides a cleaner API
  * for the ViewportPane to interact with.
  * 
  * SAFETY:
@@ -24,7 +24,7 @@ import java.util.function.Consumer;
  */
 public class FxViewportSurface extends StackPane {
     
-    private final FxViewportV2 viewport;
+    private final FxViewport viewport;
     
     /**
      * Create a new viewport surface.
@@ -38,7 +38,7 @@ public class FxViewportSurface extends StackPane {
     public FxViewportSurface(NativeEngine engine, int maxWidth, int maxHeight,
                             int initialWidth, int initialHeight) {
         // Create underlying viewport
-        this.viewport = new FxViewportV2(engine, maxWidth, maxHeight, 
+        this.viewport = new FxViewport(engine, maxWidth, maxHeight, 
                                         initialWidth, initialHeight);
         
         // Add to this pane

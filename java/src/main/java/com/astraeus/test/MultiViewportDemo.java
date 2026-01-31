@@ -2,7 +2,7 @@ package com.astraeus.test;
 
 import com.astraeus.native_api.NativeEngine;
 import com.astraeus.native_api.PickingView;
-import com.astraeus.rendering.FxViewportV2;
+import com.astraeus.rendering.FxViewport;
 import com.astraeus.rendering.ViewportController;
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
@@ -44,8 +44,8 @@ public class MultiViewportDemo extends Application {
     
     private NativeEngine engine1;
     private NativeEngine engine2;
-    private FxViewportV2 viewport1;
-    private FxViewportV2 viewport2;
+    private FxViewport viewport1;
+    private FxViewport viewport2;
     
     private Label statusLabel;
     private Label fps1Label;
@@ -57,7 +57,7 @@ public class MultiViewportDemo extends Application {
     private int frameCount = 0;
     private double fps = 0.0;
     
-    private FxViewportV2 activeViewport;
+    private FxViewport activeViewport;
     
     @Override
     public void start(Stage primaryStage) {
@@ -69,12 +69,12 @@ public class MultiViewportDemo extends Application {
             engine2 = new NativeEngine(1280, 720, true);
             
             // Create two viewports
-            viewport1 = new FxViewportV2(engine1, 2560, 1440, 800, 600);
+            viewport1 = new FxViewport(engine1, 2560, 1440, 800, 600);
             viewport1.setPrefSize(800, 600);
             viewport1.getController().setMode(ViewportController.Mode.ORBIT);
             viewport1.setOnEntitySelected(result -> handlePickViewport1(result));
             
-            viewport2 = new FxViewportV2(engine2, 2560, 1440, 800, 600);
+            viewport2 = new FxViewport(engine2, 2560, 1440, 800, 600);
             viewport2.setPrefSize(800, 600);
             viewport2.getController().setMode(ViewportController.Mode.FLY);
             viewport2.setOnEntitySelected(result -> handlePickViewport2(result));
@@ -141,7 +141,7 @@ public class MultiViewportDemo extends Application {
         }
     }
     
-    private VBox createViewportContainer(String title, FxViewportV2 viewport) {
+    private VBox createViewportContainer(String title, FxViewport viewport) {
         VBox container = new VBox(5);
         container.setPadding(new Insets(5));
         
