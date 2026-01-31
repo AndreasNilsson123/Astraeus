@@ -90,15 +90,7 @@ public final class LayoutValidator {
         return allValid;
     }
     
-    /**
-     * Validates a single struct layout.
-     * 
-     * @param name the name of the struct (for error reporting)
-     * @param layout the struct layout to validate
-     * @param expectedSize the expected size in bytes (for x64 platforms)
-     * @param expectedAlignment the expected alignment in bytes
-     * @return true if the layout is valid, false otherwise
-     */
+    // Validates a single struct layout (internal helper)
     private static boolean validateLayout(String name, StructLayout layout, long expectedSize, long expectedAlignment) {
         boolean valid = true;
         
