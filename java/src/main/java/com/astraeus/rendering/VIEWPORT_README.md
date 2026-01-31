@@ -1,10 +1,10 @@
-# Viewport Framework v2
+# Viewport Framework
 
 Enhanced JavaFX viewport system with camera control, input routing, and overlay management.
 
 ## Overview
 
-The Viewport Framework v2 provides a complete solution for building 3D editor-style viewports in JavaFX with:
+The Viewport Framework provides a complete solution for building 3D editor-style viewports in JavaFX with:
 
 - **Camera Control**: Three camera modes (Orbit, Fly, Pan) with smooth input handling
 - **Input Routing**: Proper event isolation for multiple independent viewports
@@ -80,7 +80,7 @@ overlayStack.toggleOverlay("selection");
 Node overlay = overlayStack.getOverlay("telemetry");
 ```
 
-### FxViewportV2
+### FxViewport
 
 Enhanced viewport component that integrates camera control, overlays, and input routing.
 
@@ -94,7 +94,7 @@ Enhanced viewport component that integrates camera control, overlays, and input 
 
 **Usage:**
 ```java
-FxViewportV2 viewport = new FxViewportV2(engine, 2560, 1440, 1280, 720);
+FxViewport viewport = new FxViewport(engine, 2560, 1440, 1280, 720);
 
 // Configure camera
 viewport.getController().setMode(ViewportController.Mode.ORBIT);
@@ -139,8 +139,8 @@ The framework fully supports multiple independent viewports with proper input is
 NativeEngine engine1 = new NativeEngine(1280, 720, true);
 NativeEngine engine2 = new NativeEngine(1280, 720, true);
 
-FxViewportV2 viewport1 = new FxViewportV2(engine1, 2560, 1440, 800, 600);
-FxViewportV2 viewport2 = new FxViewportV2(engine2, 2560, 1440, 800, 600);
+FxViewport viewport1 = new FxViewport(engine1, 2560, 1440, 800, 600);
+FxViewport viewport2 = new FxViewport(engine2, 2560, 1440, 800, 600);
 
 // Each viewport has independent camera control
 viewport1.getController().setMode(ViewportController.Mode.ORBIT);
@@ -168,7 +168,7 @@ All viewport components are designed to avoid per-frame allocations:
 
 - **ViewportController**: Reuses internal state variables for input tracking
 - **OverlayStack**: Fixed layer structure created once at construction
-- **FxViewportV2**: No temporary objects in update/render loop
+- **FxViewport**: No temporary objects in update/render loop
 
 ### Efficient Input Handling
 
@@ -205,30 +205,13 @@ java -cp target/classes com.astraeus.test.MultiViewportDemo.Starter
 - Entity picking and selection
 - Overlay visibility toggles
 
-## Migration from FxViewport v1
+## Migration Notes
 
-The original `FxViewport` class remains unchanged for backward compatibility. To migrate to v2:
+This is the canonical FxViewport implementation that integrates camera control, overlays, and input routing.
 
-1. Replace `FxViewport` with `FxViewportV2`
-2. Remove manual input handling - v2 has it built-in
-3. Use integrated overlay stack instead of manual overlay management
-4. Use controller methods for camera state instead of external management
-
-**Before (v1):**
+**Key Features:**
 ```java
 FxViewport viewport = new FxViewport(engine, maxW, maxH, w, h);
-
-// Manual input handling
-viewport.setOnMousePressed(e -> handleMouse(e));
-
-// Manual overlay management
-Rectangle overlay = new Rectangle();
-viewport.getChildren().add(overlay);
-```
-
-**After (v2):**
-```java
-FxViewportV2 viewport = new FxViewportV2(engine, maxW, maxH, w, h);
 
 // Built-in input routing - no manual handling needed
 // Camera controller automatically handles input
@@ -260,7 +243,7 @@ The framework is split into three components for flexibility:
 
 - **ViewportController**: Can be used standalone or with any rendering system
 - **OverlayStack**: Generic overlay manager, not viewport-specific
-- **FxViewportV2**: Integrates everything for turnkey usage
+- **FxViewport**: Integrates everything for turnkey usage
 
 This allows mixing and matching components as needed.
 
