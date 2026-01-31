@@ -447,3 +447,94 @@ The C API uses standard C types (`uint32_t`, `float`, etc.) which should be cons
 - Python bindings for data ingestion
 - Distributed rendering
 - VR/AR support
+
+---
+
+## Module Structure and Dependencies
+
+### C++ Engine Modules
+
+```
+engine/
+├── api/              # C API boundary (FFM interface)
+├── core/             # Engine context, telemetry, utilities
+├── platform/         # Platform abstraction (Win32, Linux)
+├── renderer/         # Render device, render graph, passes
+│   ├── backend/      # Graphics context (WGL, EGL, Null)
+│   ├── passes/       # Render passes (grid, mesh, picking)
+│   └── opengl/       # OpenGL-specific render device
+├── scene/            # World, entities, transforms, camera
+├── ingest/           # Data ingestion from external sources
+├── assets/           # Mesh loading, GPU upload, asset management
+├── geometry/         # Geometry utilities
+└── third_party/      # External dependencies (GLAD)
+```
+
+**Dependency Rules:**
+- `api/` depends on: `core/`, `renderer/`, `scene/`, `ingest/`
+- `core/` depends on: `platform/` only
+- `platform/` depends on: nothing (standalone)
+- `renderer/` depends on: `core/`, `platform/`, `scene/`
+- `scene/` depends on: `core/`
+- `ingest/` depends on: `core/`, `scene/`
+- `assets/` depends on: `core/`, `renderer/`
+
+### Java Modules (Logical Structure)
+
+```
+java/src/main/java/com/astraeus/
+├── native_api/       # FFM bindings, no dependencies
+│   ├── EngineAPI.java
+│   ├── NativeEngine.java
+│   └── structs/
+├── ui/               # JavaFX application
+│   ├── AstraeusApp.java
+│   └── MainWindow.java
+├── rendering/        # Viewport management, JavaFX integration
+│   ├── Viewport.java
+│   └── ViewportContainer.java
+├── tools/            # Debugging tools, schema generation
+│   ├── telemetry/
+│   └── inspector/
+├── scene/            # Scene outliner, hierarchy viewer
+├── workflow/         # Workflow orchestration
+└── util/             # Utilities
+```
+
+**Dependency Rules:**
+- `native_api/` depends on: JDK only (no JavaFX)
+- `ui/` depends on: `native_api/`, JavaFX
+- `rendering/` depends on: `native_api/`, JavaFX
+- `tools/` depends on: `native_api/` (may have optional YAML/JSON deps)
+- `scene/` depends on: `native_api/`, JavaFX
+- Tool dependencies (YAML, JSON) must NOT leak into `ui/` or runtime
+
+### Platform Abstraction Details
+
+The `engine/platform/` module provides a **minimal, stable interface** for platform-specific operations. See [DEPENDENCIES.md](DEPENDENCIES.md#platform-module-interface) for full details.
+
+**Key Functions:**
+```cpp
+namespace astraeus::platform {
+    void init();                         // Initialize platform
+    uint64_t monotonic_time_ns();        // High-resolution timing
+    void* load_gl_proc(const char* name); // OpenGL function loading
+    void set_thread_name(const char* name); // Thread debugging
+    size_t get_page_size();              // Memory utilities
+}
+```
+
+**Platform-Specific Files:**
+- `Platform.hpp` - Public interface (no platform types)
+- `Win32/Win32Headers.hpp` - Centralized `<windows.h>` include
+- `Win32/Win32Platform.cpp` - Windows implementation
+- `Linux/X11Headers.hpp` - Centralized X11 headers (stub)
+- `Linux/LinuxPlatform.cpp` - Linux implementation
+- `GL/GLHeaders.hpp` - Centralized OpenGL/GLAD headers
+
+**Rules:**
+- Only `engine/platform/` may contain `#ifdef _WIN32`, `#ifdef __linux__`, etc.
+- Only `engine/platform/` may include `<windows.h>`, X11 headers, etc.
+- All other engine code must use `platform::*` functions
+
+For comprehensive dependency and platform abstraction rules, see [DEPENDENCIES.md](DEPENDENCIES.md).
