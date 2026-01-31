@@ -105,7 +105,10 @@ public:
     }
 
     uint32_t get_vertex_count() const { 
-        if (vertex_format_.get_stride() == 0) return 0;
+        if (vertex_format_.get_stride() == 0) {
+            std::cerr << "[Mesh] ERROR: Invalid vertex format with stride=0" << std::endl;
+            return 0;
+        }
         return static_cast<uint32_t>(vertices_.size() * sizeof(float) / vertex_format_.get_stride()); 
     }
     

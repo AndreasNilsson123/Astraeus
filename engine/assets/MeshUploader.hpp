@@ -23,8 +23,9 @@ public:
         Mesh mesh;
         
         // Convert to raw float data
+        const size_t floats_per_vertex = sizeof(Vertex_P3N3T2) / sizeof(float);
         std::vector<float> vertex_data;
-        vertex_data.reserve(vertices.size() * 8);
+        vertex_data.reserve(vertices.size() * floats_per_vertex);
         
         for (const auto& v : vertices) {
             vertex_data.push_back(v.x);
@@ -53,8 +54,9 @@ public:
         Mesh mesh;
         
         // Convert to raw float data
+        const size_t floats_per_vertex = sizeof(Vertex_P3N3T2C4) / sizeof(float);
         std::vector<float> vertex_data;
-        vertex_data.reserve(vertices.size() * 12);
+        vertex_data.reserve(vertices.size() * floats_per_vertex);
         
         for (const auto& v : vertices) {
             vertex_data.push_back(v.x);
@@ -87,8 +89,9 @@ public:
         Mesh mesh;
         
         // Convert to raw float data
+        const size_t floats_per_vertex = sizeof(Vertex_P3C4) / sizeof(float);
         std::vector<float> vertex_data;
-        vertex_data.reserve(vertices.size() * 7);
+        vertex_data.reserve(vertices.size() * floats_per_vertex);
         
         for (const auto& v : vertices) {
             vertex_data.push_back(v.x);
@@ -116,8 +119,9 @@ public:
         Mesh mesh;
         
         // Convert to raw float data
+        const size_t floats_per_vertex = sizeof(Vertex_P3N3T2TB3) / sizeof(float);
         std::vector<float> vertex_data;
-        vertex_data.reserve(vertices.size() * 14);
+        vertex_data.reserve(vertices.size() * floats_per_vertex);
         
         for (const auto& v : vertices) {
             vertex_data.push_back(v.x);

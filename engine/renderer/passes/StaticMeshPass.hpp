@@ -281,6 +281,8 @@ inline void StaticMeshPass::render_batched(const std::vector<DrawCall>& draw_cal
 // ============================================================================
 
 inline void StaticMeshPass::identity_matrix(float* out) {
+    // Initialize identity matrix: diagonal elements = 1, others = 0
+    // In column-major order, diagonal elements are at indices 0, 5, 10, 15
     for (int i = 0; i < 16; i++) {
         out[i] = (i % 5 == 0) ? 1.0f : 0.0f;
     }
@@ -399,7 +401,8 @@ inline void StaticMeshPass::compute_mvp_matrix(const Transform& transform, const
     
     // Projection matrix
     float aspect = static_cast<float>(width) / static_cast<float>(height);
-    float fov_radians = camera.get_fov() * 3.14159265359f / 180.0f;
+    const float PI = 3.14159265359f;
+    float fov_radians = camera.get_fov() * PI / 180.0f;
     float proj[16];
     perspective_matrix(fov_radians, aspect, camera.get_near_plane(), camera.get_far_plane(), proj);
     
