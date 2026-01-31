@@ -70,6 +70,11 @@ public class WorkspaceWindow {
     private TabPane centerTabPane;
     private ConsolePane consolePane;
     
+    // New panes for J5
+    private com.astraeus.tools.inspector.PickInspectorPane pickInspectorPane;
+    private com.astraeus.tools.ingest.IngestProgressPane ingestProgressPane;
+    private com.astraeus.tools.ingest.IngestStatusViewModel ingestViewModel;
+    
     // Menu items for pane visibility
     private CheckMenuItem sceneOutlinerMenuItem;
     private CheckMenuItem entityBrowserMenuItem;
@@ -77,6 +82,8 @@ public class WorkspaceWindow {
     private CheckMenuItem telemetryMenuItem;
     private CheckMenuItem timelineMenuItem;
     private CheckMenuItem consoleMenuItem;
+    private CheckMenuItem pickInspectorMenuItem;
+    private CheckMenuItem ingestProgressMenuItem;
     
     // Status bar
     private Label engineStatusLabel;
@@ -213,7 +220,25 @@ public class WorkspaceWindow {
             timelinePane = null;
         }
         
-        rightTabPane.getTabs().addAll(entityBrowserTab, inspectorTab, telemetryTab, timelineTab);
+        // Pick Inspector tab (J5)
+        Tab pickInspectorTab = new Tab("Pick Inspector");
+        pickInspectorPane = new com.astraeus.tools.inspector.PickInspectorPane();
+        pickInspectorTab.setContent(pickInspectorPane);
+        
+        // Ingest Progress tab (J5)
+        Tab ingestProgressTab = new Tab("Ingest Progress");
+        ingestViewModel = new com.astraeus.tools.ingest.IngestStatusViewModel();
+        ingestProgressPane = new com.astraeus.tools.ingest.IngestProgressPane(ingestViewModel);
+        ingestProgressTab.setContent(ingestProgressPane);
+        
+        rightTabPane.getTabs().addAll(
+            entityBrowserTab, 
+            inspectorTab, 
+            telemetryTab, 
+            timelineTab,
+            pickInspectorTab,
+            ingestProgressTab
+        );
         
         // Bottom: Console pane
         consolePane = new ConsolePane();
@@ -694,6 +719,27 @@ public class WorkspaceWindow {
      */
     public ConsolePane getConsolePane() {
         return consolePane;
+    }
+    
+    /**
+     * Get pick inspector pane (J5).
+     */
+    public com.astraeus.tools.inspector.PickInspectorPane getPickInspectorPane() {
+        return pickInspectorPane;
+    }
+    
+    /**
+     * Get ingest progress pane (J5).
+     */
+    public com.astraeus.tools.ingest.IngestProgressPane getIngestProgressPane() {
+        return ingestProgressPane;
+    }
+    
+    /**
+     * Get ingest view model (J5).
+     */
+    public com.astraeus.tools.ingest.IngestStatusViewModel getIngestViewModel() {
+        return ingestViewModel;
     }
     
     /**
