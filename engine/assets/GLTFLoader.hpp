@@ -19,7 +19,7 @@
     #define TINYGLTF_NO_STB_IMAGE_WRITE
 #endif
 
-#include "../third_party/tinygltf/tiny_gltf.h"
+#include "tiny_gltf.h"
 
 namespace astraeus {
 

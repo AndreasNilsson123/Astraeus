@@ -1,6 +1,7 @@
 #ifndef ASTRAEUS_ASSET_DATABASE_HPP
 #define ASTRAEUS_ASSET_DATABASE_HPP
 
+#include <cinttypes>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -117,8 +118,8 @@ public:
 
         // Convert to hex string
         char hex[17];
-        snprintf(hex, sizeof(hex), "%016lx", hash);
-        return std::string(hex);
+        std::snprintf(hex, sizeof(hex), "%016" PRIx64, static_cast<uint64_t>(hash));
+        return {hex};
     }
 
     /**

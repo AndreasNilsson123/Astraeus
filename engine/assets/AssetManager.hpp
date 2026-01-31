@@ -26,8 +26,9 @@ public:
         : device_(device)
         , is_initialized_(false)
         , next_handle_(1)
-        , gpu_upload_queue_()
         , asset_database_()
+        , gpu_upload_queue_()
+
     {
     }
 

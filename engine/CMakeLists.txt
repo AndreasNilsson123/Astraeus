@@ -77,6 +77,8 @@ set(ASTRAEUS_ENGINE_SOURCES
         api/EngineAPI_stub.cpp
         api/EngineAPI_RenderSession.cpp
         ${ASTRAEUS_PLATFORM_SOURCES}
+        third_party/tinygltf/tinygltf_impl.cpp
+        third_party/stb/stb_image_write.h
 )
 
 # Note: WGL and EGL backend modules are now header-only
@@ -120,6 +122,27 @@ find_package(Threads REQUIRED)
 add_library(glad STATIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad/src/glad.c)
 set_target_properties(glad PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+
+# ---- stb headers only ----
+add_library(stb_headers INTERFACE)
+target_include_directories(stb_headers INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
+)
+
+# ---- tinygltf headers only ----
+add_library(tinygltf_headers INTERFACE)
+target_include_directories(tinygltf_headers INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tinygltf
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb   # tinygltf expects stb headers
+)
+
+set_source_files_properties(
+        third_party/tinygltf/tinygltf_impl.cpp
+        PROPERTIES
+        COMPILE_OPTIONS "-Wno-missing-field-initializers"
+)
+
+
 target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad/include)
 
 if (WIN32)
@@ -144,6 +167,8 @@ target_link_libraries(astraeus_engine
         glad
         OpenGL::GL
         Threads::Threads
+        tinygltf_headers
+        stb_headers
 )
 
 # Platform-specific libraries
