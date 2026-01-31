@@ -3,6 +3,7 @@
 
 #include "Material.hpp"
 #include "UnlitMaterial.hpp"
+#include "LitMaterial.hpp"
 #include <memory>
 #include <unordered_map>
 #include <string>
@@ -31,8 +32,16 @@ public:
             std::cerr << "[MaterialLibrary] Failed to initialize default unlit material" << std::endl;
             return false;
         }
-        
         register_material("unlit", std::move(unlit));
+        
+        // Create default lit material
+        auto lit = std::make_unique<LitMaterial>();
+        if (!lit->initialize(device)) {
+            std::cerr << "[MaterialLibrary] Failed to initialize default lit material" << std::endl;
+            return false;
+        }
+        register_material("lit", std::move(lit));
+        
         std::cout << "[MaterialLibrary] Initialized with default materials" << std::endl;
         return true;
     }
@@ -96,6 +105,13 @@ public:
      */
     Material* get_default_unlit() {
         return get_material("unlit");
+    }
+    
+    /**
+     * Get the default lit material
+     */
+    LitMaterial* get_default_lit() {
+        return dynamic_cast<LitMaterial*>(get_material("lit"));
     }
 
 private:
