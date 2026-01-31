@@ -105,7 +105,7 @@ public class EntityBrowserPane extends BorderPane {
         // Selection handling
         entityTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && selectionModel != null) {
-                selectionModel.setSelectedEntity(newVal.getEntityId());
+                selectionModel.select(newVal.getEntityId());
             }
         });
         
@@ -189,7 +189,7 @@ public class EntityBrowserPane extends BorderPane {
         selectItem.setOnAction(e -> {
             EntityData selected = table.getSelectionModel().getSelectedItem();
             if (selected != null && selectionModel != null) {
-                selectionModel.setSelectedEntity(selected.getEntityId());
+                selectionModel.select(selected.getEntityId());
             }
         });
         
@@ -276,7 +276,7 @@ public class EntityBrowserPane extends BorderPane {
             if (response == ButtonType.OK) {
                 sceneManager.clearAll();
                 if (selectionModel != null) {
-                    selectionModel.setSelectedEntity(0);
+                    selectionModel.clearSelection();
                 }
             }
         });
@@ -302,7 +302,7 @@ public class EntityBrowserPane extends BorderPane {
                 sceneManager.destroyEntity(entity.getEntityId());
                 if (selectionModel != null && 
                     selectionModel.getSelectedEntityId() == entity.getEntityId()) {
-                    selectionModel.setSelectedEntity(0);
+                    selectionModel.clearSelection();
                 }
             }
         });

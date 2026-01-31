@@ -137,7 +137,7 @@ public class TimelinePane extends BorderPane {
         timelineLabel.setStyle("-fx-font-weight: bold;");
         
         timelineCanvas = new Canvas();
-        timelineCanvas.setPrefHeight(40);
+        timelineCanvas.setCanvasPrefHeight(40);
         
         // Time scale display
         HBox timeScaleBox = new HBox(10);
@@ -249,19 +249,19 @@ public class TimelinePane extends BorderPane {
                 currentFrame = stats.getFrameNumber();
                 
                 // Update FPS (smoothed)
-                double instantFps = 1000.0 / Math.max(stats.getDeltaTimeMs(), 0.001);
+                double instantFps = 1000.0 / Math.max(stats.getTotalTimeMs(), 0.001);
                 updateFps(instantFps);
                 
                 // Update labels
                 frameLabel.setText(String.format("%d", currentFrame));
                 fpsLabel.setText(String.format("%.1f", smoothedFps));
-                deltaTimeLabel.setText(String.format("%.3f ms", stats.getDeltaTimeMs()));
+                deltaTimeLabel.setText(String.format("%.3f ms", stats.getTotalTimeMs()));
                 renderTimeLabel.setText(String.format("%.3f s", currentTime));
                 simTimeLabel.setText(String.format("%.3f s", simTime));
                 
                 // Update time accumulators
                 if (!isPaused) {
-                    double deltaSeconds = stats.getDeltaTimeMs() / 1000.0;
+                    double deltaSeconds = stats.getTotalTimeMs() / 1000.0;
                     currentTime += deltaSeconds * timeScale;
                     simTime += deltaSeconds * timeScale;
                 }
@@ -298,8 +298,8 @@ public class TimelinePane extends BorderPane {
      * Draw timeline visualization.
      */
     private void drawTimeline() {
-        double width = timelineCanvas.getWidth();
-        double height = timelineCanvas.getHeight();
+        double width = timelineCanvas.getCanvasWidth();
+        double height = timelineCanvas.getCanvasHeight();
         
         if (width <= 0 || height <= 0) {
             return;
@@ -460,15 +460,15 @@ public class TimelinePane extends BorderPane {
             return canvas.getGraphicsContext2D();
         }
         
-        public double getWidth() {
+        public double getCanvasWidth() {
             return canvas.getWidth();
         }
         
-        public double getHeight() {
+        public double getCanvasHeight() {
             return canvas.getHeight();
         }
         
-        public void setPrefHeight(double height) {
+        public void setCanvasPrefHeight(double height) {
             canvas.setHeight(height);
             super.setPrefHeight(height);
         }
