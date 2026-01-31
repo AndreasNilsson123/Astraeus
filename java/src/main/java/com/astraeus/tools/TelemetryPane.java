@@ -2,7 +2,9 @@ package com.astraeus.tools;
 
 import com.astraeus.native_api.NativeEngine;
 import com.astraeus.native_api.model.FrameStats;
-import com.astraeus.native_api.NativeEngine.PassTiming;
+import com.astraeus.native_api.model.PassTiming;
+import com.astraeus.tools.telemetry.FrameStatsHistory;
+import com.astraeus.tools.telemetry.TelemetryChartPane;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -52,11 +54,21 @@ public class TelemetryPane extends BorderPane {
     // Control: Enable/disable telemetry
     private final CheckBox enableTelemetryCheckBox;
     
+    // History and charting
+    private final FrameStatsHistory history;
+    private final TelemetryChartPane chartPane;
+    
     // Cached data to avoid unnecessary allocations
     private final List<PassTiming> cachedPassTimings = new ArrayList<>();
     
     public TelemetryPane(NativeEngine engine) {
         this.engine = engine;
+        
+        // Initialize history (last 300 frames = ~10 seconds at 30 fps)
+        this.history = new FrameStatsHistory(300);
+        
+        // Initialize chart pane
+        this.chartPane = new TelemetryChartPane();
         
         // === TOP SECTION: Overall Stats ===
         VBox topSection = new VBox(10);
@@ -160,9 +172,25 @@ public class TelemetryPane extends BorderPane {
         
         bottomSection.getChildren().addAll(passLabel, passTable);
         
+        // === CHART SECTION: History Charts ===
+        VBox chartSection = new VBox(5);
+        chartSection.setPadding(new Insets(10));
+        
+        Label chartLabel = new Label("History Charts");
+        chartLabel.setStyle("-fx-font-weight: bold;");
+        
+        chartSection.getChildren().addAll(chartLabel, chartPane);
+        
         // === LAYOUT ===
-        setTop(topSection);
-        setCenter(bottomSection);
+        // Use a scroll pane to contain all sections
+        VBox allContent = new VBox(10);
+        allContent.getChildren().addAll(topSection, bottomSection, chartSection);
+        
+        ScrollPane scrollPane = new ScrollPane(allContent);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: #f5f5f5;");
+        
+        setCenter(scrollPane);
         
         // Set minimum size
         setMinWidth(300);
@@ -182,8 +210,14 @@ public class TelemetryPane extends BorderPane {
         
         try {
             // Get current frame stats
-            TelemetryFrameStats stats = engine.getTelemetryStats();
+            FrameStats stats = engine.getTelemetryStats();
+            
+            // Add to history
+            history.add(stats);
+            
+            // Update displays
             updateOverallStats(stats);
+            updateCharts();
             
             // Get per-pass timings
             int passCount = engine.getPassCount();
@@ -208,7 +242,7 @@ public class TelemetryPane extends BorderPane {
     /**
      * Update overall statistics labels.
      */
-    private void updateOverallStats(TelemetryFrameStats stats) {
+    private void updateOverallStats(FrameStats stats) {
         frameLabel.setText(String.valueOf(stats.getFrameNumber()));
         fpsLabel.setText(String.format("%.1f", stats.getFPS()));
         cpuTimeLabel.setText(String.format("%.2f ms", stats.getCpuTimeMs()));
@@ -257,6 +291,13 @@ public class TelemetryPane extends BorderPane {
                 i--; // Re-check this index
             }
         }
+    }
+    
+    /**
+     * Update history charts.
+     */
+    private void updateCharts() {
+        chartPane.updateChart(history);
     }
     
     /**
