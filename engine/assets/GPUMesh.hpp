@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <vector>
+#include "../geometry/VertexFormat.hpp"
 
 namespace astraeus {
 
@@ -17,6 +18,7 @@ struct GPUMesh {
     uint32_t vertex_count = 0;  // Number of vertices
     uint32_t index_count = 0;   // Number of indices
     uint32_t ref_count = 1;     // Reference count for sharing
+    VertexFormat vertex_format; // Vertex format descriptor
     
     bool is_valid() const {
         return vao != 0 && vbo != 0;
@@ -35,7 +37,7 @@ struct GPUUploadRequest {
     uint32_t asset_id;                     // Asset ID this upload is for
     std::vector<float> vertex_data;        // Interleaved vertex data
     std::vector<uint32_t> index_data;      // Index data
-    uint32_t vertex_stride;                // Stride of vertex data in bytes
+    VertexFormat vertex_format;            // Vertex format descriptor
     uint32_t vertex_count;                 // Number of vertices
     uint32_t index_count;                  // Number of indices
 };

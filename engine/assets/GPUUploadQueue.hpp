@@ -68,26 +68,9 @@ public:
 
         GPUUploadRequest request;
         request.asset_id = asset_id;
-        
-        // Convert mesh to interleaved vertex data
-        const auto& vertices = mesh.get_vertices();
-        request.vertex_count = static_cast<uint32_t>(vertices.size());
-        request.vertex_stride = sizeof(Vertex);
-        
-        // Interleave vertex data
-        request.vertex_data.reserve(vertices.size() * (sizeof(Vertex) / sizeof(float)));
-        for (const auto& v : vertices) {
-            request.vertex_data.push_back(v.x);
-            request.vertex_data.push_back(v.y);
-            request.vertex_data.push_back(v.z);
-            request.vertex_data.push_back(v.nx);
-            request.vertex_data.push_back(v.ny);
-            request.vertex_data.push_back(v.nz);
-            request.vertex_data.push_back(v.u);
-            request.vertex_data.push_back(v.v);
-        }
-
-        // Copy index data
+        request.vertex_format = mesh.get_vertex_format();
+        request.vertex_count = mesh.get_vertex_count();
+        request.vertex_data = mesh.get_vertex_data();
         request.index_data = mesh.get_indices();
         request.index_count = static_cast<uint32_t>(request.index_data.size());
 
@@ -225,18 +208,19 @@ private:
                      request.vertex_data.data(), 
                      GL_STATIC_DRAW);
 
-        // Set vertex attributes (position, normal, texcoord)
-        // Position (x, y, z) - location 0
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-
-        // Normal (nx, ny, nz) - location 1
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(float)));
-
-        // TexCoord (u, v) - location 2
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(6 * sizeof(float)));
+        // Set vertex attributes based on format
+        const auto& format = request.vertex_format;
+        for (const auto& attr : format.get_attributes()) {
+            glEnableVertexAttribArray(attr.gl_location);
+            glVertexAttribPointer(
+                attr.gl_location,
+                attr.component_count,
+                GL_FLOAT,
+                GL_FALSE,
+                format.get_stride(),
+                reinterpret_cast<void*>(static_cast<uintptr_t>(attr.offset))
+            );
+        }
 
         // Generate and upload IBO if indices exist
         if (!request.index_data.empty()) {
@@ -261,6 +245,7 @@ private:
 
         out_mesh.vertex_count = request.vertex_count;
         out_mesh.index_count = request.index_count;
+        out_mesh.vertex_format = request.vertex_format;
 
         return true;
     }
