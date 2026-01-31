@@ -217,6 +217,9 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     add_executable(material_system_test examples/material_system_test.cpp)
     target_link_libraries(material_system_test PRIVATE astraeus_engine)
 
+    add_executable(lighting_system_test examples/lighting_system_test.cpp)
+    target_link_libraries(lighting_system_test PRIVATE astraeus_engine)
+
     add_executable(camera_system_test examples/camera_system_test.cpp)
     target_link_libraries(camera_system_test PRIVATE astraeus_engine)
 
