@@ -139,11 +139,18 @@ public final class LayoutValidator {
         System.out.println("  Alignment: " + layout.byteAlignment() + " bytes");
         System.out.println("  Member layouts:");
         
-        int offset = 0;
+        long offset = 0;
         for (MemoryLayout member : layout.memberLayouts()) {
-            String memberName = member.name().orElse("<anonymous>");
+            String memberName = member.name().orElse("<padding>");
             long memberSize = member.byteSize();
-            System.out.println("    [" + offset + "] " + memberName + ": " + memberSize + " bytes");
+            long memberAlignment = member.byteAlignment();
+            
+            // Align offset to member alignment
+            if (offset % memberAlignment != 0) {
+                offset = (offset + memberAlignment - 1) / memberAlignment * memberAlignment;
+            }
+            
+            System.out.println("    [" + offset + "] " + memberName + ": " + memberSize + " bytes (align: " + memberAlignment + ")");
             offset += memberSize;
         }
         System.out.println();
