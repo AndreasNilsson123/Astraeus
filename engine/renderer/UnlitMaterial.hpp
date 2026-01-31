@@ -5,7 +5,7 @@
 #include "opengl/GLRenderDevice.hpp"
 #include <iostream>
 #include <cstring>
-#include <glad/glad.h>
+#include "platform/GL/GLHeaders.hpp"
 
 namespace astraeus {
 

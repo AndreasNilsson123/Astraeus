@@ -8,7 +8,7 @@
 #include "../../assets/AssetManager.hpp"
 #include "../../core/util/Math.hpp"
 
-#include <glad/glad.h>
+#include "platform/GL/GLHeaders.hpp"
 
 namespace astraeus {
 

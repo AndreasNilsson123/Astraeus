@@ -1,7 +1,7 @@
 #ifndef ASTRAEUS_UNLIT_SHADER_HPP
 #define ASTRAEUS_UNLIT_SHADER_HPP
 
-#include <glad/glad.h>
+#include "platform/GL/GLHeaders.hpp"#include <glad/glad.h>
 #include <iostream>
 #include <string>
 

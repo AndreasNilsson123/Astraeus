@@ -8,7 +8,7 @@
 #include <iostream>
 #include "GPUMesh.hpp"
 #include "../geometry/Mesh.hpp"
-#include <glad/glad.h>
+#include "platform/GL/GLHeaders.hpp"
 
 namespace astraeus {
 

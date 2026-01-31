@@ -22,17 +22,21 @@ public final class ABICodegenRunner {
 
     private static final String CODEGEN_SRC_REL = "java/src/main/java/com/astraeus/tools/ABICodeGenerator.java";
 
-    private static final String SCHEMA_REL = "engine/api/abi_structs_schema.yaml";
+    private static final Path SCHEMA_REL = Path.of("engine", "api", "abi_structs_schema.yaml");
 
     public static void main(String[] args) throws Exception {
-        Path projectRoot = args.length > 0 ? Paths.get(args[0]).toAbsolutePath() : Paths.get("").toAbsolutePath();
+        Path cwd = Paths.get("").toAbsolutePath().normalize();
+
+        Path projectRoot = (args.length > 0)
+                ? Paths.get(args[0]).toAbsolutePath().normalize()
+                : defaultProjectRootFromCwd(cwd);
 
         System.out.println("================================================");
         System.out.println("Regenerating ABI Struct Code");
         System.out.println("================================================");
         System.out.println("Project root: " + projectRoot);
 
-        Path schemaFile = projectRoot.resolve(SCHEMA_REL);
+        Path schemaFile = projectRoot.resolve(SCHEMA_REL).normalize();
         Path codegenSrc = projectRoot.resolve(CODEGEN_SRC_REL);
 
         if (!Files.exists(schemaFile)) {
@@ -108,6 +112,16 @@ public final class ABICodegenRunner {
     private static void fail(String msg) {
         System.err.println("ERROR: " + msg);
         System.exit(1);
+    }
+
+    private static Path defaultProjectRootFromCwd(Path cwd) {
+        // If you run from .../repo/java, step back to .../repo
+        Path name = cwd.getFileName();
+        if (name != null && name.toString().equalsIgnoreCase("java")) {
+            Path parent = cwd.getParent();
+            if (parent != null) return parent;
+        }
+        return cwd; // otherwise assume current dir is repo root
     }
 }
 

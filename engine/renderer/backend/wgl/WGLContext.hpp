@@ -7,10 +7,8 @@
 
 // Windows headers - only included in this backend implementation
 #ifdef _WIN32
-
 #include <windows.h>
-#include <glad/glad_wgl.h>
-
+#include "platform/GL/GLHeaders.hpp"
 #endif
 
 namespace astraeus {

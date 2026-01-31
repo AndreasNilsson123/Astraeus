@@ -20,7 +20,7 @@
 
 // Include GLAD for OpenGL function loading
 // GLAD must be included before any other OpenGL headers
-#include <glad/glad.h>
+#include "platform/GL/GLHeaders.hpp"
 
 // Platform-specific GL extensions (if needed)
 #ifdef _WIN32

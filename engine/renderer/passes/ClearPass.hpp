@@ -6,7 +6,7 @@
 
 // OpenGL headers
 #define GL_GLEXT_PROTOTYPES
-#include <glad/glad.h>
+#include "platform/GL/GLHeaders.hpp"
 
 namespace astraeus {
 

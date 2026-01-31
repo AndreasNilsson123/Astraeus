@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #ifdef _WIN32
+#define NOMINMAX
     #include <windows.h>
     static void sleep_ms(unsigned int ms) {
         Sleep(ms);
