@@ -2,10 +2,12 @@ package com.astraeus.ui;
 
 import com.astraeus.native_api.NativeEngine;
 import com.astraeus.scene.SceneManager;
+import com.astraeus.tools.EntityBrowserPane;
 import com.astraeus.tools.InspectorPane;
 import com.astraeus.tools.SceneInspector;
 import com.astraeus.tools.SceneOutlinerPane;
 import com.astraeus.tools.TelemetryPane;
+import com.astraeus.tools.TimelinePane;
 import javafx.geometry.Orientation;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -61,15 +63,19 @@ public class WorkspaceWindow {
     
     // Panes
     private SceneOutlinerPane sceneOutlinerPane;
+    private EntityBrowserPane entityBrowserPane;
     private InspectorPane inspectorPane;
     private TelemetryPane telemetryPane;
+    private TimelinePane timelinePane;
     private TabPane centerTabPane;
     private ConsolePane consolePane;
     
     // Menu items for pane visibility
     private CheckMenuItem sceneOutlinerMenuItem;
+    private CheckMenuItem entityBrowserMenuItem;
     private CheckMenuItem inspectorMenuItem;
     private CheckMenuItem telemetryMenuItem;
+    private CheckMenuItem timelineMenuItem;
     private CheckMenuItem consoleMenuItem;
     
     // Status bar
@@ -167,6 +173,16 @@ public class WorkspaceWindow {
         rightTabPane.setMinWidth(300);
         rightTabPane.setPrefWidth(350);
         
+        // Entity Browser tab
+        Tab entityBrowserTab = new Tab("Entities");
+        if (sceneManager != null) {
+            entityBrowserPane = new EntityBrowserPane(sceneManager, selectionModel);
+            entityBrowserTab.setContent(entityBrowserPane);
+        } else {
+            entityBrowserTab.setContent(createPlaceholder("Entity Browser", "Initialize engine to browse entities"));
+            entityBrowserPane = null;
+        }
+        
         // Inspector tab
         Tab inspectorTab = new Tab("Inspector");
         if (sceneManager != null) {
@@ -187,7 +203,17 @@ public class WorkspaceWindow {
             telemetryPane = null;
         }
         
-        rightTabPane.getTabs().addAll(inspectorTab, telemetryTab);
+        // Timeline tab
+        Tab timelineTab = new Tab("Timeline");
+        if (engine != null) {
+            timelinePane = new TimelinePane(engine);
+            timelineTab.setContent(timelinePane);
+        } else {
+            timelineTab.setContent(createPlaceholder("Timeline", "Initialize engine to view timeline"));
+            timelinePane = null;
+        }
+        
+        rightTabPane.getTabs().addAll(entityBrowserTab, inspectorTab, telemetryTab, timelineTab);
         
         // Bottom: Console pane
         consolePane = new ConsolePane();
@@ -242,6 +268,11 @@ public class WorkspaceWindow {
             }
         }
         
+        if (sceneManager != null && entityBrowserPane == null) {
+            entityBrowserPane = new EntityBrowserPane(sceneManager, selectionModel);
+            updateRightTabContent("Entities", entityBrowserPane);
+        }
+        
         if (sceneManager != null && inspectorPane == null) {
             inspectorPane = new InspectorPane(sceneManager, selectionModel);
             // Find and update inspector tab
@@ -251,6 +282,11 @@ public class WorkspaceWindow {
         if (engine != null && telemetryPane == null) {
             telemetryPane = new TelemetryPane(engine);
             updateRightTabContent("Telemetry", telemetryPane);
+        }
+        
+        if (engine != null && timelinePane == null) {
+            timelinePane = new TimelinePane(engine);
+            updateRightTabContent("Timeline", timelinePane);
         }
     }
     
@@ -296,6 +332,10 @@ public class WorkspaceWindow {
         sceneOutlinerMenuItem.setSelected(layoutConfig.isPaneVisible("scene-outliner", true));
         sceneOutlinerMenuItem.setOnAction(e -> togglePane("scene-outliner", sceneOutlinerPane, sceneOutlinerMenuItem));
         
+        entityBrowserMenuItem = new CheckMenuItem("Entity Browser");
+        entityBrowserMenuItem.setSelected(layoutConfig.isPaneVisible("entity-browser", true));
+        entityBrowserMenuItem.setOnAction(e -> toggleRightTab("Entities", entityBrowserMenuItem));
+        
         inspectorMenuItem = new CheckMenuItem("Inspector");
         inspectorMenuItem.setSelected(layoutConfig.isPaneVisible("inspector", true));
         inspectorMenuItem.setOnAction(e -> toggleRightTab("Inspector", inspectorMenuItem));
@@ -304,14 +344,20 @@ public class WorkspaceWindow {
         telemetryMenuItem.setSelected(layoutConfig.isPaneVisible("telemetry", true));
         telemetryMenuItem.setOnAction(e -> toggleRightTab("Telemetry", telemetryMenuItem));
         
+        timelineMenuItem = new CheckMenuItem("Timeline");
+        timelineMenuItem.setSelected(layoutConfig.isPaneVisible("timeline", true));
+        timelineMenuItem.setOnAction(e -> toggleRightTab("Timeline", timelineMenuItem));
+        
         consoleMenuItem = new CheckMenuItem("Console");
         consoleMenuItem.setSelected(layoutConfig.isPaneVisible("console", true));
         consoleMenuItem.setOnAction(e -> togglePane("console", consolePane, consoleMenuItem));
         
         viewMenu.getItems().addAll(
             sceneOutlinerMenuItem,
+            entityBrowserMenuItem,
             inspectorMenuItem,
             telemetryMenuItem,
+            timelineMenuItem,
             consoleMenuItem,
             new SeparatorMenuItem(),
             createResetLayoutMenuItem()
