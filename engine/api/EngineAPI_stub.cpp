@@ -212,14 +212,8 @@ void astraeus_pick(EngineHandle engine, uint32_t screen_x, uint32_t screen_y, Pi
     if (!pick_result)
         return;
     
-    // Initialize all fields explicitly including padding
+    // Initialize all fields (including padding) to zero
     *pick_result = {};
-    pick_result->entity_id = 0;
-    pick_result->world_x = 0.0f;
-    pick_result->world_y = 0.0f;
-    pick_result->world_z = 0.0f;
-    pick_result->depth = 0.0f;
-    pick_result->hit = false;
     
     if (!is_valid_engine(engine)) {
         return;

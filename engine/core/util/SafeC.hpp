@@ -48,7 +48,10 @@ inline void str_copy(char* dst, std::size_t dst_size, const char* src) {
 
 /**
  * Safe integer parsing from string.
- * Parses format "x y z" into three integers.
+ * Parses whitespace-separated integers (e.g., "1 2 3" or "10  -20  30").
+ * 
+ * Note: Does not check for integer overflow. Values exceeding INT_MAX/INT_MIN
+ * will wrap around according to standard C++ integer overflow behavior.
  * 
  * @param s Input string
  * @param a Output: first integer
@@ -110,6 +113,9 @@ inline int parse_int3(const char* s, int* a, int* b, int* c) {
 /**
  * Safe parsing of "v/vt/vn" format (OBJ face vertex format).
  * Handles formats: "v", "v/vt", "v/vt/vn", "v//vn"
+ * 
+ * Note: Does not check for integer overflow. Values exceeding INT_MAX/INT_MIN
+ * will wrap around according to standard C++ integer overflow behavior.
  * 
  * @param s Input string
  * @param v Output: vertex index
