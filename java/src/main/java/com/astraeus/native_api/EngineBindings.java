@@ -282,6 +282,27 @@ public class EngineBindings {
         ValueLayout.JAVA_INT,      // param: entity_id
         ValueLayout.ADDRESS        // param: MaterialHandle
     );
+    
+    // Legacy Camera API
+    private static final FunctionDescriptor SET_CAMERA_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,       // param: EngineHandle
+        ValueLayout.JAVA_FLOAT,    // param: eye_x
+        ValueLayout.JAVA_FLOAT,    // param: eye_y
+        ValueLayout.JAVA_FLOAT,    // param: eye_z
+        ValueLayout.JAVA_FLOAT,    // param: target_x
+        ValueLayout.JAVA_FLOAT,    // param: target_y
+        ValueLayout.JAVA_FLOAT,    // param: target_z
+        ValueLayout.JAVA_FLOAT,    // param: up_x
+        ValueLayout.JAVA_FLOAT,    // param: up_y
+        ValueLayout.JAVA_FLOAT     // param: up_z
+    );
+    
+    private static final FunctionDescriptor SET_CAMERA_PROJECTION_DESC = FunctionDescriptor.ofVoid(
+        ValueLayout.ADDRESS,       // param: EngineHandle
+        ValueLayout.JAVA_FLOAT,    // param: fov_degrees
+        ValueLayout.JAVA_FLOAT,    // param: near_plane
+        ValueLayout.JAVA_FLOAT     // param: far_plane
+    );
 
 
     // Method handles
@@ -317,6 +338,8 @@ public class EngineBindings {
     public static final MethodHandle CAMERA_GET_ACTIVE;
     public static final MethodHandle CAMERA_GET_DESC;
     public static final MethodHandle CAMERA_SET_DESC;
+    public static final MethodHandle SET_CAMERA;
+    public static final MethodHandle SET_CAMERA_PROJECTION;
     public static final MethodHandle MATERIAL_CREATE;
     public static final MethodHandle MATERIAL_UPDATE;
     public static final MethodHandle MATERIAL_DESTROY;
@@ -487,6 +510,16 @@ public class EngineBindings {
             CAMERA_SET_DESC = LINKER.downcallHandle(
                 LIBRARY.find("astraeus_camera_set_desc").orElseThrow(),
                 CAMERA_SET_DESC_DESC
+            );
+            
+            SET_CAMERA = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_set_camera").orElseThrow(),
+                SET_CAMERA_DESC
+            );
+            
+            SET_CAMERA_PROJECTION = LINKER.downcallHandle(
+                LIBRARY.find("astraeus_set_camera_projection").orElseThrow(),
+                SET_CAMERA_PROJECTION_DESC
             );
             
             MATERIAL_CREATE = LINKER.downcallHandle(

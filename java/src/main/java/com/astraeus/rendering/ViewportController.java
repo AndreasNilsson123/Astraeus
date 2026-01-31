@@ -483,4 +483,53 @@ public class ViewportController {
         return String.format("%s mode | Pos: (%.1f, %.1f, %.1f)", 
                            mode, pos[0], pos[1], pos[2]);
     }
+    
+    /**
+     * Sync camera state to a NativeCamera instance.
+     * Converts the controller's camera state to a CameraDesc and applies it.
+     * 
+     * @param nativeCamera The native camera to update
+     */
+    public void syncToNativeCamera(com.astraeus.native_api.NativeCamera nativeCamera) {
+        if (nativeCamera == null) {
+            return;
+        }
+        
+        double[] pos = getCameraPosition();
+        double[] target = getCameraTarget();
+        
+        // Get current descriptor
+        com.astraeus.native_api.NativeCamera.CameraDesc currentDesc = nativeCamera.getDesc();
+        
+        // Create updated descriptor with new position and target
+        com.astraeus.native_api.NativeCamera.CameraDesc newDesc = 
+            new com.astraeus.native_api.NativeCamera.CameraDesc(
+                (float) pos[0], (float) pos[1], (float) pos[2],      // position
+                (float) target[0], (float) target[1], (float) target[2],  // target
+                0.0f, 1.0f, 0.0f,                                     // up vector (always Y-up)
+                currentDesc.fovDegrees(),                             // keep FOV
+                currentDesc.nearPlane(),                              // keep near
+                currentDesc.farPlane(),                               // keep far
+                getModeConstant()                                     // camera mode
+            );
+        
+        // Apply to native camera
+        nativeCamera.setDesc(newDesc);
+    }
+    
+    /**
+     * Get the native API constant for the current mode.
+     */
+    private int getModeConstant() {
+        switch (mode) {
+            case ORBIT:
+                return com.astraeus.native_api.EngineBindings.CAMERA_MODE_ORBIT;
+            case FLY:
+                return com.astraeus.native_api.EngineBindings.CAMERA_MODE_FLY;
+            case PAN:
+                return com.astraeus.native_api.EngineBindings.CAMERA_MODE_PAN;
+            default:
+                return com.astraeus.native_api.EngineBindings.CAMERA_MODE_ORBIT;
+        }
+    }
 }

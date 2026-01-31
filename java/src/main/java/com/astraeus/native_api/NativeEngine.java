@@ -750,6 +750,60 @@ public class NativeEngine implements AutoCloseable {
     }
     
     /**
+     * Set the camera position and target using the legacy API.
+     * 
+     * <p>This is the legacy World camera API that sets a single default camera.
+     * For multi-viewport applications, use the viewport-specific camera API instead.</p>
+     * 
+     * <p><b>Thread Safety:</b> Must be called from the owning thread only.</p>
+     * 
+     * @param eyeX Camera position X
+     * @param eyeY Camera position Y
+     * @param eyeZ Camera position Z
+     * @param targetX Look-at target X
+     * @param targetY Look-at target Y
+     * @param targetZ Look-at target Z
+     * @param upX Up vector X (usually 0)
+     * @param upY Up vector Y (usually 1)
+     * @param upZ Up vector Z (usually 0)
+     */
+    public void setCamera(float eyeX, float eyeY, float eyeZ,
+                         float targetX, float targetY, float targetZ,
+                         float upX, float upY, float upZ) {
+        checkClosed();
+        try {
+            EngineBindings.SET_CAMERA.invoke(engineHandle,
+                eyeX, eyeY, eyeZ,
+                targetX, targetY, targetZ,
+                upX, upY, upZ);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to set camera", e);
+        }
+    }
+    
+    /**
+     * Set the camera projection parameters using the legacy API.
+     * 
+     * <p>This sets the projection matrix for the default World camera.
+     * For multi-viewport applications, use the viewport-specific camera API instead.</p>
+     * 
+     * <p><b>Thread Safety:</b> Must be called from the owning thread only.</p>
+     * 
+     * @param fovDegrees Field of view in degrees
+     * @param nearPlane Near clipping plane distance
+     * @param farPlane Far clipping plane distance
+     */
+    public void setCameraProjection(float fovDegrees, float nearPlane, float farPlane) {
+        checkClosed();
+        try {
+            EngineBindings.SET_CAMERA_PROJECTION.invoke(engineHandle,
+                fovDegrees, nearPlane, farPlane);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to set camera projection", e);
+        }
+    }
+    
+    /**
      * Check if engine is valid.
      * @return true if valid
      */
