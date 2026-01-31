@@ -244,7 +244,7 @@ public class TimelinePane extends BorderPane {
         
         // Get telemetry data if available
         if (engine.isTelemetryEnabled()) {
-            NativeEngine.TelemetryFrameStats stats = engine.getTelemetryStats();
+            NativeEngine.FrameStats stats = engine.getTelemetryStats();
             if (stats != null) {
                 currentFrame = stats.getFrameNumber();
                 
