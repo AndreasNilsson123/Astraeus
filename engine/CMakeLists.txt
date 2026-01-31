@@ -223,6 +223,9 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     add_executable(camera_component_test examples/camera_component_test.cpp)
     target_link_libraries(camera_component_test PRIVATE astraeus_engine)
 
+    add_executable(mesh_rendering_test examples/mesh_rendering_test.cpp)
+    target_link_libraries(mesh_rendering_test PRIVATE astraeus_engine)
+
 endif()
 
 
