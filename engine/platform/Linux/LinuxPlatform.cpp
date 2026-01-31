@@ -30,10 +30,14 @@ void* load_gl_proc(const char* name) {
     // Note: This requires linking with GLX
     
     // For now, use dlsym as a fallback (works for core functions)
-    static void* libgl = dlopen("libGL.so.1", RTLD_LAZY | RTLD_LOCAL);
-    if (!libgl) {
-        libgl = dlopen("libGL.so", RTLD_LAZY | RTLD_LOCAL);
-    }
+    // C++17 guarantees thread-safe static local initialization
+    static void* libgl = []() -> void* {
+        void* lib = dlopen("libGL.so.1", RTLD_LAZY | RTLD_LOCAL);
+        if (!lib) {
+            lib = dlopen("libGL.so", RTLD_LAZY | RTLD_LOCAL);
+        }
+        return lib;
+    }();
     
     if (libgl) {
         return dlsym(libgl, name);

@@ -4,6 +4,7 @@
 
 #include "Win32Headers.hpp"
 #include <timeapi.h>  // For timeBeginPeriod (high-resolution timing)
+#include <vector>
 
 namespace astraeus::platform {
 
@@ -33,6 +34,7 @@ void* load_gl_proc(const char* name) {
     // wglGetProcAddress only works for extension functions
     // For core OpenGL 1.1 functions, need to use GetProcAddress on opengl32.dll
     if (proc == nullptr) {
+        // C++17 guarantees thread-safe static local initialization
         static HMODULE opengl32 = LoadLibraryA("opengl32.dll");
         if (opengl32) {
             proc = reinterpret_cast<void*>(GetProcAddress(opengl32, name));
@@ -47,13 +49,11 @@ void set_thread_name(const char* name) {
     // Convert to wide string
     int len = MultiByteToWideChar(CP_UTF8, 0, name, -1, nullptr, 0);
     if (len > 0) {
-        wchar_t* wide_name = new wchar_t[len];
-        MultiByteToWideChar(CP_UTF8, 0, name, -1, wide_name, len);
+        std::vector<wchar_t> wide_name(len);
+        MultiByteToWideChar(CP_UTF8, 0, name, -1, wide_name.data(), len);
         
         HANDLE thread = GetCurrentThread();
-        SetThreadDescription(thread, wide_name);
-        
-        delete[] wide_name;
+        SetThreadDescription(thread, wide_name.data());
     }
 }
 
