@@ -1,5 +1,11 @@
 package com.astraeus.native_api;
 
+import com.astraeus.native_api.lifecycle.EngineConfig;
+import com.astraeus.native_api.model.FrameStats;
+import com.astraeus.native_api.model.PassTiming;
+import com.astraeus.native_api.model.PickResult;
+import com.astraeus.native_api.model.PixelBufferView;
+
 import java.lang.foreign.*;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteBuffer;
@@ -7,7 +13,43 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * High-level Java wrapper around the native Astraeus engine.
- * Manages native memory and provides a safe API.
+ * 
+ * <p>This class provides a typed, ergonomic API for interacting with the native
+ * C++ engine core. All MemorySegment details are encapsulated and exposed through
+ * typed value objects in the {@link com.astraeus.native_api.model} package.</p>
+ * 
+ * <p><b>Thread Safety:</b> This class is NOT thread-safe. All methods must be called
+ * from the same thread (typically the JavaFX Application Thread) unless otherwise noted.
+ * The engine maintains internal state that is not protected by synchronization.</p>
+ * 
+ * <p><b>Lifecycle:</b> The engine must be explicitly closed when no longer needed by
+ * calling {@link #close()}. This frees native resources and GPU memory. Failure to close
+ * will result in resource leaks.</p>
+ * 
+ * <p><b>Usage:</b></p>
+ * <pre>{@code
+ * // Create engine
+ * try (NativeEngine engine = new NativeEngine(1280, 720, true)) {
+ *     // Configure readback
+ *     engine.configureReadback(2560, 1440, false);
+ *     
+ *     // Render loop
+ *     while (running) {
+ *         engine.beginFrame(deltaTime);
+ *         // ... update scene ...
+ *         engine.endFrame();
+ *         
+ *         // Get rendered output
+ *         PixelBufferView colorBuffer = engine.getColorBuffer();
+ *         // ... display buffer ...
+ *     }
+ * }
+ * }</pre>
+ * 
+ * @see com.astraeus.native_api.lifecycle.EngineConfig
+ * @see com.astraeus.native_api.model.PixelBufferView
+ * @see com.astraeus.native_api.model.FrameStats
+ * @see com.astraeus.native_api.model.PickResult
  */
 public class NativeEngine implements AutoCloseable {
     
@@ -16,12 +58,38 @@ public class NativeEngine implements AutoCloseable {
     private boolean closed = false;
     
     /**
-     * Create a new engine instance.
-     * @param width Initial viewport width
-     * @param height Initial viewport height
-     * @param enableValidation Enable validation layers
+     * Create a new engine instance with default configuration.
+     * 
+     * <p><b>Thread Safety:</b> Must be called from the thread that will own the engine
+     * (typically JavaFX Application Thread).</p>
+     * 
+     * @param width Initial viewport width in pixels
+     * @param height Initial viewport height in pixels
+     * @param enableValidation Enable validation layers for debugging
+     * @throws RuntimeException if engine creation fails
      */
     public NativeEngine(int width, int height, boolean enableValidation) {
+        this(new EngineConfig()
+            .setInitialWidth(width)
+            .setInitialHeight(height)
+            .setEnableValidation(enableValidation));
+    }
+    
+    /**
+     * Create a new engine instance with custom configuration.
+     * 
+     * <p><b>Thread Safety:</b> Must be called from the thread that will own the engine
+     * (typically JavaFX Application Thread).</p>
+     * 
+     * @param engineConfig Engine configuration
+     * @throws RuntimeException if engine creation fails
+     * @throws NullPointerException if engineConfig is null
+     */
+    public NativeEngine(EngineConfig engineConfig) {
+        if (engineConfig == null) {
+            throw new NullPointerException("engineConfig cannot be null");
+        }
+        
         this.arena = Arena.ofShared();
         
         // Allocate and populate EngineConfig using layout accessors
@@ -39,11 +107,17 @@ public class NativeEngine implements AutoCloseable {
         VarHandle logPathHandle = EngineBindings.ENGINE_CONFIG_LAYOUT.varHandle(
             MemoryLayout.PathElement.groupElement("log_file_path"));
         
-        widthHandle.set(config, 0L, width);
-        heightHandle.set(config, 0L, height);
-        validationHandle.set(config, 0L, enableValidation);
-        debugHandle.set(config, 0L, false);
-        logPathHandle.set(config, 0L, MemorySegment.NULL);
+        widthHandle.set(config, 0L, engineConfig.getInitialWidth());
+        heightHandle.set(config, 0L, engineConfig.getInitialHeight());
+        validationHandle.set(config, 0L, engineConfig.isEnableValidation());
+        debugHandle.set(config, 0L, engineConfig.isEnableDebugOutput());
+        
+        // Handle log file path (null-safe)
+        MemorySegment logPathSegment = MemorySegment.NULL;
+        if (engineConfig.getLogFilePath() != null && !engineConfig.getLogFilePath().isEmpty()) {
+            logPathSegment = arena.allocateFrom(engineConfig.getLogFilePath(), StandardCharsets.UTF_8);
+        }
+        logPathHandle.set(config, 0L, logPathSegment);
         
         try {
             // Call native function
@@ -312,19 +386,24 @@ public class NativeEngine implements AutoCloseable {
 
     /**
      * Perform picking at screen coordinates.
-     * Returns information about the entity at the specified screen position.
+     * 
+     * <p>Returns information about the entity at the specified screen position.
+     * Uses the ID buffer to determine which entity (if any) was clicked.</p>
+     * 
+     * <p><b>Thread Safety:</b> Must be called from the owning thread only.</p>
      * 
      * @param screenX Screen X coordinate (0 = left edge)
      * @param screenY Screen Y coordinate (0 = top edge)
-     * @return PickingView containing pick result data
+     * @return PickResult containing pick result data (never null)
+     * @throws RuntimeException if picking fails
      */
-    public PickingView pick(int screenX, int screenY) {
+    public PickResult pick(int screenX, int screenY) {
         checkClosed();
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment out = arena.allocate(EngineBindings.PICK_RESULT_LAYOUT);
             EngineBindings.PICK.invoke(engineHandle, screenX, screenY, out);
 
-            return new PickingView(out);
+            return new PickResult(out);
         } catch (Throwable e) {
             throw new RuntimeException("Failed to perform picking", e);
         }
@@ -358,15 +437,24 @@ public class NativeEngine implements AutoCloseable {
     
     /**
      * Get current frame telemetry statistics.
-     * @return TelemetryFrameStats for the current frame
+     * 
+     * <p><b>Note:</b> Telemetry must be enabled via {@link #enableTelemetry(boolean)}
+     * for this method to return meaningful data.</p>
+     * 
+     * <p><b>Thread Safety:</b> Must be called from the owning thread only.</p>
+     * 
+     * @return FrameStats for the current frame (never null)
+     * @throws RuntimeException if telemetry retrieval fails
+     * @see #enableTelemetry(boolean)
+     * @see #isTelemetryEnabled()
      */
-    public TelemetryFrameStats getTelemetryStats() {
+    public FrameStats getTelemetryStats() {
         checkClosed();
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment out = arena.allocate(EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT);
             EngineBindings.GET_TELEMETRY_FRAME_STATS.invoke(engineHandle, out);
             
-            return new TelemetryFrameStats(out);
+            return new FrameStats(out);
         } catch (Throwable e) {
             throw new RuntimeException("Failed to get telemetry stats", e);
         }
@@ -374,10 +462,17 @@ public class NativeEngine implements AutoCloseable {
     
     /**
      * Get telemetry history (ring buffer of recent frames).
+     * 
+     * <p>Returns up to maxFrames recent frame statistics, ordered from most
+     * recent to oldest.</p>
+     * 
+     * <p><b>Thread Safety:</b> Must be called from the owning thread only.</p>
+     * 
      * @param maxFrames Maximum number of frames to retrieve
-     * @return List of TelemetryFrameStats (most recent first)
+     * @return List of FrameStats (most recent first, never null)
+     * @throws RuntimeException if telemetry history retrieval fails
      */
-    public java.util.List<TelemetryFrameStats> getTelemetryHistory(int maxFrames) {
+    public java.util.List<FrameStats> getTelemetryHistory(int maxFrames) {
         checkClosed();
         try (Arena arena = Arena.ofConfined()) {
             // Allocate buffer for frame stats array
@@ -387,10 +482,10 @@ public class NativeEngine implements AutoCloseable {
             int framesWritten = (int) EngineBindings.GET_TELEMETRY_HISTORY.invoke(
                 engineHandle, buffer, maxFrames);
             
-            java.util.List<TelemetryFrameStats> history = new java.util.ArrayList<>(framesWritten);
+            java.util.List<FrameStats> history = new java.util.ArrayList<>(framesWritten);
             for (int i = 0; i < framesWritten; i++) {
                 MemorySegment statsSegment = buffer.asSlice(i * statsSize, statsSize);
-                history.add(new TelemetryFrameStats(statsSegment));
+                history.add(new FrameStats(statsSegment));
             }
             
             return history;
@@ -443,10 +538,13 @@ public class NativeEngine implements AutoCloseable {
 
 
     /**
-     * Wrapper for PixelBufferView struct.
-     * Provides safe access to backing buffer without memory hazards.
+     * Create a new entity.
+     * 
+     * <p><b>Thread Safety:</b> Must be called from the owning thread only.</p>
+     * 
+     * @return Entity ID (handle-based identifier)
+     * @throws RuntimeException if entity creation fails
      */
-    public static class PixelBufferView {
         private final long dataAddress;
         private final int width;
         private final int height;
@@ -817,72 +915,5 @@ public class NativeEngine implements AutoCloseable {
             closed = true;
             System.out.println("[NativeEngine] Engine closed");
         }
-    }
-    
-    /**
-     * Telemetry frame statistics.
-     * Immutable snapshot of a single frame's performance metrics.
-     */
-    public static class TelemetryFrameStats {
-        private final long frameNumber;
-        private final double cpuTimeMs;
-        private final double gpuTimeMs;
-        private final double totalTimeMs;
-        private final int drawCalls;
-        private final int triangleCount;
-        private final int passCount;
-        
-        public TelemetryFrameStats(MemorySegment structSegment) {
-            VarHandle frameNumberHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("frame_number"));
-            VarHandle cpuTimeHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("cpu_time_ms"));
-            VarHandle gpuTimeHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("gpu_time_ms"));
-            VarHandle totalTimeHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("total_time_ms"));
-            VarHandle drawCallsHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("draw_calls"));
-            VarHandle triangleCountHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("triangle_count"));
-            VarHandle passCountHandle = EngineBindings.TELEMETRY_FRAME_STATS_LAYOUT.varHandle(
-                MemoryLayout.PathElement.groupElement("pass_count"));
-            
-            this.frameNumber = (long) frameNumberHandle.get(structSegment, 0L);
-            this.cpuTimeMs = (double) cpuTimeHandle.get(structSegment, 0L);
-            this.gpuTimeMs = (double) gpuTimeHandle.get(structSegment, 0L);
-            this.totalTimeMs = (double) totalTimeHandle.get(structSegment, 0L);
-            this.drawCalls = (int) drawCallsHandle.get(structSegment, 0L);
-            this.triangleCount = (int) triangleCountHandle.get(structSegment, 0L);
-            this.passCount = (byte) passCountHandle.get(structSegment, 0L);
-        }
-        
-        public long getFrameNumber() { return frameNumber; }
-        public double getCpuTimeMs() { return cpuTimeMs; }
-        public double getGpuTimeMs() { return gpuTimeMs; }
-        public double getTotalTimeMs() { return totalTimeMs; }
-        public int getDrawCalls() { return drawCalls; }
-        public int getTriangleCount() { return triangleCount; }
-        public int getPassCount() { return passCount; }
-        
-        public double getFPS() {
-            return totalTimeMs > 0 ? 1000.0 / totalTimeMs : 0.0;
-        }
-    }
-    
-    /**
-     * Render pass timing information.
-     */
-    public static class PassTiming {
-        private final String name;
-        private final double timeMs;
-        
-        public PassTiming(String name, double timeMs) {
-            this.name = name;
-            this.timeMs = timeMs;
-        }
-        
-        public String getName() { return name; }
-        public double getTimeMs() { return timeMs; }
     }
 }
