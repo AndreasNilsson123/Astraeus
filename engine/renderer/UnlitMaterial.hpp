@@ -215,7 +215,7 @@ inline void UnlitMaterial::apply_parameters(RenderDevice* device) {
     }
 }
 
-inline bool UnlitMaterial::compile_shader(GLRenderDevice* gl_device) {
+inline bool UnlitMaterial::compile_shader([[maybe_unused]] GLRenderDevice* gl_device) {
     // Vertex shader with PBR-ready structure
     const char* vertex_source = R"(
         #version 330 core

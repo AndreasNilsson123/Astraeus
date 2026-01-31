@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstdint>
 #include <cstdio>  // for snprintf
+#include "core/util/WglProc.hpp"
 
 // Windows headers - only included in this backend implementation
 #ifdef _WIN32
@@ -138,8 +139,8 @@ public:
 
         // Try to create a modern OpenGL 3.3 context using wglCreateContextAttribsARB
         const auto wglCreateContextAttribsARB =
-            reinterpret_cast<PFNWGLCREATECONTEXTATTRIBSARBPROC>(
-                wglGetProcAddress("wglCreateContextAttribsARB")
+            util::load_wgl_proc<PFNWGLCREATECONTEXTATTRIBSARBPROC>(
+                "wglCreateContextAttribsARB"
             );
 
         if (wglCreateContextAttribsARB) {

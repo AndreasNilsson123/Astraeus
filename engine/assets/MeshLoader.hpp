@@ -7,6 +7,7 @@
 #include <sstream>
 #include <iostream>
 #include "../geometry/Mesh.hpp"
+#include "../core/util/SafeC.hpp"
 
 namespace astraeus {
 
@@ -80,13 +81,9 @@ public:
                 while (iss >> vertex_str) {
                     int v_idx = 0, vt_idx = 0, vn_idx = 0;
                     
-                    // Parse vertex indices (v/vt/vn format)
+                    // Parse vertex indices (v/vt/vn format) using safe parser
                     if (vertex_str.find('/') != std::string::npos) {
-                        sscanf(vertex_str.c_str(), "%d/%d/%d", &v_idx, &vt_idx, &vn_idx);
-                        if (vt_idx == 0 && vn_idx != 0) {
-                            // Handle v//vn format
-                            sscanf(vertex_str.c_str(), "%d//%d", &v_idx, &vn_idx);
-                        }
+                        util::parse_obj_vertex(vertex_str.c_str(), &v_idx, &vt_idx, &vn_idx);
                     } else {
                         v_idx = std::stoi(vertex_str);
                     }

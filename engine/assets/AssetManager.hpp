@@ -34,6 +34,12 @@ public:
         if (is_initialized_) {
             return true;
         }
+        
+        // Validate we have a valid render device
+        if (!device_) {
+            std::cerr << "[AssetManager] No render device provided" << std::endl;
+            return false;
+        }
 
         std::cout << "[AssetManager] Initializing" << std::endl;
         

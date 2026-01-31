@@ -70,6 +70,12 @@ inline bool IngestManager::ingest(const void* data, uint32_t size, uint32_t form
     if (!is_initialized_ || !data || size == 0) {
         return false;
     }
+    
+    // Validate we have a valid world pointer
+    if (!world_) {
+        std::cerr << "[IngestManager] No world attached for ingestion" << std::endl;
+        return false;
+    }
 
     std::cout << "[IngestManager] Ingesting " << size << " bytes of format " << format << std::endl;
     
