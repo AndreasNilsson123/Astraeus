@@ -1,0 +1,10 @@
+include_guard(GLOBAL)
+
+message(STATUS "--------------------------------------------")
+message(STATUS "Astraeus ${PROJECT_VERSION}")
+message(STATUS "  Shared library : ${ASTRAEUS_BUILD_SHARED}")
+message(STATUS "  Examples       : ${ASTRAEUS_BUILD_EXAMPLES}")
+message(STATUS "  Validation     : ${ASTRAEUS_ENABLE_VALIDATION}")
+message(STATUS "  WGL backend    : ${ASTRAEUS_ENABLE_WGL}")
+message(STATUS "  EGL backend    : ${ASTRAEUS_ENABLE_EGL}")
+message(STATUS "--------------------------------------------")

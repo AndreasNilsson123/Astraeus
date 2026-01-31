@@ -25,7 +25,7 @@
 // Platform-specific GL extensions (if needed)
 #ifdef _WIN32
     // WGL extensions loaded via GLAD
-    #include <glad/glad_wgl.h>
+    #include "third_party/glad_wgl/include/glad/glad_wgl.h"
 #elif defined(__linux__)
     // GLX extensions (would be loaded via GLAD or directly)
     // #include <glad/glad_glx.h>

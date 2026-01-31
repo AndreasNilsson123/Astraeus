@@ -1,0 +1,33 @@
+include_guard(GLOBAL)
+
+function(astraeus_add_example name source)
+    add_executable(${name} ${ASTRAEUS_ROOT_DIR}/${source})
+    target_link_libraries(${name} PRIVATE astraeus_engine)
+
+    # If source is .c but uses C++ link, force it
+    get_filename_component(_ext "${source}" EXT)
+    if(_ext STREQUAL ".c")
+        set_target_properties(${name} PROPERTIES LINKER_LANGUAGE CXX)
+    endif()
+endfunction()
+
+if(ASTRAEUS_BUILD_EXAMPLES)
+    astraeus_add_example(simple_example examples/simple_example.c)
+    astraeus_add_example(entity_visualization_test examples/entity_visualization_test.c)
+    astraeus_add_example(pointer_stability_test examples/pointer_stability_test.c)
+
+    astraeus_add_example(ingest_demo examples/ingest_demo.cpp)
+    astraeus_add_example(asset_test examples/asset_test.cpp)
+    astraeus_add_example(asset_unit_test examples/asset_unit_test.cpp)
+    astraeus_add_example(gltf_loader_test examples/gltf_loader_test.cpp)
+    astraeus_add_example(asset_pipeline_example examples/asset_pipeline_example.cpp)
+
+    astraeus_add_example(scene_hierarchy_test examples/scene_hierarchy_test.cpp)
+    astraeus_add_example(material_system_test examples/material_system_test.cpp)
+    astraeus_add_example(lighting_system_test examples/lighting_system_test.cpp)
+
+    astraeus_add_example(camera_system_test examples/camera_system_test.cpp)
+    astraeus_add_example(camera_component_test examples/camera_component_test.cpp)
+
+    astraeus_add_example(mesh_rendering_test examples/mesh_rendering_test.cpp)
+endif()
