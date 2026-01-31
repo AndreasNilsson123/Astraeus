@@ -8,11 +8,17 @@
 #include "../geometry/Mesh.hpp"
 #include "Texture.hpp"
 
-// tinygltf requires these defines before inclusion
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#define TINYGLTF_NO_STB_IMAGE_WRITE
+// Include tinygltf - header-only library
+// To prevent multiple definition errors, this should only be included
+// in ONE translation unit that uses glTF loading
+// Define TINYGLTF_IMPLEMENTATION before including this header in exactly one .cpp file
+#ifdef ASTRAEUS_GLTF_LOADER_IMPLEMENTATION
+    #define TINYGLTF_IMPLEMENTATION
+    #define STB_IMAGE_IMPLEMENTATION  
+    #define STB_IMAGE_WRITE_IMPLEMENTATION
+    #define TINYGLTF_NO_STB_IMAGE_WRITE
+#endif
+
 #include "../third_party/tinygltf/tiny_gltf.h"
 
 namespace astraeus {

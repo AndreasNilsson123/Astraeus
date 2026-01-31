@@ -1,4 +1,8 @@
 #include <iostream>
+
+// Define implementation for tinygltf (must be before including GLTFLoader)
+#define ASTRAEUS_GLTF_LOADER_IMPLEMENTATION
+
 #include <assets/GLTFLoader.hpp>
 #include <assets/AssetDatabase.hpp>
 
