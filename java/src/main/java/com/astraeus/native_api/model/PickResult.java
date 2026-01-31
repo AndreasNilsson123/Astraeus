@@ -22,11 +22,11 @@ public class PickResult {
     private final boolean hit;
     
     /**
-     * Create a PickingView from a native PickResult struct.
+     * Create a PickResult from a native PickResult struct.
      * 
      * @param structSegment Memory segment containing the PickResult struct
      */
-    public PickingView(MemorySegment structSegment) {
+    public PickResult(MemorySegment structSegment) {
         // Get field handles for safe access
         VarHandle entityIdHandle = EngineBindings.PICK_RESULT_LAYOUT.varHandle(
             MemoryLayout.PathElement.groupElement("entity_id"));
