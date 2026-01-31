@@ -6,6 +6,7 @@
 #include <chrono>
 #include <array>
 #include <string>
+#include "util/SafeC.hpp"
 
 namespace astraeus {
 
@@ -253,8 +254,7 @@ inline uint32_t Telemetry::begin_pass(const char* name) {
     
     // Copy pass name (safely)
     if (name) {
-        std::strncpy(timing.name, name, sizeof(timing.name) - 1);
-        timing.name[sizeof(timing.name) - 1] = '\0';
+        util::str_copy(timing.name, sizeof(timing.name), name);
     } else {
         timing.name[0] = '\0';
     }

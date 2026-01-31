@@ -3,6 +3,7 @@
 
 #include "EngineAPI.h"
 #include "core/EngineContext.hpp"
+#include "core/util/SafeC.hpp"
 #include <cstring>
 #include <memory>
 #include <type_traits>
@@ -210,7 +211,9 @@ void astraeus_apply_entity_snapshot(EngineHandle engine, uint32_t entity_id,
 void astraeus_pick(EngineHandle engine, uint32_t screen_x, uint32_t screen_y, PickResult* pick_result) {
     if (!pick_result)
         return;
-    *pick_result = {0, 0.0f, 0.0f, 0.0f, 0.0f, false};
+    
+    // Initialize all fields (including padding) to zero
+    *pick_result = {};
     
     if (!is_valid_engine(engine)) {
         return;
@@ -329,9 +332,8 @@ bool astraeus_get_pass_timing(EngineHandle engine, uint32_t pass_index,
         return false;
     }
     
-    // Copy pass name safely
-    std::strncpy(out_name_buffer, pass_timing->name, name_buffer_size - 1);
-    out_name_buffer[name_buffer_size - 1] = '\0';
+    // Copy pass name safely using our safe wrapper
+    util::str_copy(out_name_buffer, name_buffer_size, pass_timing->name);
     
     // Copy timing
     *out_time_ms = pass_timing->duration_ms;
