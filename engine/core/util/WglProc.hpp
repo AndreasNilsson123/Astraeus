@@ -14,7 +14,6 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include <GL/gl.h>
 
 namespace astraeus {
 namespace util {

@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #ifdef _WIN32
-#define NOMINMAX
     #include <windows.h>
     static void sleep_ms(unsigned int ms) {
         Sleep(ms);
@@ -97,8 +96,7 @@ int main() {
         FrameStats stats;
         astraeus_get_frame_stats(engine, &stats);
 
-        printf("Frame %lu: dt=%.3fms, render=%.3fms, entities=%u\n",
-               stats.frame_number,
+        printf("dt=%.3fms, render=%.3fms, entities=%u\n",
                stats.delta_time_ms,
                stats.render_time_ms,
                stats.entity_count);

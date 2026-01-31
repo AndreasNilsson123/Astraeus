@@ -8,6 +8,8 @@
 #include <cstring>
 #include <iostream>
 
+#include "core/util/SafeC.hpp"
+
 namespace astraeus {
 
 /**
@@ -163,9 +165,9 @@ inline bool FixedBinaryDecoder::decode(const void* data, uint32_t size,
         EntityMetadata entity_meta;
         if (src.metadata_index < header->metadata_count) {
             const MetadataData& meta_src = metadata[src.metadata_index];
-            std::strncpy(entity_meta.name, meta_src.name, sizeof(entity_meta.name) - 1);
-            std::strncpy(entity_meta.team, meta_src.team, sizeof(entity_meta.team) - 1);
-            std::strncpy(entity_meta.type, meta_src.type, sizeof(entity_meta.type) - 1);
+            util::str_copy(entity_meta.name, sizeof(entity_meta.name) - 1, meta_src.name);
+            util::str_copy(entity_meta.team, sizeof(entity_meta.team) - 1, meta_src.team);
+            util::str_copy(entity_meta.type, sizeof(entity_meta.type) - 1, meta_src.type);
             entity_meta.name[sizeof(entity_meta.name) - 1] = '\0';
             entity_meta.team[sizeof(entity_meta.team) - 1] = '\0';
             entity_meta.type[sizeof(entity_meta.type) - 1] = '\0';

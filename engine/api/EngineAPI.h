@@ -12,14 +12,23 @@ extern "C" {
 #include "generated/EngineABI_Structs.h"
 
 #if defined(_WIN32)
-    #if defined(ASTRAEUS_BUILDING_DLL)
+    // 3 modes:
+    //  - ASTRAEUS_API_STATIC: building/using as static/monolithic (no import/export)
+    //  - ASTRAEUS_BUILDING_DLL: building the DLL (dllexport)
+    //  - default: consuming the DLL (dllimport)
+#if defined(ASTRAEUS_API_STATIC)
+    #define ASTRAEUS_API
+    #elif defined(ASTRAEUS_BUILDING_DLL)
         #define ASTRAEUS_API __declspec(dllexport)
     #else
         #define ASTRAEUS_API __declspec(dllimport)
+    #endif
+#else
+    // If you later want ELF visibility:
+    // #define ASTRAEUS_API __attribute__((visibility("default")))
+    #define ASTRAEUS_API
 #endif
-    #else
-        #define ASTRAEUS_API
-#endif
+
 
 
 // =============================================================================

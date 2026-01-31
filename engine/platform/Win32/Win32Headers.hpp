@@ -10,7 +10,7 @@
  * - WIN32_LEAN_AND_MEAN: Reduces header size by excluding rarely-used APIs
  * 
  * USAGE:
- * - Only include this file in engine/platform/Win32/*.cpp files
+ * - Only include this file in engine/platform/Win32/.cpp files
  * - Never include this file in public headers
  * - Never include <windows.h> directly
  */

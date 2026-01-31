@@ -1,6 +1,7 @@
 // Minimal implementation file for C API
 // Provides non-inline definitions for C linkage
 
+#include "api/EngineAPI_Internal.hpp"
 #include "EngineAPI.h"
 #include "core/EngineContext.hpp"
 #include "core/util/SafeC.hpp"
@@ -15,24 +16,6 @@ static_assert(offsetof(TelemetryFrameStats, frame_number) == offsetof(astraeus::
               "frame_number offset mismatch");
 static_assert(offsetof(TelemetryFrameStats, pass_count) == offsetof(astraeus::Telemetry::FrameStats, pass_count),
               "pass_count offset mismatch");
-
-// Internal structure definition
-struct AstraeusEngine {
-    std::unique_ptr<astraeus::EngineContext> context;
-    FrameStats current_stats;
-    ViewportConfig viewport;
-    bool is_initialized;
-    
-    AstraeusEngine() : is_initialized(false) {
-        memset(&current_stats, 0, sizeof(FrameStats));
-        memset(&viewport, 0, sizeof(ViewportConfig));
-    }
-};
-
-// Helper function
-static inline bool is_valid_engine(EngineHandle engine) {
-    return engine != nullptr && engine->is_initialized && engine->context != nullptr;
-}
 
 // =============================================================================
 // C API IMPLEMENTATIONS (non-inline for C linkage)
@@ -333,7 +316,7 @@ bool astraeus_get_pass_timing(EngineHandle engine, uint32_t pass_index,
     }
     
     // Copy pass name safely using our safe wrapper
-    util::str_copy(out_name_buffer, name_buffer_size, pass_timing->name);
+    astraeus::util::str_copy(out_name_buffer, name_buffer_size, pass_timing->name);
     
     // Copy timing
     *out_time_ms = pass_timing->duration_ms;

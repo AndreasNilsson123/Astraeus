@@ -11,6 +11,8 @@
 #include <iostream>
 #include <random>
 
+#include "core/util/SafeC.hpp"
+
 namespace astraeus {
 
 /**
@@ -357,9 +359,9 @@ inline std::vector<uint8_t> DeterministicSimGenerator::generate_frame(double tim
     
     for (size_t i = 0; i < entity_configs_.size(); i++) {
         const SimEntityConfig& config = entity_configs_[i];
-        std::strncpy(metadata[i].name, config.name.c_str(), sizeof(metadata[i].name) - 1);
-        std::strncpy(metadata[i].team, config.team.c_str(), sizeof(metadata[i].team) - 1);
-        std::strncpy(metadata[i].type, config.type.c_str(), sizeof(metadata[i].type) - 1);
+        util::str_copy(metadata[i].name, sizeof(metadata[i].name) - 1, config.name.c_str() );
+        util::str_copy(metadata[i].team, sizeof(metadata[i].team) - 1, config.team.c_str());
+        util::str_copy(metadata[i].type, sizeof(metadata[i].type) - 1 , config.type.c_str());
         metadata[i].name[sizeof(metadata[i].name) - 1] = '\0';
         metadata[i].team[sizeof(metadata[i].team) - 1] = '\0';
         metadata[i].type[sizeof(metadata[i].type) - 1] = '\0';

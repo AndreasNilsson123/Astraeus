@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <math.h>
 #ifdef _WIN32
-    #define NOMINMAX
     #include <windows.h>
     static void sleep_ms(unsigned int ms) {
         Sleep(ms);

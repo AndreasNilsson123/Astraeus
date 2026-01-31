@@ -91,6 +91,9 @@ if(ASTRAEUS_BUILD_SHARED)
     target_compile_definitions(astraeus_engine PRIVATE ASTRAEUS_BUILDING_DLL)
 else()
     add_library(astraeus_engine STATIC ${ASTRAEUS_ENGINE_SOURCES})
+
+    # IMPORTANT (Windows): consumers must NOT see dllimport when linking statically
+    target_compile_definitions(astraeus_engine PUBLIC ASTRAEUS_API_STATIC)
 endif()
 
 set_target_properties(astraeus_engine PROPERTIES
@@ -104,6 +107,7 @@ target_include_directories(astraeus_engine
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:include>
 )
+
 
 # ==================================================
 # Dependencies
@@ -144,7 +148,7 @@ target_link_libraries(astraeus_engine
 
 # Platform-specific libraries
 if(WIN32)
-    target_link_libraries(astraeus_engine PRIVATE winmm)  # For timeBeginPeriod
+    target_link_libraries(astraeus_engine PUBLIC winmm)  # timeBeginPeriod
 endif()
 
 # Linux EGL path
@@ -176,7 +180,7 @@ install(TARGETS astraeus_engine
         ARCHIVE DESTINATION lib
 )
 
-install(FILES engine/api/EngineAPI.h
+install(FILES api/EngineAPI.h
         DESTINATION include/astraeus
 )
 
@@ -198,34 +202,29 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     target_link_libraries(pointer_stability_test PRIVATE astraeus_engine)
     set_target_properties(pointer_stability_test PROPERTIES LINKER_LANGUAGE CXX)
 
-    add_executable(ingest_demo examples/ingest_demo.cpp ${ASTRAEUS_ENGINE_SOURCES}) # Include engine sources directly due to symbol linkage errors on windows
-    target_include_directories(ingest_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(ingest_demo PRIVATE Threads::Threads OpenGL::GL glad)
+    add_executable(ingest_demo examples/ingest_demo.cpp)
+    target_link_libraries(ingest_demo PRIVATE astraeus_engine)
 
-    add_executable(asset_test examples/asset_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
-    target_include_directories(asset_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(asset_test PRIVATE Threads::Threads OpenGL::GL glad)
+    add_executable(asset_test examples/asset_test.cpp)
+    target_link_libraries(asset_test PRIVATE astraeus_engine)
 
-    add_executable(asset_unit_test examples/asset_unit_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
-    target_include_directories(asset_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(asset_unit_test PRIVATE Threads::Threads OpenGL::GL glad)
+    add_executable(asset_unit_test examples/asset_unit_test.cpp)
+    target_link_libraries(asset_unit_test PRIVATE astraeus_engine)
 
-    add_executable(scene_hierarchy_test examples/scene_hierarchy_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
-    target_include_directories(scene_hierarchy_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(scene_hierarchy_test PRIVATE Threads::Threads OpenGL::GL glad)
+    add_executable(scene_hierarchy_test examples/scene_hierarchy_test.cpp)
+    target_link_libraries(scene_hierarchy_test PRIVATE astraeus_engine)
 
-    add_executable(material_system_test examples/material_system_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
-    target_include_directories(material_system_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(material_system_test PRIVATE Threads::Threads OpenGL::GL glad)
-    add_executable(camera_system_test examples/camera_system_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
-    target_include_directories(camera_system_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(camera_system_test PRIVATE Threads::Threads OpenGL::GL glad)
+    add_executable(material_system_test examples/material_system_test.cpp)
+    target_link_libraries(material_system_test PRIVATE astraeus_engine)
 
-    add_executable(camera_component_test examples/camera_component_test.cpp ${ASTRAEUS_ENGINE_SOURCES})
-    target_include_directories(camera_component_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(camera_component_test PRIVATE Threads::Threads OpenGL::GL glad)
+    add_executable(camera_system_test examples/camera_system_test.cpp)
+    target_link_libraries(camera_system_test PRIVATE astraeus_engine)
+
+    add_executable(camera_component_test examples/camera_component_test.cpp)
+    target_link_libraries(camera_component_test PRIVATE astraeus_engine)
 
 endif()
+
 
 # ==================================================
 # Summary

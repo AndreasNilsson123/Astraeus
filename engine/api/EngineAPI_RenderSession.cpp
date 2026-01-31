@@ -1,6 +1,7 @@
 // Render Session API implementation
 // Provides viewport, camera, and material management for Java FFM integration
 
+#include "api/EngineAPI_Internal.hpp"
 #include "EngineAPI.h"
 #include "core/EngineContext.hpp"
 #include "scene/Camera.hpp"
@@ -62,19 +63,6 @@ bool is_valid_material(MaterialHandle material) {
 
 } // anonymous namespace
 
-// Forward declaration of engine handle struct (defined in EngineAPI_stub.cpp)
-struct AstraeusEngine {
-    std::unique_ptr<astraeus::EngineContext> context;
-    FrameStats current_stats;
-    ViewportConfig viewport;
-    bool is_initialized;
-};
-
-// Helper to check engine validity (matches EngineAPI_stub.cpp)
-static inline bool is_valid_engine(EngineHandle engine) {
-    return engine != nullptr && engine->is_initialized && engine->context != nullptr;
-}
-
 // =============================================================================
 // C API IMPLEMENTATIONS
 // =============================================================================
@@ -87,9 +75,7 @@ extern "C" {
 
 uint32_t astraeus_api_version(void) {
     // Version format: (MAJOR << 16) | (MINOR << 8) | PATCH
-    return (ASTRAEUS_VERSION_MAJOR << 16) | 
-           (ASTRAEUS_VERSION_MINOR << 8) | 
-           ASTRAEUS_VERSION_PATCH;
+    return (ASTRAEUS_VERSION_MAJOR << 16) | (ASTRAEUS_VERSION_MINOR << 8) | ASTRAEUS_VERSION_PATCH;
 }
 
 const char* astraeus_last_error(EngineHandle engine) {
