@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <deque>
 #include <mutex>
 #include <cstring>
 #include <algorithm>
@@ -202,7 +203,7 @@ public:
     void set_max_queue_size(size_t max_size);
 
 private:
-    std::vector<Event*> event_queue_;
+    std::deque<Event*> event_queue_;  // Use deque for O(1) front removal
     mutable std::mutex mutex_;
     size_t max_queue_size_;
     
@@ -216,7 +217,7 @@ private:
 
 inline EventBus::EventBus()
     : max_queue_size_(1024) {
-    event_queue_.reserve(256);
+    // deque doesn't need reserve
 }
 
 inline EventBus::~EventBus() {
@@ -238,7 +239,7 @@ inline void EventBus::post(Event* event) {
     // Drop oldest events if queue is full
     while (event_queue_.size() >= max_queue_size_) {
         Event* old_event = event_queue_.front();
-        event_queue_.erase(event_queue_.begin());
+        event_queue_.pop_front();  // O(1) with deque
         delete old_event;
     }
     
@@ -253,7 +254,7 @@ inline Event* EventBus::poll() {
     }
     
     Event* event = event_queue_.front();
-    event_queue_.erase(event_queue_.begin());
+    event_queue_.pop_front();  // O(1) with deque
     return event;
 }
 

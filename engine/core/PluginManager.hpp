@@ -329,7 +329,7 @@ inline LibraryHandle PluginManager::load_library(const char* path) {
 #ifdef _WIN32
     return LoadLibraryA(path);
 #else
-    return dlopen(path, RTLD_LAZY | RTLD_LOCAL);
+    return dlopen(path, RTLD_NOW | RTLD_LOCAL);  // Use RTLD_NOW to catch symbol errors during load
 #endif
 }
 
