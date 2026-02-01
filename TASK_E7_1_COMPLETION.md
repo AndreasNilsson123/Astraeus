@@ -4,6 +4,7 @@
 
 **Task ID:** E7.1  
 **Title:** PostChain integration: wire into frame pipeline + config plumbing + output contract lock (Java readback stable)  
+**Date Completed:** February 1, 2026  
 **Status:** ✅ COMPLETED
 
 ## Objective

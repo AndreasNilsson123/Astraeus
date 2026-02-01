@@ -62,7 +62,8 @@ public:
      * OUTPUT CONTRACT:
      * - Final output is written to output_fbo in RGBA8 format (internal GPU format)
      * - Gamma correction is applied exactly once (no double-sRGB)
-     * - Readback from output_fbo texture will convert RGBA->BGRA if needed by glGetTexImage
+     * - Readback: When JavaFX requests BGRA8 via glGetTexImage with GL_BGRA format,
+     *   OpenGL automatically converts RGBA->BGRA during the readback transfer
      * - Color space: sRGB-compatible (gamma 2.2 applied by GammaCorrectionPass)
      * - Alpha channel: preserved through all passes
      * 

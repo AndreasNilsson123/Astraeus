@@ -97,7 +97,10 @@ protected:
 // ============================================================================
 
 // Note: Post-processing includes placed here (not at top) to avoid circular
-// dependencies: PostChain -> PostProcessPass -> RenderPass -> RenderGraph
+// dependency: PostChain.hpp includes PostProcessPass.hpp, which includes
+// RenderGraph.hpp for RenderPass base class. Forward declarations at the top
+// of RenderGraph.hpp (class PostChain) break the cycle for the interface,
+// but the implementation needs the full definition.
 #include "passes/post/PostChain.hpp"
 #include "passes/post/ToneMappingPass.hpp"
 #include "passes/post/GammaCorrectionPass.hpp"
@@ -249,7 +252,7 @@ inline void RenderGraph::ensure_post_chain_initialized() {
         // Can be changed to Reinhard, ACES, etc. for HDR content
         // Note: 'None' means pass-through (identity operation), not an error state
         auto tone_map = std::make_unique<ToneMappingPass>();
-        tone_map->set_operator(ToneMappingPass::ToneMapOperator::None);  // No tone mapping
+        tone_map->set_operator(ToneMappingPass::ToneMapOperator::None);  // Pass-through mode
         tone_map->set_exposure(1.0f);
         post_chain_->add_pass(std::move(tone_map));
         
