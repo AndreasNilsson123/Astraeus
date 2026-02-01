@@ -170,6 +170,11 @@ public:
      * Get entity count.
      */
     uint32_t get_entity_count() const;
+    
+    /**
+     * Get visible entity count (diagnostic).
+     */
+    uint32_t get_visible_entity_count() const;
 
     /**
      * Set entity transform.
@@ -629,6 +634,10 @@ inline void World::destroy_entity(uint32_t entity_id) {
 
 inline uint32_t World::get_entity_count() const {
     return static_cast<uint32_t>(active_entities_.size());
+}
+
+inline uint32_t World::get_visible_entity_count() const {
+    return static_cast<uint32_t>(renderable_entities_cache_.size());
 }
 
 inline void World::set_entity_transform(uint32_t entity_id,
