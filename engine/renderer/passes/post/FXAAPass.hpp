@@ -27,11 +27,11 @@ public:
     };
 
     inline FXAAPass();
-    inline ~FXAAPass() override;
+    inline ~FXAAPass();
 
-    inline bool initialize(RenderDevice* device) override;
-    inline void apply(uint32_t input_texture, uint32_t output_fbo) override;
-    inline const char* get_name() const override { return "FXAA"; }
+    inline bool initialize(RenderDevice* device);
+    inline void apply(uint32_t input_texture, uint32_t output_fbo);
+    inline const char* get_name() const { return "FXAA"; }
 
     // Configuration (for future implementation)
     inline void set_quality(Quality quality);

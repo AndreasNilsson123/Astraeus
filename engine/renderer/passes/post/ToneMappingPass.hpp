@@ -2,6 +2,7 @@
 #define ASTRAEUS_TONE_MAPPING_PASS_HPP
 
 #include "PostProcessPass.hpp"
+#include "../../opengl/GLRenderDevice.hpp"
 #include <string>
 #include <iostream>
 
@@ -21,11 +22,11 @@ public:
     };
 
     inline ToneMappingPass();
-    inline ~ToneMappingPass() override;
+    inline ~ToneMappingPass();
 
-    inline bool initialize(RenderDevice* device) override;
-    inline void apply(uint32_t input_texture, uint32_t output_fbo) override;
-    inline const char* get_name() const override { return "ToneMapping"; }
+    inline bool initialize(RenderDevice* device);
+    inline void apply(uint32_t input_texture, uint32_t output_fbo);
+    inline const char* get_name() const { return "ToneMapping"; }
 
     // Configuration
     inline void set_operator(ToneMapOperator op);
