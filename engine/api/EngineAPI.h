@@ -425,14 +425,78 @@ ASTRAEUS_API void astraeus_pick(EngineHandle engine, uint32_t screen_x, uint32_t
 // =============================================================================
 
 /**
- * Ingest external simulation data snapshot.
- * @param engine Engine handle
- * @param data Pointer to simulation data
- * @param size Size of data in bytes
- * @param format Data format identifier
- * @return true on success, false on failure
+ * Data format identifiers for ingestion.
  */
-ASTRAEUS_API bool astraeus_ingest_data(EngineHandle engine, const void* data, uint32_t size, uint32_t format);
+typedef enum {
+    ASTRAEUS_FORMAT_FIXED_BINARY = 0,  // Fixed binary format (default)
+    ASTRAEUS_FORMAT_JSON = 1,          // JSON format (future)
+    ASTRAEUS_FORMAT_CUSTOM = 255       // Custom format
+} AstraeusDataFormat;
+
+/**
+ * Ingest status structure for polling job progress.
+ * This is a POD struct safe for FFM boundary crossing.
+ */
+typedef struct {
+    uint64_t job_id;           // Job identifier
+    uint32_t format;           // Data format used
+    uint32_t total_bytes;      // Total bytes to process
+    uint32_t processed_bytes;  // Bytes processed so far
+    uint8_t is_complete;       // true if job is complete
+    uint8_t has_error;         // true if job had an error
+    uint8_t _padding[2];       // Alignment padding
+    char last_error[256];      // Last error message (if any)
+} IngestStatus;
+
+/**
+ * Ingest external simulation data snapshot.
+ * This function is thread-safe and returns immediately with a job ID.
+ * Use astraeus_get_ingest_status() to poll for completion.
+ * 
+ * @param engine Engine handle
+ * @param data Pointer to simulation data (must not be NULL)
+ * @param size Size of data in bytes (must be > 0)
+ * @param format Data format identifier (see AstraeusDataFormat)
+ * @return Job ID (non-zero on success, 0 on failure)
+ * 
+ * Thread Safety: Safe to call from any thread
+ * Lifetime: Data is copied internally; caller may free after return
+ * 
+ * Supported Formats:
+ * - ASTRAEUS_FORMAT_FIXED_BINARY (0): Deterministic binary format with header
+ * - ASTRAEUS_FORMAT_JSON (1): JSON format (not yet implemented)
+ * - ASTRAEUS_FORMAT_CUSTOM (255): Custom format (requires registered decoder)
+ */
+ASTRAEUS_API uint64_t astraeus_ingest_data(EngineHandle engine, const void* data, uint32_t size, uint32_t format);
+
+/**
+ * Get the status of an ingest job.
+ * This is a polling-based interface (no callbacks) for FFM safety.
+ * 
+ * @param engine Engine handle
+ * @param job_id Job identifier returned from astraeus_ingest_data()
+ * @param out_status Output status structure (must not be NULL)
+ * @return true if job exists, false if job not found
+ * 
+ * Thread Safety: Safe to call from any thread
+ */
+ASTRAEUS_API bool astraeus_get_ingest_status(EngineHandle engine, uint64_t job_id, IngestStatus* out_status);
+
+/**
+ * Get the current simulation time from the ingest subsystem.
+ * 
+ * @param engine Engine handle
+ * @return Current simulation time in seconds (0.0 if not initialized)
+ */
+ASTRAEUS_API double astraeus_get_sim_time(EngineHandle engine);
+
+/**
+ * Get the total number of snapshots ingested.
+ * 
+ * @param engine Engine handle
+ * @return Total snapshot count
+ */
+ASTRAEUS_API uint64_t astraeus_get_snapshot_count(EngineHandle engine);
 
 // =============================================================================
 // CAMERA CONTROL

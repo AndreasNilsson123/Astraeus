@@ -36,10 +36,16 @@ This document provides the authoritative mapping of all engine capabilities acro
 
 | Layer | Total | Working | Stubbed | Missing |
 |-------|-------|---------|---------|---------|
-| **C API Functions** | 41 | 36 | 5 | 0 |
-| **Java Bindings** | 36 | 36 | 0 | 5 |
+| **C API Functions** | 45 | 40 | 5 | 0 |
+| **Java Bindings** | 36 | 36 | 0 | 9 |
 | **Java Wrappers** | 30+ | 25 | 5 | 0 |
 | **UI Integration** | 25+ | 15 | 10 | 0 |
+
+**Recent Updates (D2):**
+- ✅ Added 4 new C API functions for data ingestion (astraeus_ingest_data, astraeus_get_ingest_status, astraeus_get_sim_time, astraeus_get_snapshot_count)
+- ✅ Implemented full ingest pipeline in C++ (SchemaRegistry, SnapshotStore, TimeSync, WorldSync)
+- ✅ Created DATA_INGEST_FORMAT.md specification
+- ✅ Generated sample data files for testing
 
 ---
 
@@ -190,19 +196,37 @@ This document provides the authoritative mapping of all engine capabilities acro
 
 | Feature | C API Symbol | Java Binding | Java Wrapper | AstraeusApp Usage | Status |
 |---------|-------------|--------------|--------------|-------------------|--------|
-| **Ingest Data** | `astraeus_ingest_data()` | *(missing)* | *(N/A)* | *(N/A)* | 🔴 Missing |
+| **Ingest Data** | `astraeus_ingest_data()` | *(missing)* | *(N/A)* | *(N/A)* | 🟡 Implemented (C only) |
+| **Get Ingest Status** | `astraeus_get_ingest_status()` | *(missing)* | *(N/A)* | *(N/A)* | 🟡 Implemented (C only) |
+| **Get Sim Time** | `astraeus_get_sim_time()` | *(missing)* | *(N/A)* | *(N/A)* | 🟡 Implemented (C only) |
+| **Get Snapshot Count** | `astraeus_get_snapshot_count()` | *(missing)* | *(N/A)* | *(N/A)* | 🟡 Implemented (C only) |
 
 **Notes:**
-- C++ ingest manager exists but not exposed via C API
-- No Java bindings for data ingestion
-- No UI for loading simulation snapshots
+- ✅ C API contract complete with payload schema (FixedBinary format)
+- ✅ Full ingest pipeline implemented (SchemaRegistry, SnapshotStore, TimeSync, WorldSync)
+- ✅ Polling-based status query (FFM-safe, no callbacks)
+- ✅ Sample data generator and test files available
+- ✅ Documentation complete (DATA_INGEST_FORMAT.md)
+- 🔴 Java bindings not yet implemented (J6 task)
+- 🔴 JavaFX file picker UI not yet implemented (J7 task)
 
-**Gaps:**
-- `astraeus_ingest_data()` needs binding
-- Need decoder registration mechanism
-- Need schema definition for common formats (JSON, binary)
-- Need UI file picker and format selector
-- Need progress indication for large data loads
+**Implementation Details:**
+- Format IDs: 0=FixedBinary, 1=JSON (planned), 255=Custom
+- Job-based ingestion with status polling
+- Thread-safe ingestion from any thread
+- Double-buffered snapshot store for zero-copy reads
+- Automatic application to World during begin_frame()
+
+**Gaps (Java side):**
+- Java bindings for new API functions (J6)
+- IngestPane UI with file picker (J7)
+- Format selector in UI (J7)
+- Progress indication visualization (J7)
+
+**Reference:**
+- See [DATA_INGEST_FORMAT.md](DATA_INGEST_FORMAT.md) for format specification
+- Sample files: `assets/sample_data_*.bin`
+- Example usage: `engine/examples/ingest_demo.cpp`
 
 ---
 

@@ -204,12 +204,36 @@ void astraeus_pick(EngineHandle engine, uint32_t screen_x, uint32_t screen_y, Pi
     engine->context->pick(screen_x, screen_y, *pick_result);
 }
 
-bool astraeus_ingest_data(EngineHandle engine, const void* data, uint32_t size, uint32_t format) {
-    if (!is_valid_engine(engine) || !data) {
-        return false;
+uint64_t astraeus_ingest_data(EngineHandle engine, const void* data, uint32_t size, uint32_t format) {
+    if (!is_valid_engine(engine) || !data || size == 0) {
+        return 0;
     }
     
     return engine->context->ingest_data(data, size, format);
+}
+
+bool astraeus_get_ingest_status(EngineHandle engine, uint64_t job_id, IngestStatus* out_status) {
+    if (!is_valid_engine(engine) || !out_status) {
+        return false;
+    }
+    
+    return engine->context->get_ingest_status(job_id, out_status);
+}
+
+double astraeus_get_sim_time(EngineHandle engine) {
+    if (!is_valid_engine(engine)) {
+        return 0.0;
+    }
+    
+    return engine->context->get_sim_time();
+}
+
+uint64_t astraeus_get_snapshot_count(EngineHandle engine) {
+    if (!is_valid_engine(engine)) {
+        return 0;
+    }
+    
+    return engine->context->get_snapshot_count();
 }
 
 void astraeus_set_camera(EngineHandle engine,
