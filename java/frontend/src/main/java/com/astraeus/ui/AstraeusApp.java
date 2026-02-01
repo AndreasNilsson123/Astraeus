@@ -125,6 +125,10 @@ public class AstraeusApp extends Application {
             workspace.getConsolePane().info("Initializing engine...");
             engine = new NativeEngine(1280, 720, true);
             
+            // Set initial camera projection parameters
+            // This ensures the projection is set before the first resize
+            engine.setCameraProjection(60.0f, 0.1f, 1000.0f);
+            
             // Update workspace with engine reference
             workspace.setEngine(engine);
             

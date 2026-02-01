@@ -57,6 +57,13 @@ public class NativeEngine implements AutoCloseable {
     private final Arena arena;
     private boolean closed = false;
     
+    // Camera projection state tracking for resize operations
+    private float currentFovDegrees = 60.0f;  // Default FOV
+    private float currentNearPlane = 0.1f;     // Default near plane
+    private float currentFarPlane = 1000.0f;   // Default far plane
+    private int currentViewportWidth = 0;
+    private int currentViewportHeight = 0;
+    
     /**
      * Create a new engine instance with default configuration.
      * 
@@ -127,6 +134,10 @@ public class NativeEngine implements AutoCloseable {
                 throw new RuntimeException("Failed to create native engine");
             }
             
+            // Initialize viewport dimensions from config
+            this.currentViewportWidth = engineConfig.getInitialWidth();
+            this.currentViewportHeight = engineConfig.getInitialHeight();
+            
             // Verify engine is valid
             boolean valid = (boolean) EngineBindings.IS_VALID.invoke(engineHandle);
             if (!valid) {
@@ -173,6 +184,10 @@ public class NativeEngine implements AutoCloseable {
     /**
      * Resize the viewport.
      * IMPORTANT: This only changes the viewport region, NOT the backing buffer size.
+     * 
+     * <p><b>DEPRECATED:</b> Use {@link #resizeViewportWithProjection(int, int, float, float, float)}
+     * instead to ensure camera projection is updated with the new aspect ratio.</p>
+     * 
      * @param width New viewport width
      * @param height New viewport height
      */
@@ -183,6 +198,76 @@ public class NativeEngine implements AutoCloseable {
         } catch (Throwable e) {
             throw new RuntimeException("Failed to resize viewport", e);
         }
+    }
+    
+    /**
+     * Resize viewport and update camera projection in a single atomic operation.
+     * 
+     * <p>This is the authoritative resize method that ensures camera projection
+     * is updated with the correct aspect ratio immediately after viewport resize.
+     * This prevents race conditions where camera updates arrive before/after resize
+     * updates.</p>
+     * 
+     * <p><b>Resize Flow:</b></p>
+     * <ol>
+     *   <li>Update native viewport dimensions (device pixels)</li>
+     *   <li>Calculate new aspect ratio from viewport dimensions</li>
+     *   <li>Update camera projection with new aspect ratio</li>
+     * </ol>
+     * 
+     * <p><b>Thread Safety:</b> Must be called from the owning thread only.</p>
+     * 
+     * @param width New viewport width in device pixels
+     * @param height New viewport height in device pixels
+     * @param fovDegrees Field of view in degrees
+     * @param nearPlane Near clipping plane distance
+     * @param farPlane Far clipping plane distance
+     * @throws RuntimeException if resize or projection update fails
+     */
+    public void resizeViewportWithProjection(int width, int height, 
+                                             float fovDegrees, float nearPlane, float farPlane) {
+        checkClosed();
+        
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("Invalid viewport dimensions: " + width + "x" + height);
+        }
+        
+        try {
+            // Step 1: Resize viewport (updates native viewport dimensions)
+            EngineBindings.RESIZE_VIEWPORT.invoke(engineHandle, width, height);
+            
+            // Step 2: Update camera projection with new aspect ratio
+            // The native engine calculates aspect ratio from current viewport dimensions
+            EngineBindings.SET_CAMERA_PROJECTION.invoke(engineHandle,
+                fovDegrees, nearPlane, farPlane);
+            
+            // Track current state for future resize operations
+            this.currentViewportWidth = width;
+            this.currentViewportHeight = height;
+            this.currentFovDegrees = fovDegrees;
+            this.currentNearPlane = nearPlane;
+            this.currentFarPlane = farPlane;
+            
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to resize viewport with projection", e);
+        }
+    }
+    
+    /**
+     * Resize viewport using the last known camera projection parameters.
+     * 
+     * <p>This is a convenience method that automatically uses the projection
+     * parameters from the last call to {@link #resizeViewportWithProjection}
+     * or {@link #setCameraProjection}. If no projection has been set, uses
+     * default values (FOV 60°, near 0.1, far 1000).</p>
+     * 
+     * @param width New viewport width in device pixels
+     * @param height New viewport height in device pixels
+     * @throws RuntimeException if resize or projection update fails
+     */
+    public void resizeViewportWithProjection(int width, int height) {
+        resizeViewportWithProjection(width, height, 
+                                     currentFovDegrees, currentNearPlane, currentFarPlane);
     }
     
     /**
@@ -698,9 +783,65 @@ public class NativeEngine implements AutoCloseable {
         try {
             EngineBindings.SET_CAMERA_PROJECTION.invoke(engineHandle,
                 fovDegrees, nearPlane, farPlane);
+            
+            // Track current projection parameters for future resize operations
+            this.currentFovDegrees = fovDegrees;
+            this.currentNearPlane = nearPlane;
+            this.currentFarPlane = farPlane;
         } catch (Throwable e) {
             throw new RuntimeException("Failed to set camera projection", e);
         }
+    }
+    
+    /**
+     * Get the current viewport width.
+     * @return Current viewport width in device pixels
+     */
+    public int getCurrentViewportWidth() {
+        return currentViewportWidth;
+    }
+    
+    /**
+     * Get the current viewport height.
+     * @return Current viewport height in device pixels
+     */
+    public int getCurrentViewportHeight() {
+        return currentViewportHeight;
+    }
+    
+    /**
+     * Get the current camera aspect ratio.
+     * @return Aspect ratio (width/height), or 1.0 if viewport not yet set
+     */
+    public float getCurrentAspectRatio() {
+        if (currentViewportHeight <= 0) {
+            return 1.0f;
+        }
+        return (float) currentViewportWidth / (float) currentViewportHeight;
+    }
+    
+    /**
+     * Get the current camera FOV in degrees.
+     * @return Field of view in degrees
+     */
+    public float getCurrentFovDegrees() {
+        return currentFovDegrees;
+    }
+    
+    /**
+     * Get the current near clipping plane distance.
+     * @return Near plane distance
+     */
+    public float getCurrentNearPlane() {
+        return currentNearPlane;
+    }
+    
+    /**
+     * Get the current far clipping plane distance.
+     * @return Far plane distance
+     */
+    public float getCurrentFarPlane() {
+        return currentFarPlane;
     }
     
     /**
