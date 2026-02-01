@@ -117,7 +117,7 @@ Successfully implemented a comprehensive unit and component test suite for the A
 Added dependencies:
 - JUnit 5 (Jupiter) 5.10.1
 - JUnit Platform Launcher 1.10.1
-- AssertJ 3.24.2
+- **AssertJ 3.27.7** (patched for XXE vulnerability - CVE affecting 1.4.0-3.27.6)
 - Mockito 5.8.0
 - TestFX 4.0.18
 - Monocle (headless JavaFX)
@@ -208,6 +208,12 @@ gradle test --tests "*.lifecycle.*"
 ```
 
 ## Code Quality
+
+### Security
+✅ **All dependencies scanned and patched**
+- AssertJ upgraded to 3.27.7 to patch XXE vulnerability
+- No known security vulnerabilities in test dependencies
+- Ready for security-conscious environments
 
 ### Coverage
 - All FFM struct layouts validated
