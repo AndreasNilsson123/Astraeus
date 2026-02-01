@@ -1,5 +1,5 @@
 #!/bin/bash
-# Regenerate ABI struct code from schema
+# Regenerate ABI struct code from schema using the new extensible framework
 # Run this script whenever you modify abi_structs_schema.yaml
 
 set -e
@@ -16,21 +16,10 @@ echo "================================================"
 echo "Regenerating ABI Struct Code"
 echo "================================================"
 
-SCHEMA_FILE="$PROJECT_ROOT/engine/api/abi_structs_schema.yaml"
-CODEGEN_CLASS="com.astraeus.tools.ABICodeGenerator"
-CODEGEN_SRC="$PROJECT_ROOT/java/src/main/java/com/astraeus/tools/ABICodeGenerator.java"
-
-# Compile code generator
-echo -e "${YELLOW}Compiling code generator...${NC}"
-TEMP_DIR=$(mktemp -d)
-javac -d "$TEMP_DIR" --source 17 --target 17 "$CODEGEN_SRC"
-
-# Run code generator
-echo -e "${YELLOW}Running code generator...${NC}"
-java -cp "$TEMP_DIR" "$CODEGEN_CLASS" "$SCHEMA_FILE" "$PROJECT_ROOT"
-
-# Cleanup
-rm -rf "$TEMP_DIR"
+# Use Gradle to run the new codegen framework
+echo -e "${YELLOW}Running code generator via Gradle...${NC}"
+cd "$PROJECT_ROOT/java"
+./gradlew :codegen:generateAbi --console=plain
 
 echo ""
 echo -e "${GREEN}================================================${NC}"
@@ -38,7 +27,8 @@ echo -e "${GREEN}✓ Code generation completed${NC}"
 echo -e "${GREEN}================================================${NC}"
 echo ""
 echo "Generated files:"
-echo "  - engine/api/EngineABI_Structs.gen.h"
-echo "  - java/src/main/java/com/astraeus/native_api/StructLayouts.gen.java"
+echo "  - engine/generated/EngineABI_Structs.h"
+echo "  - java/frontend/build/generated/sources/astraeusAbi/main/com/astraeus/generated/StructLayouts.java"
 echo ""
 echo "Run './verify_abi_codegen.sh' to verify the generated files."
+
