@@ -41,8 +41,8 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.1")
     
-    // AssertJ for fluent assertions
-    testImplementation("org.assertj:assertj-core:3.24.2")
+    // AssertJ for fluent assertions (patched version for CVE-2024-XXXX XXE vulnerability)
+    testImplementation("org.assertj:assertj-core:3.27.7")
     
     // Mockito for mocking
     testImplementation("org.mockito:mockito-core:5.8.0")
