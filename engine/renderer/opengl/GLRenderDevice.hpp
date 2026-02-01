@@ -85,7 +85,7 @@ public:
     void draw_indexed(uint32_t primitive_type, uint32_t index_count, uint32_t index_type);
 
     // Camera matrix management for picking
-    void set_view_projection_matrix(const float* view_projection);
+    void set_view_projection_matrix(const float* view_projection) override;
     
     // Framebuffer access for post-processing
     uint32_t get_main_fbo() const { return main_fbo_; }
@@ -202,10 +202,10 @@ inline GLRenderDevice::GLRenderDevice(const Config& config)
     , color_fence_(nullptr)
     , id_fence_(nullptr)
     , depth_fence_(nullptr)
-    , has_khr_debug_(false)
-    , debug_output_enabled_(false)
     , cached_view_projection_matrix_{0}      // Zero-initialize
     , cached_inv_view_projection_{0}          // Zero-initialize
+    , has_khr_debug_(false)
+    , debug_output_enabled_(false)
 {
     // Set identity matrix diagonal elements
     cached_view_projection_matrix_[0] = cached_view_projection_matrix_[5] = 

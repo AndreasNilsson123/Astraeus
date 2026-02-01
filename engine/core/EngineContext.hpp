@@ -558,7 +558,7 @@ inline bool EngineContext::get_ingest_status(uint64_t job_id, IngestStatus* out_
             out_status->processed_bytes = internal_status.processed_bytes;
             out_status->is_complete = internal_status.is_complete ? 1 : 0;
             out_status->has_error = internal_status.has_error ? 1 : 0;
-            std::strncpy(out_status->last_error, internal_status.last_error, sizeof(out_status->last_error) - 1);
+            util::str_copy(out_status->last_error, sizeof(out_status->last_error) - 1, internal_status.last_error);
             out_status->last_error[sizeof(out_status->last_error) - 1] = '\0';
             return true;
         }

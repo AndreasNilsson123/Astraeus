@@ -2,6 +2,7 @@
 #include "passes/post/PostChain.hpp"
 #include "passes/post/ToneMappingPass.hpp"
 #include "passes/post/GammaCorrectionPass.hpp"
+#include "passes/post/PostChain.hpp"
 #include "opengl/GLRenderDevice.hpp"
 #include "core/Telemetry.hpp"
 #include <iostream>

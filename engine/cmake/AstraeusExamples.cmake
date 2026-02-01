@@ -2,7 +2,14 @@ include_guard(GLOBAL)
 
 function(astraeus_add_example name source)
     add_executable(${name} ${ASTRAEUS_ROOT_DIR}/${source})
-    target_link_libraries(${name} PRIVATE astraeus_engine)
+
+    # If we build the engine as SHARED, link native examples/tests to the STATIC variant
+    # to avoid relying on exported C++ symbols from the DLL import lib on Windows.
+    if(TARGET astraeus_engine_static)
+        target_link_libraries(${name} PRIVATE astraeus_engine_static)
+    else()
+        target_link_libraries(${name} PRIVATE astraeus_engine)
+    endif()
 
     # If source is .c but uses C++ link, force it
     get_filename_component(_ext "${source}" EXT)
@@ -10,6 +17,7 @@ function(astraeus_add_example name source)
         set_target_properties(${name} PROPERTIES LINKER_LANGUAGE CXX)
     endif()
 endfunction()
+
 
 if(ASTRAEUS_BUILD_EXAMPLES)
     astraeus_add_example(simple_example examples/simple_example.c)

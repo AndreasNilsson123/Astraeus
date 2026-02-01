@@ -119,7 +119,7 @@ inline void WorldSync::apply_snapshot(const SnapshotView& snapshot) {
         snapshot_entities.insert(entity_id);
         
         // Ensure entity exists in World (creates if needed)
-        bool was_created = world_->ensure_entity(entity_id);
+        world_->ensure_entity(entity_id);
         
         // Track for statistics
         bool is_new = (active_entities_.find(entity_id) == active_entities_.end());

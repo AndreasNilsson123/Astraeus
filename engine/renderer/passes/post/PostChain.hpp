@@ -8,13 +8,13 @@
 
 // OpenGL headers
 #define GL_GLEXT_PROTOTYPES
+#include "PostProcessPass.hpp"
 #include "platform/GL/GLHeaders.hpp"
 
 namespace astraeus {
 
 // Forward declarations
 class RenderDevice;
-class PostProcessPass;
 
 /**
  * PostChain: Manages a configurable sequence of post-processing passes.

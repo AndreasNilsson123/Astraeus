@@ -8,8 +8,7 @@
 #include <algorithm>
 #include <limits>
 
-namespace astraeus {
-namespace spatial {
+namespace astraeus::spatial {
 
 /**
  * Hit result from a raycast query.
@@ -115,7 +114,7 @@ private:
     void query_aabb_recursive(uint32_t node_idx, const AABB& query_box, std::vector<uint32_t>& out_entities) const;
 };
 
-} // namespace spatial
-} // namespace astraeus
+} // namespace astraeus::spatial
+
 
 #endif // ASTRAEUS_SPATIAL_BVH_HPP

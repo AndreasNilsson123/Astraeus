@@ -20,12 +20,12 @@ class World;
  */
 class PostProcessPass {
 public:
-    inline PostProcessPass();
-    inline virtual ~PostProcessPass();
+    PostProcessPass();
+    virtual ~PostProcessPass();
 
-    inline virtual bool initialize(RenderDevice* device);
-    inline virtual void execute(RenderDevice* device, World* world);
-    inline virtual void on_resize(uint32_t width, uint32_t height);
+    virtual bool initialize(RenderDevice* device);
+    virtual void execute(RenderDevice* device, World* world);
+    virtual void on_resize(uint32_t width, uint32_t height);
     
     /**
      * Get a human-readable name for this pass (for telemetry)

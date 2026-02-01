@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <cmath>
 
-namespace astraeus {
-namespace spatial {
+
+namespace astraeus::spatial {
 
 namespace {
     // Maximum entities per leaf node
@@ -270,5 +270,5 @@ void BVH::query_aabb_recursive(uint32_t node_idx, const AABB& query_box, std::ve
     }
 }
 
-} // namespace spatial
-} // namespace astraeus
+} // namespace astraeus::spatial
+
