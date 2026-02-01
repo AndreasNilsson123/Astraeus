@@ -235,19 +235,22 @@ inline void RenderGraph::ensure_post_chain_initialized() {
         post_chain_ = std::make_unique<PostChain>(device_);
         
         // Add default passes in stable order: tone-map -> gamma correction
-        // These provide a baseline output contract (linear HDR -> sRGB LDR)
-        // Note: Passes are disabled by default in PostChain, so they won't affect output
-        // unless explicitly enabled via configuration
+        // This provides the output contract: linear HDR -> sRGB LDR
+        // 
+        // IMPORTANT: Passes are enabled by default. When PostChain itself is enabled,
+        // these passes will execute. To disable individual passes, call:
+        //   get_post_chain()->get_pass(index)->set_enabled(false)
         
-        // Tone mapping is disabled by default (ToneMapOperator::None)
-        // This allows raw color output when post-processing is not desired
+        // Tone mapping: pass-through by default (ToneMapOperator::None)
+        // Can be changed to Reinhard, ACES, etc. for HDR content
         auto tone_map = std::make_unique<ToneMappingPass>();
-        tone_map->set_operator(ToneMappingPass::ToneMapOperator::None);  // Pass-through by default
+        tone_map->set_operator(ToneMappingPass::ToneMapOperator::None);  // No tone mapping
         tone_map->set_exposure(1.0f);
         post_chain_->add_pass(std::move(tone_map));
         
-        // Gamma correction is enabled by default to ensure proper sRGB output
-        // This is critical for JavaFX readback compatibility
+        // Gamma correction: converts linear to sRGB (gamma 2.2)
+        // CRITICAL: Framebuffer is linear (GL_RGBA8), this is the ONLY gamma correction
+        // to avoid double-sRGB issues. When PostChain is disabled, output is linear.
         auto gamma = std::make_unique<GammaCorrectionPass>();
         gamma->set_gamma(2.2f);  // Standard sRGB gamma
         post_chain_->add_pass(std::move(gamma));
