@@ -80,12 +80,20 @@ public:
     void draw_arrays(uint32_t primitive_type, uint32_t first, uint32_t count);
     void draw_indexed(uint32_t primitive_type, uint32_t index_count, uint32_t index_type);
 
+    // Camera matrix management for picking
+    void set_view_projection_matrix(const float* view_projection);
+    
     // Debug support
     void push_debug_group(const char* name);
     void pop_debug_group();
     void set_object_label(uint32_t gl_type, uint32_t gl_id, const char* label);
 
 private:
+    // Unprojection helpers
+    bool invert_matrix_4x4(const float* m, float* out_inv) const;
+    void unproject(float screen_x, float screen_y, float depth, 
+                   const float* inv_vp, 
+                   float& out_world_x, float& out_world_y, float& out_world_z) const;
     void create_offscreen_context();
     void destroy_offscreen_context();
     void create_framebuffers();
@@ -109,21 +117,31 @@ private:
     // Pixel buffer objects for readback
     uint32_t color_pbo_;
     uint32_t id_pbo_;
+    uint32_t depth_pbo_;             // PBO for depth readback
     void* color_mapped_ptr_;
     void* id_mapped_ptr_;
+    void* depth_mapped_ptr_;         // Mapped pointer for depth buffer
 
     bool supports_persistent_map_ = false;
     uint32_t color_pbo_bytes_ = 0;
     uint32_t id_pbo_bytes_ = 0;
+    uint32_t depth_pbo_bytes_ = 0;   // Size of depth PBO
 
     std::vector<std::uint8_t> color_cpu_;
     std::vector<std::uint8_t> id_cpu_;
+    std::vector<std::uint8_t> depth_cpu_;  // CPU-backed depth buffer (fallback)
 
 
     
     // Fence sync objects for GPU/CPU synchronization
     void* color_fence_;
     void* id_fence_;
+    void* depth_fence_;              // Fence for depth buffer sync
+    
+    // Camera matrices for unprojection (updated each frame from World)
+    float cached_view_projection_matrix_[16];
+    float cached_inv_view_projection_[16];
+    bool cached_matrices_valid_ = false;
 
     // Debug support
     bool has_khr_debug_;
@@ -167,13 +185,25 @@ inline GLRenderDevice::GLRenderDevice(const Config& config)
     , depth_texture_(0)
     , color_pbo_(0)
     , id_pbo_(0)
+    , depth_pbo_(0)
     , color_mapped_ptr_(nullptr)
     , id_mapped_ptr_(nullptr)
+    , depth_mapped_ptr_(nullptr)
     , color_fence_(nullptr)
     , id_fence_(nullptr)
+    , depth_fence_(nullptr)
     , has_khr_debug_(false)
     , debug_output_enabled_(false)
 {
+    // Initialize cached matrices to identity
+    for (int i = 0; i < 16; ++i) {
+        cached_view_projection_matrix_[i] = 0.0f;
+        cached_inv_view_projection_[i] = 0.0f;
+    }
+    cached_view_projection_matrix_[0] = cached_view_projection_matrix_[5] = 
+        cached_view_projection_matrix_[10] = cached_view_projection_matrix_[15] = 1.0f;
+    cached_inv_view_projection_[0] = cached_inv_view_projection_[5] = 
+        cached_inv_view_projection_[10] = cached_inv_view_projection_[15] = 1.0f;
 }
 
 inline GLRenderDevice::~GLRenderDevice() {
@@ -277,6 +307,17 @@ inline void GLRenderDevice::end_frame() {
         id_fence_ = nullptr;
     }
 
+    if (depth_fence_) {
+        GLenum result = glClientWaitSync(static_cast<GLsync>(depth_fence_),
+                                         GL_SYNC_FLUSH_COMMANDS_BIT,
+                                         1000000000);
+        if (result == GL_TIMEOUT_EXPIRED || result == GL_WAIT_FAILED) {
+            std::cerr << "[GLRenderDevice] Depth fence wait failed or timed out" << std::endl;
+        }
+        glDeleteSync(static_cast<GLsync>(depth_fence_));
+        depth_fence_ = nullptr;
+    }
+
     // Readback: texture -> PBO
     glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);
     glBindTexture(GL_TEXTURE_2D, color_texture_);
@@ -285,6 +326,11 @@ inline void GLRenderDevice::end_frame() {
     glBindBuffer(GL_PIXEL_PACK_BUFFER, id_pbo_);
     glBindTexture(GL_TEXTURE_2D, id_texture_);
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+
+    // Readback depth buffer: read depth component as float
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, depth_pbo_);
+    glBindTexture(GL_TEXTURE_2D, depth_texture_);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 
     glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -295,6 +341,9 @@ inline void GLRenderDevice::end_frame() {
 
         glBindBuffer(GL_PIXEL_PACK_BUFFER, id_pbo_);
         glGetBufferSubData(GL_PIXEL_PACK_BUFFER, 0, id_pbo_bytes_, id_cpu_.data());
+
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, depth_pbo_);
+        glGetBufferSubData(GL_PIXEL_PACK_BUFFER, 0, depth_pbo_bytes_, depth_cpu_.data());
     }
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
@@ -302,6 +351,7 @@ inline void GLRenderDevice::end_frame() {
     // Fence indicates GPU commands for readback have been queued/completed
     color_fence_ = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
     id_fence_    = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    depth_fence_ = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 
     // Frame time
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -442,28 +492,53 @@ inline void GLRenderDevice::get_id_buffer_view(PixelBufferView& out_view) const 
 
 
 inline void GLRenderDevice::pick(uint32_t screen_x, uint32_t screen_y, PickResult& out_result) const {
-    if (!id_mapped_ptr_ || screen_x >= width_ || screen_y >= height_) {
-        out_result.hit = false;
+    // Initialize result to no hit
+    out_result.hit = false;
+    out_result.entity_id = 0;
+    out_result.depth = 1.0f;
+    out_result.world_x = 0.0f;
+    out_result.world_y = 0.0f;
+    out_result.world_z = 0.0f;
+    
+    // Boundary check
+    if (!id_mapped_ptr_ || !depth_mapped_ptr_ || screen_x >= width_ || screen_y >= height_) {
         return;
     }
 
-    // Read from ID buffer (flip Y coordinate)
+    // Read from ID buffer (flip Y coordinate for OpenGL)
     uint32_t y_flipped = height_ - 1 - screen_y;
     uint32_t offset = y_flipped * width_ + screen_x;
+    
     uint32_t* id_data = static_cast<uint32_t*>(id_mapped_ptr_);
     uint32_t entity_id = id_data[offset];
 
     if (entity_id == 0) {
-        out_result.hit = false;
-        return;
+        return;  // No entity hit
     }
 
+    // Read depth value from depth buffer
+    float* depth_data = static_cast<float*>(depth_mapped_ptr_);
+    float depth = depth_data[offset];
+    
+    // Reconstruct world position using unprojection
+    float world_x, world_y, world_z;
+    if (cached_matrices_valid_) {
+        unproject(static_cast<float>(screen_x), static_cast<float>(screen_y), depth,
+                  cached_inv_view_projection_, world_x, world_y, world_z);
+    } else {
+        // No valid camera matrices, return screen-space coordinates only
+        world_x = static_cast<float>(screen_x);
+        world_y = static_cast<float>(screen_y);
+        world_z = depth;
+    }
+
+    // Populate result
     out_result.hit = true;
     out_result.entity_id = entity_id;
-    out_result.depth = 0.0f; // TODO: Read from depth buffer if needed
-    out_result.world_x = 0.0f;
-    out_result.world_y = 0.0f;
-    out_result.world_z = 0.0f;
+    out_result.depth = depth;
+    out_result.world_x = world_x;
+    out_result.world_y = world_y;
+    out_result.world_z = world_z;
 }
 
 // Resource management
@@ -805,6 +880,33 @@ inline void GLRenderDevice::create_readback_buffers() {
 
     set_object_label(GL_BUFFER, id_pbo_, "IDPBO");
 
+    // ---------------------------------------------------------------------
+    // Depth PBO
+    // ---------------------------------------------------------------------
+    depth_pbo_bytes_ = width_ * height_ * 4; // Depth as GL_FLOAT (4 bytes)
+    
+    glGenBuffers(1, &depth_pbo_);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, depth_pbo_);
+
+    if (supports_persistent_map_) {
+        const GLbitfield storage_flags = GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+        glBufferStorage(GL_PIXEL_PACK_BUFFER, depth_pbo_bytes_, nullptr, storage_flags);
+
+        const GLbitfield map_flags = GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+        depth_mapped_ptr_ = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, depth_pbo_bytes_, map_flags);
+
+        if (!depth_mapped_ptr_) {
+            std::cerr << "[GLRenderDevice] Failed to persistently map depth PBO" << std::endl;
+        }
+    } else {
+        glBufferData(GL_PIXEL_PACK_BUFFER, depth_pbo_bytes_, nullptr, GL_STREAM_READ);
+
+        depth_cpu_.assign(depth_pbo_bytes_, 0);
+        depth_mapped_ptr_ = depth_cpu_.data(); // stable, non-null after init
+    }
+
+    set_object_label(GL_BUFFER, depth_pbo_, "DepthPBO");
+
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
     std::cout << "[GLRenderDevice] Readback buffers created successfully" << std::endl;
@@ -844,6 +946,10 @@ inline void GLRenderDevice::destroy_framebuffers() {
         glDeleteSync(static_cast<GLsync>(id_fence_));
         id_fence_ = nullptr;
     }
+    if (depth_fence_) {
+        glDeleteSync(static_cast<GLsync>(depth_fence_));
+        depth_fence_ = nullptr;
+    }
 
     // If persistently mapped, unmap before delete
     if (supports_persistent_map_) {
@@ -857,13 +963,20 @@ inline void GLRenderDevice::destroy_framebuffers() {
             glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
             id_mapped_ptr_ = nullptr;
         }
+        if (depth_pbo_ != 0 && depth_mapped_ptr_) {
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, depth_pbo_);
+            glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+            depth_mapped_ptr_ = nullptr;
+        }
         glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
     } else {
         // CPU-backed fallback pointers
         color_mapped_ptr_ = nullptr;
         id_mapped_ptr_ = nullptr;
+        depth_mapped_ptr_ = nullptr;
         color_cpu_.clear();
         id_cpu_.clear();
+        depth_cpu_.clear();
     }
 
     if (color_pbo_ != 0) {
@@ -874,10 +987,15 @@ inline void GLRenderDevice::destroy_framebuffers() {
         glDeleteBuffers(1, &id_pbo_);
         id_pbo_ = 0;
     }
+    if (depth_pbo_ != 0) {
+        glDeleteBuffers(1, &depth_pbo_);
+        depth_pbo_ = 0;
+    }
 
     supports_persistent_map_ = false;
     color_pbo_bytes_ = 0;
     id_pbo_bytes_ = 0;
+    depth_pbo_bytes_ = 0;
 }
 
 
@@ -903,6 +1021,142 @@ inline void GLRenderDevice::setup_debug_output() {
         debug_output_enabled_ = true;
     } else {
         std::cout << "[GLRenderDevice] KHR_debug not available" << std::endl;
+    }
+}
+
+// =============================================================================
+// Camera matrix management and unprojection
+// =============================================================================
+
+inline void GLRenderDevice::set_view_projection_matrix(const float* view_projection) {
+    if (!view_projection) {
+        cached_matrices_valid_ = false;
+        return;
+    }
+    
+    // Copy the view-projection matrix
+    std::memcpy(cached_view_projection_matrix_, view_projection, 16 * sizeof(float));
+    
+    // Compute inverse for unprojection
+    cached_matrices_valid_ = invert_matrix_4x4(cached_view_projection_matrix_, 
+                                                cached_inv_view_projection_);
+}
+
+/**
+ * Invert a 4x4 matrix using Gaussian elimination.
+ * Returns true if successful, false if matrix is singular.
+ */
+inline bool GLRenderDevice::invert_matrix_4x4(const float* m, float* out_inv) const {
+    // Create an augmented matrix [M | I]
+    float aug[4][8];
+    
+    // Initialize augmented matrix
+    for (int row = 0; row < 4; ++row) {
+        for (int col = 0; col < 4; ++col) {
+            aug[row][col] = m[col * 4 + row];  // Column-major to row-major
+            aug[row][col + 4] = (row == col) ? 1.0f : 0.0f;  // Identity on right
+        }
+    }
+    
+    // Gaussian elimination with partial pivoting
+    for (int col = 0; col < 4; ++col) {
+        // Find pivot
+        int pivot_row = col;
+        float max_val = math::abs(aug[col][col]);
+        for (int row = col + 1; row < 4; ++row) {
+            float val = math::abs(aug[row][col]);
+            if (val > max_val) {
+                max_val = val;
+                pivot_row = row;
+            }
+        }
+        
+        // Check for singularity
+        if (max_val < 1e-12f) {
+            return false;  // Matrix is singular
+        }
+        
+        // Swap rows if needed
+        if (pivot_row != col) {
+            for (int k = 0; k < 8; ++k) {
+                float temp = aug[col][k];
+                aug[col][k] = aug[pivot_row][k];
+                aug[pivot_row][k] = temp;
+            }
+        }
+        
+        // Scale pivot row
+        float pivot = aug[col][col];
+        for (int k = 0; k < 8; ++k) {
+            aug[col][k] /= pivot;
+        }
+        
+        // Eliminate column
+        for (int row = 0; row < 4; ++row) {
+            if (row != col) {
+                float factor = aug[row][col];
+                for (int k = 0; k < 8; ++k) {
+                    aug[row][k] -= factor * aug[col][k];
+                }
+            }
+        }
+    }
+    
+    // Extract inverse from right half (convert back to column-major)
+    for (int row = 0; row < 4; ++row) {
+        for (int col = 0; col < 4; ++col) {
+            out_inv[col * 4 + row] = aug[row][col + 4];
+        }
+    }
+    
+    return true;
+}
+
+/**
+ * Unproject screen coordinates + depth to world space.
+ * 
+ * @param screen_x Screen X coordinate (0 to width-1)
+ * @param screen_y Screen Y coordinate (0 to height-1) 
+ * @param depth Depth value from depth buffer [0, 1]
+ * @param inv_vp Inverse view-projection matrix
+ * @param out_world_x Output world X coordinate
+ * @param out_world_y Output world Y coordinate
+ * @param out_world_z Output world Z coordinate
+ */
+inline void GLRenderDevice::unproject(float screen_x, float screen_y, float depth,
+                                      const float* inv_vp,
+                                      float& out_world_x, float& out_world_y, float& out_world_z) const {
+    // Convert screen coordinates to normalized device coordinates (NDC)
+    // Screen space: (0, 0) at top-left, (width, height) at bottom-right
+    // NDC space: (-1, -1) at bottom-left, (1, 1) at top-right
+    // Depth: [0, 1] in OpenGL depth buffer maps to [-1, 1] in NDC
+    
+    float ndc_x = (2.0f * screen_x) / width_ - 1.0f;
+    float ndc_y = 1.0f - (2.0f * screen_y) / height_;  // Flip Y
+    float ndc_z = 2.0f * depth - 1.0f;  // Map [0,1] to [-1,1]
+    
+    // Homogeneous clip coordinates
+    float clip_x = ndc_x;
+    float clip_y = ndc_y;
+    float clip_z = ndc_z;
+    float clip_w = 1.0f;
+    
+    // Transform by inverse view-projection matrix
+    float world_x = inv_vp[0] * clip_x + inv_vp[4] * clip_y + inv_vp[8] * clip_z + inv_vp[12] * clip_w;
+    float world_y = inv_vp[1] * clip_x + inv_vp[5] * clip_y + inv_vp[9] * clip_z + inv_vp[13] * clip_w;
+    float world_z = inv_vp[2] * clip_x + inv_vp[6] * clip_y + inv_vp[10] * clip_z + inv_vp[14] * clip_w;
+    float world_w = inv_vp[3] * clip_x + inv_vp[7] * clip_y + inv_vp[11] * clip_z + inv_vp[15] * clip_w;
+    
+    // Perspective divide
+    if (math::abs(world_w) > 1e-12f) {
+        out_world_x = world_x / world_w;
+        out_world_y = world_y / world_w;
+        out_world_z = world_z / world_w;
+    } else {
+        // Fallback for degenerate case
+        out_world_x = world_x;
+        out_world_y = world_y;
+        out_world_z = world_z;
     }
 }
 

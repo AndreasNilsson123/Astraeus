@@ -328,6 +328,18 @@ inline void EngineContext::begin_frame(double delta_time) {
         telemetry_->begin_frame(frame_count_);
     }
     
+    // Update camera matrices in render device for picking
+    if (render_device_ && world_) {
+        const Camera& camera = world_->get_camera();
+        const float* vp_matrix = camera.get_view_projection_matrix();
+        
+        // Update render device with current camera matrices
+        GLRenderDevice* gl_device = dynamic_cast<GLRenderDevice*>(render_device_.get());
+        if (gl_device && vp_matrix) {
+            gl_device->set_view_projection_matrix(vp_matrix);
+        }
+    }
+    
     if (render_device_) {
         render_device_->begin_frame();
     }
