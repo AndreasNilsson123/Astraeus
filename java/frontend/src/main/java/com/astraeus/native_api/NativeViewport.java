@@ -113,7 +113,7 @@ public class NativeViewport implements AutoCloseable {
             );
             
             camera.setDesc(newDesc);
-            camera.close();
+            // Note: Do NOT close the camera handle - it's needed for subsequent operations
             
         } catch (Exception e) {
             throw new RuntimeException("Failed to update camera projection after resize", e);

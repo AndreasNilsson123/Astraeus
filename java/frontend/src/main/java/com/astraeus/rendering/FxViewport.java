@@ -642,12 +642,11 @@ public class FxViewport extends StackPane {
         engine.resizeViewportWithProjection(width, height);
         
         // Log frame info for debugging (VIS-003)
-        float aspectRatio = (float) width / (float) height;
         System.out.println("[FxViewport] FrameInfo after resize:");
         System.out.println("  Requested: " + width + "x" + height);
         System.out.println("  Actual: " + engine.getCurrentViewportWidth() + "x" + 
                          engine.getCurrentViewportHeight());
-        System.out.println("  Aspect: " + aspectRatio);
+        System.out.println("  Aspect: " + engine.getCurrentAspectRatio());
         System.out.println("  Camera FOV: " + engine.getCurrentFovDegrees());
         
         // Update current dimensions

@@ -134,6 +134,10 @@ public class NativeEngine implements AutoCloseable {
                 throw new RuntimeException("Failed to create native engine");
             }
             
+            // Initialize viewport dimensions from config
+            this.currentViewportWidth = engineConfig.getInitialWidth();
+            this.currentViewportHeight = engineConfig.getInitialHeight();
+            
             // Verify engine is valid
             boolean valid = (boolean) EngineBindings.IS_VALID.invoke(engineHandle);
             if (!valid) {

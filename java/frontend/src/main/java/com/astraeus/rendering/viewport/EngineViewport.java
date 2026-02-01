@@ -361,10 +361,9 @@ public class EngineViewport extends StackPane implements AutoCloseable {
                                            currentFovDegrees, currentNearPlane, currentFarPlane);
         
         // Log frame info for debugging (VIS-003)
-        float aspectRatio = (float) width / (float) height;
         System.out.println("[EngineViewport] FrameInfo after resize:");
         System.out.println("  Requested: " + width + "x" + height);
-        System.out.println("  Aspect: " + aspectRatio);
+        System.out.println("  Aspect: " + ((float) width / (float) height));
         System.out.println("  Camera FOV: " + currentFovDegrees);
         
         // Update buffer manager
