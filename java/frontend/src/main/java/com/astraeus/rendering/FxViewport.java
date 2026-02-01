@@ -92,6 +92,7 @@ public class FxViewport extends StackPane {
 
     // Debugging
     private static final boolean ASSERT_BUF_STATE = Boolean.getBoolean("astraeus.debug.assertBufferState");
+    private static final boolean DEBUG_BUFFER_UPDATE = Boolean.getBoolean("astraeus.debug.bufferUpdate");
     
     /**
      * Create a new enhanced viewport with camera control and overlays.
@@ -126,6 +127,31 @@ public class FxViewport extends StackPane {
         PixelFormat<ByteBuffer> format = PixelFormat.getByteBgraPreInstance();
         int backingW = colorView.getMaxBackingWidth();
         int backingH = colorView.getMaxBackingHeight();
+        int stride = colorView.getStride();
+        int backingSize = colorView.getMaxBackingSize();
+        
+        // Log buffer configuration for diagnostics
+        System.out.println("[FxViewport] PixelBuffer Configuration:");
+        System.out.println("  Backing dimensions: " + backingW + "x" + backingH);
+        System.out.println("  Viewport dimensions: " + initialWidth + "x" + initialHeight);
+        System.out.println("  Stride: " + stride + " bytes/row");
+        System.out.println("  Expected stride: " + (backingW * 4) + " bytes/row");
+        System.out.println("  ByteBuffer capacity: " + backingBuffer.capacity() + " bytes");
+        System.out.println("  Max backing size: " + backingSize + " bytes");
+        System.out.println("  Expected backing size: " + (backingW * backingH * 4) + " bytes");
+        System.out.println("  Viewport size: " + (initialWidth * initialHeight * 4) + " bytes");
+        
+        // Validate stride alignment
+        if (stride != backingW * 4) {
+            System.err.println("[FxViewport] WARNING: Stride mismatch! stride=" + stride + 
+                             " expected=" + (backingW * 4));
+        }
+        
+        // Validate buffer capacity
+        if (backingBuffer.capacity() < backingSize) {
+            System.err.println("[FxViewport] ERROR: Buffer capacity insufficient! " +
+                             "capacity=" + backingBuffer.capacity() + " required=" + backingSize);
+        }
         
         pixelBuffer = new PixelBuffer<>(backingW, backingH, backingBuffer, format);
         writableImage = new WritableImage(pixelBuffer);
@@ -397,13 +423,25 @@ public class FxViewport extends StackPane {
         final int w = Math.max(0, Math.min(currentWidth,  bufW));
         final int h = Math.max(0, Math.min(currentHeight, bufH));
 
+        // Debug logging (throttled to avoid spam)
+        if (DEBUG_BUFFER_UPDATE && System.currentTimeMillis() % 1000 < 50) {
+            System.out.println("[FxViewport] updateDisplay:");
+            System.out.println("  PixelBuffer size: " + bufW + "x" + bufH);
+            System.out.println("  Viewport size: " + currentWidth + "x" + currentHeight);
+            System.out.println("  Dirty region: " + w + "x" + h);
+            if (colorBuffer != null) {
+                System.out.println("  Stride: " + colorBuffer.getStride() + " bytes/row");
+                System.out.println("  Expected bytes: " + (w * h * 4));
+            }
+        }
+
         // Avoid empty rectangles (can also throw in Prism); fall back to full dirty.
         // Also avoid per-frame Rectangle2D allocations: only allocate on size change.
         if (w <= 0 || h <= 0) {
             dirtyRect = null; // full buffer dirty
             lastDirtyW = lastDirtyH = -1;
         } else if (w == bufW && h == bufH) {
-            dirtyRect = null; // full buffer dirty (and zero alloc) :contentReference[oaicite:0]{index=0}
+            dirtyRect = null; // full buffer dirty (and zero alloc)
             lastDirtyW = bufW;
             lastDirtyH = bufH;
         } else if (w != lastDirtyW || h != lastDirtyH) {
@@ -427,6 +465,9 @@ public class FxViewport extends StackPane {
             return;
         }
         
+        System.out.println("[FxViewport] Resizing viewport: " + currentWidth + "x" + currentHeight + 
+                         " -> " + width + "x" + height);
+        
         engine.resizeViewport(width, height);
         imageView.setViewport(new javafx.geometry.Rectangle2D(0, 0, width, height));
         
@@ -437,6 +478,15 @@ public class FxViewport extends StackPane {
         coordinateTransform.setViewportDimensions(width, height);
         
         colorBuffer = engine.getColorBuffer();
+        
+        // Log updated buffer info
+        if (colorBuffer != null) {
+            System.out.println("[FxViewport] After resize:");
+            System.out.println("  Viewport: " + colorBuffer.getWidth() + "x" + colorBuffer.getHeight());
+            System.out.println("  Stride: " + colorBuffer.getStride() + " bytes/row");
+            System.out.println("  Backing: " + colorBuffer.getMaxBackingWidth() + "x" + 
+                             colorBuffer.getMaxBackingHeight());
+        }
     }
     
     /**
