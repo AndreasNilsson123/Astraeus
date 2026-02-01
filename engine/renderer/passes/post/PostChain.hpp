@@ -58,6 +58,14 @@ public:
 
     /**
      * Apply the post-processing chain.
+     * 
+     * OUTPUT CONTRACT:
+     * - Final output is written to output_fbo in RGBA8 format (internal GPU format)
+     * - Gamma correction is applied exactly once (no double-sRGB)
+     * - Readback from output_fbo texture will convert RGBA->BGRA if needed by glGetTexImage
+     * - Color space: sRGB-compatible (gamma 2.2 applied by GammaCorrectionPass)
+     * - Alpha channel: preserved through all passes
+     * 
      * @param input_texture The input texture to process (main render output)
      * @param output_fbo The final output framebuffer (0 for default)
      */

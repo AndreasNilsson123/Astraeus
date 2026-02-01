@@ -51,6 +51,9 @@ public:
         bool enable_validation = true;
         bool enable_debug_output = false;
         std::string log_file_path;
+        
+        // Post-processing configuration
+        bool enable_post_chain = false;  // Disabled by default for backward compatibility
     };
 
     explicit EngineContext(const Config& config);
@@ -224,6 +227,18 @@ public:
      * Get timing information for a specific pass.
      */
     const Telemetry::PassTiming* get_telemetry_pass_timing(uint32_t pass_index) const;
+    
+    /**
+     * Enable or disable post-processing chain at runtime.
+     * @param enabled True to enable, false to disable
+     */
+    void set_post_chain_enabled(bool enabled);
+    
+    /**
+     * Check if post-processing chain is enabled.
+     * @return True if enabled, false otherwise
+     */
+    bool is_post_chain_enabled() const;
 
     // Command/Event/Plugin system accessors
     /**
@@ -335,6 +350,12 @@ inline bool EngineContext::initialize() {
         // Initialize render graph with passes (pass telemetry for per-pass timing)
         render_graph_ = std::make_unique<RenderGraph>(render_device_.get(), world_.get(), telemetry_.get());
         render_graph_->initialize();
+        
+        // Enable post-processing chain if configured
+        if (config_.enable_post_chain) {
+            std::cout << "[Astraeus] Enabling post-processing chain" << std::endl;
+            render_graph_->set_post_chain_enabled(true);
+        }
         
         // Add render passes: Clear, Grid, Axes
         render_graph_->add_pass(std::make_unique<ClearPass>());
@@ -607,6 +628,16 @@ inline void EngineContext::set_telemetry_enabled(bool enabled) {
 
 inline bool EngineContext::is_telemetry_enabled() const {
     return telemetry_ ? telemetry_->is_enabled() : false;
+}
+
+inline void EngineContext::set_post_chain_enabled(bool enabled) {
+    if (render_graph_) {
+        render_graph_->set_post_chain_enabled(enabled);
+    }
+}
+
+inline bool EngineContext::is_post_chain_enabled() const {
+    return render_graph_ ? render_graph_->is_post_chain_enabled() : false;
 }
 
 inline const Telemetry::FrameStats& EngineContext::get_telemetry_stats() const {
