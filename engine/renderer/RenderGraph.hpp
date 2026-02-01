@@ -209,11 +209,18 @@ inline bool RenderGraph::is_post_chain_enabled() const {
 
 inline void RenderGraph::ensure_post_chain_initialized() {
     if (!post_chain_ && device_) {
-        std::cout << "[RenderGraph] Initializing PostChain" << std::endl;
-        post_chain_ = std::make_unique<PostChain>(device_);
-        
         uint32_t width = device_->get_width();
         uint32_t height = device_->get_height();
+        
+        // Validate dimensions before initializing
+        if (width == 0 || height == 0) {
+            std::cerr << "[RenderGraph] Cannot initialize PostChain: invalid viewport dimensions ("
+                      << width << "x" << height << ")" << std::endl;
+            return;
+        }
+        
+        std::cout << "[RenderGraph] Initializing PostChain" << std::endl;
+        post_chain_ = std::make_unique<PostChain>(device_);
         
         if (!post_chain_->initialize(width, height)) {
             std::cerr << "[RenderGraph] Failed to initialize PostChain" << std::endl;

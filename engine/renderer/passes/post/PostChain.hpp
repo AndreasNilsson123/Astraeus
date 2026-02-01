@@ -146,11 +146,17 @@ inline bool PostChain::initialize(uint32_t width, uint32_t height) {
     create_framebuffers();
 
     // Initialize all passes
+    bool all_passed = true;
     for (auto& pass : passes_) {
         if (!pass->initialize(device_)) {
             std::cerr << "[PostChain] Failed to initialize pass: " << pass->get_name() << std::endl;
-            return false;
+            all_passed = false;
+            // Continue initializing other passes rather than failing completely
         }
+    }
+    
+    if (!all_passed) {
+        std::cerr << "[PostChain] Warning: Some passes failed to initialize" << std::endl;
     }
 
     is_initialized_ = true;

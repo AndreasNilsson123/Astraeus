@@ -143,6 +143,11 @@ inline void ToneMappingPass::compile_shader() {
     
     if (shader_.gl_program == 0) {
         std::cerr << "[ToneMappingPass] Failed to compile shader: " << error_msg << std::endl;
+    } else {
+        // Cache uniform locations
+        shader_.uniform_locations["uInputTexture"] = glGetUniformLocation(shader_.gl_program, "uInputTexture");
+        shader_.uniform_locations["uExposure"] = glGetUniformLocation(shader_.gl_program, "uExposure");
+        shader_.uniform_locations["uOperator"] = glGetUniformLocation(shader_.gl_program, "uOperator");
     }
 }
 
@@ -173,11 +178,22 @@ inline void ToneMappingPass::apply(uint32_t input_texture, uint32_t output_fbo) 
     // Bind input texture
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, input_texture);
-    glUniform1i(glGetUniformLocation(shader_.gl_program, "uInputTexture"), 0);
     
-    // Set tone mapping parameters
-    glUniform1f(glGetUniformLocation(shader_.gl_program, "uExposure"), exposure_);
-    glUniform1i(glGetUniformLocation(shader_.gl_program, "uOperator"), static_cast<int>(operator_));
+    // Use cached uniform locations
+    auto it_tex = shader_.uniform_locations.find("uInputTexture");
+    if (it_tex != shader_.uniform_locations.end() && it_tex->second >= 0) {
+        glUniform1i(it_tex->second, 0);
+    }
+    
+    auto it_exp = shader_.uniform_locations.find("uExposure");
+    if (it_exp != shader_.uniform_locations.end() && it_exp->second >= 0) {
+        glUniform1f(it_exp->second, exposure_);
+    }
+    
+    auto it_op = shader_.uniform_locations.find("uOperator");
+    if (it_op != shader_.uniform_locations.end() && it_op->second >= 0) {
+        glUniform1i(it_op->second, static_cast<int>(operator_));
+    }
     
     // Draw full-screen quad
     draw_fullscreen_quad();

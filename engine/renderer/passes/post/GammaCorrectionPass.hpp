@@ -59,8 +59,9 @@ void main() {
     vec4 color = texture(uInputTexture, TexCoord);
     
     // Apply gamma correction to RGB channels only
-    // FragColor.rgb = pow(color.rgb, vec3(1.0 / uGamma));
-    // For better performance and accuracy, use the sRGB approximation when gamma ~= 2.2
+    // Note: For optimal performance, consider using shader variants for different gamma values.
+    // However, the branch prediction cost is minimal for this simple comparison,
+    // and this approach provides flexibility without shader recompilation.
     vec3 corrected;
     if (abs(uGamma - 2.2) < 0.01) {
         // Fast sRGB approximation
@@ -110,6 +111,10 @@ inline void GammaCorrectionPass::compile_shader() {
     
     if (shader_.gl_program == 0) {
         std::cerr << "[GammaCorrectionPass] Failed to compile shader: " << error_msg << std::endl;
+    } else {
+        // Cache uniform locations
+        shader_.uniform_locations["uInputTexture"] = glGetUniformLocation(shader_.gl_program, "uInputTexture");
+        shader_.uniform_locations["uGamma"] = glGetUniformLocation(shader_.gl_program, "uGamma");
     }
 }
 
@@ -140,10 +145,17 @@ inline void GammaCorrectionPass::apply(uint32_t input_texture, uint32_t output_f
     // Bind input texture
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, input_texture);
-    glUniform1i(glGetUniformLocation(shader_.gl_program, "uInputTexture"), 0);
     
-    // Set gamma parameter
-    glUniform1f(glGetUniformLocation(shader_.gl_program, "uGamma"), gamma_);
+    // Use cached uniform locations
+    auto it_tex = shader_.uniform_locations.find("uInputTexture");
+    if (it_tex != shader_.uniform_locations.end() && it_tex->second >= 0) {
+        glUniform1i(it_tex->second, 0);
+    }
+    
+    auto it_gamma = shader_.uniform_locations.find("uGamma");
+    if (it_gamma != shader_.uniform_locations.end() && it_gamma->second >= 0) {
+        glUniform1f(it_gamma->second, gamma_);
+    }
     
     // Draw full-screen quad
     draw_fullscreen_quad();
