@@ -135,8 +135,24 @@ public:
 
     /**
      * Ingest external simulation data.
+     * @return Job ID (0 on failure)
      */
-    bool ingest_data(const void* data, uint32_t size, uint32_t format);
+    uint64_t ingest_data(const void* data, uint32_t size, uint32_t format);
+    
+    /**
+     * Get ingest job status.
+     */
+    bool get_ingest_status(uint64_t job_id, IngestStatus* out_status);
+    
+    /**
+     * Get current simulation time.
+     */
+    double get_sim_time() const;
+    
+    /**
+     * Get total snapshot count.
+     */
+    uint64_t get_snapshot_count() const;
 
     /**
      * Set camera position and target.
@@ -328,6 +344,11 @@ inline void EngineContext::begin_frame(double delta_time) {
         telemetry_->begin_frame(frame_count_);
     }
     
+    // Update ingest manager (apply latest snapshot to world)
+    if (ingest_manager_) {
+        ingest_manager_->update();
+    }
+    
     // Update camera matrices in render device for picking
     if (render_device_ && world_) {
         const Camera& camera = world_->get_camera();
@@ -444,11 +465,45 @@ inline void EngineContext::pick(uint32_t screen_x, uint32_t screen_y, PickResult
     }
 }
 
-inline bool EngineContext::ingest_data(const void* data, uint32_t size, uint32_t format) {
+inline uint64_t EngineContext::ingest_data(const void* data, uint32_t size, uint32_t format) {
     if (ingest_manager_) {
         return ingest_manager_->ingest(data, size, format);
     }
+    return 0;
+}
+
+inline bool EngineContext::get_ingest_status(uint64_t job_id, IngestStatus* out_status) {
+    if (ingest_manager_ && out_status) {
+        IngestJobStatus internal_status;
+        bool found = ingest_manager_->get_job_status(job_id, &internal_status);
+        if (found) {
+            // Convert internal status to C API status
+            out_status->job_id = internal_status.job_id;
+            out_status->format = internal_status.format;
+            out_status->total_bytes = internal_status.total_bytes;
+            out_status->processed_bytes = internal_status.processed_bytes;
+            out_status->is_complete = internal_status.is_complete ? 1 : 0;
+            out_status->has_error = internal_status.has_error ? 1 : 0;
+            std::strncpy(out_status->last_error, internal_status.last_error, sizeof(out_status->last_error) - 1);
+            out_status->last_error[sizeof(out_status->last_error) - 1] = '\0';
+            return true;
+        }
+    }
     return false;
+}
+
+inline double EngineContext::get_sim_time() const {
+    if (ingest_manager_) {
+        return ingest_manager_->get_sim_time();
+    }
+    return 0.0;
+}
+
+inline uint64_t EngineContext::get_snapshot_count() const {
+    if (ingest_manager_) {
+        return ingest_manager_->get_snapshot_count();
+    }
+    return 0;
 }
 
 inline void EngineContext::set_camera(float eye_x, float eye_y, float eye_z,
