@@ -4,6 +4,8 @@
 #include <vector>
 #include <random>
 #include <iomanip>
+#include <sstream>
+
 #include "core/util/FastMath.hpp"
 
 using namespace astraeus::math::fast;

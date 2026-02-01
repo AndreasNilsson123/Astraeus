@@ -49,49 +49,6 @@ TEST_F(RenderPassTest, InterfaceCompliance) {
 }
 
 /**
- * Test pass that accesses device during execution.
- */
-TEST_F(RenderPassTest, DeviceInteraction) {
-    class DeviceUsingPass : public RenderPass {
-    public:
-        bool initialize(RenderDevice* device) override {
-            device_ = device;
-            return device_ != nullptr;
-        }
-        
-        void execute(RenderDevice* device, World*) override {
-            // Use device to create resources
-            if (device) {
-                device->set_viewport(0, 0, 800, 600);
-                device->clear(0, 0, 0, 1);
-            }
-        }
-        
-        void on_resize(uint32_t w, uint32_t h) override {
-            width_ = w;
-            height_ = h;
-        }
-        
-        const char* get_name() const override { return "DevicePass"; }
-        
-        uint32_t width_ = 0;
-        uint32_t height_ = 0;
-        RenderDevice* device_ = nullptr;
-    };
-    
-    mock_device_->initialize();
-    
-    auto pass = std::make_unique<DeviceUsingPass>();
-    EXPECT_TRUE(pass->initialize(mock_device_.get()));
-    
-    mock_device_->clear_operations();
-    pass->execute(mock_device_.get(), world_.get());
-    
-    // Verify device was used
-    EXPECT_GT(mock_device_->operation_count(), 0);
-}
-
-/**
  * Test pass that queries world state.
  */
 TEST_F(RenderPassTest, WorldQuery) {

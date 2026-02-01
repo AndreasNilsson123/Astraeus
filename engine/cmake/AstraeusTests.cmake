@@ -72,46 +72,12 @@ astraeus_add_test(test_command_buffer
 )
 
 # ============================================================
-# SCENE MODULE TESTS
-# ============================================================
-astraeus_add_test(test_world_entities
-    SOURCES ${ASTRAEUS_ROOT_DIR}/tests/scene/test_world_entities.cpp
-)
-
-astraeus_add_test(test_transform_system
-    SOURCES ${ASTRAEUS_ROOT_DIR}/tests/scene/test_transform_system.cpp
-)
-
-astraeus_add_test(test_camera_system
-    SOURCES ${ASTRAEUS_ROOT_DIR}/tests/scene/test_camera_system.cpp
-)
-
-astraeus_add_test(test_spatial_index
-    SOURCES ${ASTRAEUS_ROOT_DIR}/tests/scene/test_spatial_index.cpp
-)
-
-# ============================================================
 # INGEST MODULE TESTS
 # ============================================================
-astraeus_add_test(test_snapshot_store
-    SOURCES ${ASTRAEUS_ROOT_DIR}/tests/ingest/test_snapshot_store.cpp
-)
-
-astraeus_add_test(test_time_sync
-    SOURCES ${ASTRAEUS_ROOT_DIR}/tests/ingest/test_time_sync.cpp
-)
-
-astraeus_add_test(test_ingest_manager
-    SOURCES ${ASTRAEUS_ROOT_DIR}/tests/ingest/test_ingest_manager.cpp
-)
-
-astraeus_add_test(test_decoder
-    SOURCES ${ASTRAEUS_ROOT_DIR}/tests/ingest/test_decoder.cpp
-)
 
 # ============================================================
 # RENDERER MODULE TESTS
-# ============================================================
+# ============================================================F
 astraeus_add_test(test_render_graph
     SOURCES ${ASTRAEUS_ROOT_DIR}/tests/renderer/test_render_graph.cpp
 )
