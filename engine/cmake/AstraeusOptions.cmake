@@ -2,7 +2,7 @@ include_guard(GLOBAL)
 
 option(ASTRAEUS_BUILD_SHARED      "Build shared library (DLL/.so)" ON)
 option(ASTRAEUS_BUILD_EXAMPLES    "Build example programs"         ON)
-option(ASTRAEUS_BUILD_TESTS       "Build tests"                    OFF)
+option(ASTRAEUS_BUILD_TESTS       "Build tests"                    ON)
 option(ASTRAEUS_ENABLE_VALIDATION "Enable validation layers"       ON)
 
 if(WIN32)
