@@ -2,6 +2,7 @@
 #define ASTRAEUS_GAMMA_CORRECTION_PASS_HPP
 
 #include "PostProcessPass.hpp"
+#include "../../opengl/GLRenderDevice.hpp"
 #include <string>
 #include <iostream>
 

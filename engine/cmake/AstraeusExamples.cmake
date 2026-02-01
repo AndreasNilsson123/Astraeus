@@ -31,4 +31,7 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     astraeus_add_example(camera_component_test examples/camera_component_test.cpp)
 
     astraeus_add_example(mesh_rendering_test examples/mesh_rendering_test.cpp)
+    
+    # Compile-only test to verify RenderGraph.hpp is self-contained
+    astraeus_add_example(render_graph_header_test examples/render_graph_header_test.cpp)
 endif()
