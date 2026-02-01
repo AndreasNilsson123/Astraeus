@@ -87,6 +87,12 @@ public:
     // Camera matrix management for picking
     void set_view_projection_matrix(const float* view_projection);
     
+    // Framebuffer access for post-processing
+    uint32_t get_main_fbo() const { return main_fbo_; }
+    uint32_t get_color_texture() const { return color_texture_; }
+    uint32_t get_id_texture() const { return id_texture_; }
+    uint32_t get_depth_texture() const { return depth_texture_; }
+    
     // Debug support
     void push_debug_group(const char* name);
     void pop_debug_group();

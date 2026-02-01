@@ -12,6 +12,7 @@ class RenderDevice;
 class World;
 class RenderPass;
 class Telemetry;
+class PostChain;
 
 /**
  * Render graph manages the execution of multiple render passes.
@@ -40,11 +41,18 @@ public:
      */
     void add_pass(std::unique_ptr<RenderPass> pass);
 
+    /**
+     * Get the post-processing chain.
+     * @return Pointer to the PostChain, or nullptr if not initialized
+     */
+    PostChain* get_post_chain() const;
+
 private:
     RenderDevice* device_;
     World* world_;
     Telemetry* telemetry_;
     std::vector<std::unique_ptr<RenderPass>> passes_;
+    std::unique_ptr<PostChain> post_chain_;
     bool is_initialized_;
 };
 
@@ -91,6 +99,8 @@ inline bool RenderGraph::initialize() {
 
     // TODO: Initialize default passes (grid, tracks, etc.)
     // For now, no passes added
+    
+    // Note: PostChain is initialized lazily on first use to ensure device is ready
 
     is_initialized_ = true;
     return true;
@@ -102,6 +112,13 @@ inline void RenderGraph::shutdown() {
     }
 
     std::cout << "[RenderGraph] Shutting down" << std::endl;
+    
+    // Shutdown post-chain
+    if (post_chain_) {
+        post_chain_->shutdown();
+        post_chain_.reset();
+    }
+    
     passes_.clear();
     is_initialized_ = false;
 }
@@ -125,12 +142,21 @@ inline void RenderGraph::on_resize(uint32_t width, uint32_t height) {
     for (auto& pass : passes_) {
         pass->on_resize(width, height);
     }
+    
+    // Resize post-chain
+    if (post_chain_) {
+        post_chain_->on_resize(width, height);
+    }
 }
 
 inline void RenderGraph::add_pass(std::unique_ptr<RenderPass> pass) {
     if (pass && pass->initialize(device_)) {
         passes_.push_back(std::move(pass));
     }
+}
+
+inline PostChain* RenderGraph::get_post_chain() const {
+    return post_chain_.get();
 }
 
 } // namespace astraeus
