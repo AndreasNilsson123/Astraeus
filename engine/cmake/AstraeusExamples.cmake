@@ -23,6 +23,7 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     astraeus_add_example(asset_pipeline_example examples/asset_pipeline_example.cpp)
 
     astraeus_add_example(scene_hierarchy_test examples/scene_hierarchy_test.cpp)
+    astraeus_add_example(spatial_query_test examples/spatial_query_test.cpp)
     astraeus_add_example(material_system_test examples/material_system_test.cpp)
     astraeus_add_example(lighting_system_test examples/lighting_system_test.cpp)
 
