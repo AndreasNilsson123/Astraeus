@@ -638,7 +638,17 @@ public class FxViewport extends StackPane {
         System.out.println("[FxViewport] Resizing viewport: " + currentWidth + "x" + currentHeight + 
                          " -> " + width + "x" + height);
         
-        engine.resizeViewport(width, height);
+        // Use the authoritative resize method that updates both viewport AND projection
+        engine.resizeViewportWithProjection(width, height);
+        
+        // Log frame info for debugging (VIS-003)
+        float aspectRatio = (float) width / (float) height;
+        System.out.println("[FxViewport] FrameInfo after resize:");
+        System.out.println("  Requested: " + width + "x" + height);
+        System.out.println("  Actual: " + engine.getCurrentViewportWidth() + "x" + 
+                         engine.getCurrentViewportHeight());
+        System.out.println("  Aspect: " + aspectRatio);
+        System.out.println("  Camera FOV: " + engine.getCurrentFovDegrees());
         
         // Update current dimensions
         currentWidth = width;
@@ -652,8 +662,7 @@ public class FxViewport extends StackPane {
         
         // Log updated buffer info
         if (colorBuffer != null) {
-            System.out.println("[FxViewport] After resize:");
-            System.out.println("  Viewport: " + colorBuffer.getWidth() + "x" + colorBuffer.getHeight());
+            System.out.println("  Buffer: " + colorBuffer.getWidth() + "x" + colorBuffer.getHeight());
             System.out.println("  Stride: " + colorBuffer.getStride() + " bytes/row");
             System.out.println("  Backing: " + colorBuffer.getMaxBackingWidth() + "x" + 
                              colorBuffer.getMaxBackingHeight());
