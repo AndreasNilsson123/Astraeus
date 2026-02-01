@@ -243,6 +243,21 @@ inline bool GLRenderDevice::initialize() {
     create_framebuffers();
     create_readback_buffers();
 
+    // Set initial OpenGL state for rendering
+    // Ensure viewport covers full framebuffer
+    glViewport(0, 0, width_, height_);
+    
+    // Disable scissor test (not needed for offscreen rendering)
+    glDisable(GL_SCISSOR_TEST);
+    
+    // Enable depth test for 3D rendering
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    
+    // Enable blending for transparent objects
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     stats_.draw_calls = 0;
     stats_.triangle_count = 0;
     stats_.render_time_ms = 0.0;
@@ -286,8 +301,13 @@ inline void GLRenderDevice::begin_frame() {
     stats_.draw_calls = 0;
     stats_.triangle_count = 0;
 
+    // Bind main framebuffer and set viewport to cover entire framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, main_fbo_);
     glViewport(0, 0, width_, height_);
+    
+    // Ensure scissor test is disabled (no clipping)
+    // This ensures all rendering commands affect the full framebuffer
+    glDisable(GL_SCISSOR_TEST);
 }
 
 
@@ -327,6 +347,10 @@ inline void GLRenderDevice::end_frame() {
     }
 
     // Readback: texture -> PBO
+    // Set pack alignment for proper row pitch handling
+    // For RGBA8 (4 bytes per pixel), alignment doesn't matter, but we set it for clarity
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    
     glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);
     glBindTexture(GL_TEXTURE_2D, color_texture_);
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -417,6 +441,9 @@ inline void GLRenderDevice::resize(uint32_t width, uint32_t height) {
     
     // Recreate textures and FBO with new size
     create_framebuffers();
+    
+    // Update viewport to match new framebuffer size
+    glViewport(0, 0, width_, height_);
 }
 
 /**
