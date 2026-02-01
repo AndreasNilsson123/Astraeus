@@ -19,11 +19,11 @@ namespace astraeus {
 class BloomPass : public PostProcessPass {
 public:
     inline BloomPass();
-    inline ~BloomPass() override;
+    inline ~BloomPass();
 
-    inline bool initialize(RenderDevice* device) override;
-    inline void apply(uint32_t input_texture, uint32_t output_fbo) override;
-    inline const char* get_name() const override { return "Bloom"; }
+    inline bool initialize(RenderDevice* device);
+    inline void apply(uint32_t input_texture, uint32_t output_fbo);
+    inline const char* get_name() const { return "Bloom"; }
 
     // Configuration (for future implementation)
     inline void set_threshold(float threshold);

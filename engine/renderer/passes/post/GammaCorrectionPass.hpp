@@ -14,11 +14,11 @@ namespace astraeus {
 class GammaCorrectionPass : public PostProcessPass {
 public:
     inline GammaCorrectionPass();
-    inline ~GammaCorrectionPass() override;
+    inline ~GammaCorrectionPass();
 
-    inline bool initialize(RenderDevice* device) override;
-    inline void apply(uint32_t input_texture, uint32_t output_fbo) override;
-    inline const char* get_name() const override { return "GammaCorrection"; }
+    inline bool initialize(RenderDevice* device);
+    inline void apply(uint32_t input_texture, uint32_t output_fbo);
+    inline const char* get_name() const { return "GammaCorrection"; }
 
     // Configuration
     inline void set_gamma(float gamma);
