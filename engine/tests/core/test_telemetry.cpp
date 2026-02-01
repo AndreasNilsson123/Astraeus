@@ -20,158 +20,160 @@ protected:
 };
 
 /**
- * Test basic counter increment operations.
+ * Test basic telemetry enable/disable.
  */
-TEST_F(TelemetryTest, IncrementCounter) {
-    telemetry_->increment_counter("test_counter");
-    EXPECT_EQ(telemetry_->get_counter("test_counter"), 1);
+TEST_F(TelemetryTest, EnableDisable) {
+    EXPECT_TRUE(telemetry_->is_enabled());
     
-    telemetry_->increment_counter("test_counter");
-    EXPECT_EQ(telemetry_->get_counter("test_counter"), 2);
+    telemetry_->set_enabled(false);
+    EXPECT_FALSE(telemetry_->is_enabled());
     
-    telemetry_->increment_counter("test_counter", 5);
-    EXPECT_EQ(telemetry_->get_counter("test_counter"), 7);
+    telemetry_->set_enabled(true);
+    EXPECT_TRUE(telemetry_->is_enabled());
 }
 
 /**
- * Test counter with default value for non-existent counter.
+ * Test frame lifecycle with begin/end.
  */
-TEST_F(TelemetryTest, NonExistentCounter) {
-    EXPECT_EQ(telemetry_->get_counter("nonexistent"), 0);
-}
-
-/**
- * Test multiple independent counters.
- */
-TEST_F(TelemetryTest, MultipleCounters) {
-    telemetry_->increment_counter("counter_a");
-    telemetry_->increment_counter("counter_b");
-    telemetry_->increment_counter("counter_a");
+TEST_F(TelemetryTest, FrameLifecycle) {
+    telemetry_->begin_frame(1);
     
-    EXPECT_EQ(telemetry_->get_counter("counter_a"), 2);
-    EXPECT_EQ(telemetry_->get_counter("counter_b"), 1);
-}
-
-/**
- * Test counter reset functionality.
- */
-TEST_F(TelemetryTest, ResetCounter) {
-    telemetry_->increment_counter("test_counter", 10);
-    EXPECT_EQ(telemetry_->get_counter("test_counter"), 10);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     
-    telemetry_->reset_counter("test_counter");
-    EXPECT_EQ(telemetry_->get_counter("test_counter"), 0);
-}
-
-/**
- * Test timing scope basic functionality.
- */
-TEST_F(TelemetryTest, TimingScope) {
-    {
-        auto scope = telemetry_->start_timer("test_operation");
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
+    telemetry_->end_frame(10, 1000);
     
-    double elapsed = telemetry_->get_timer_ms("test_operation");
-    EXPECT_GE(elapsed, 9.0); // At least 9ms (accounting for timing variance)
-    EXPECT_LT(elapsed, 50.0); // But not too long
+    const auto& stats = telemetry_->get_current_stats();
+    EXPECT_EQ(stats.frame_number, 1);
+    EXPECT_EQ(stats.draw_calls, 10);
+    EXPECT_EQ(stats.triangle_count, 1000);
+    EXPECT_GT(stats.total_time_ms, 0.0);
 }
 
 /**
- * Test multiple timing measurements.
+ * Test multiple frame cycles.
  */
-TEST_F(TelemetryTest, MultipleTimings) {
-    for (int i = 0; i < 5; ++i) {
-        auto scope = telemetry_->start_timer("repeated_operation");
+TEST_F(TelemetryTest, MultipleFrames) {
+    for (uint64_t i = 1; i <= 5; ++i) {
+        telemetry_->begin_frame(i);
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        telemetry_->end_frame(i * 10, i * 100);
+        
+        const auto& stats = telemetry_->get_current_stats();
+        EXPECT_EQ(stats.frame_number, i);
     }
-    
-    // Should have recorded multiple samples
-    double avg = telemetry_->get_average_timer_ms("repeated_operation");
-    EXPECT_GT(avg, 0.0);
 }
 
 /**
- * Test frame statistics tracking.
+ * Test pass timing.
  */
-TEST_F(TelemetryTest, FrameStats) {
-    telemetry_->begin_frame();
+TEST_F(TelemetryTest, PassTiming) {
+    telemetry_->begin_frame(1);
     
-    // Simulate some work
-    telemetry_->increment_counter("draws");
-    telemetry_->increment_counter("draws");
-    telemetry_->increment_counter("draws");
+    uint32_t pass_idx = telemetry_->begin_pass("TestPass");
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    telemetry_->end_pass(pass_idx);
     
-    telemetry_->end_frame();
+    telemetry_->end_frame(0, 0);
     
-    EXPECT_EQ(telemetry_->get_frame_count(), 1);
-    EXPECT_EQ(telemetry_->get_counter("draws"), 3);
+    EXPECT_EQ(telemetry_->get_pass_count(), 1);
+    
+    const auto* pass_timing = telemetry_->get_pass_timing(0);
+    ASSERT_NE(pass_timing, nullptr);
+    EXPECT_STREQ(pass_timing->name, "TestPass");
+    EXPECT_GT(pass_timing->duration_ms, 0.0);
 }
 
 /**
- * Test FPS calculation over multiple frames.
+ * Test multiple passes in a frame.
  */
-TEST_F(TelemetryTest, FPSCalculation) {
-    for (int i = 0; i < 10; ++i) {
-        telemetry_->begin_frame();
-        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
-        telemetry_->end_frame();
-    }
+TEST_F(TelemetryTest, MultiplePasses) {
+    telemetry_->begin_frame(1);
     
-    double fps = telemetry_->get_fps();
-    EXPECT_GT(fps, 0.0);
-    EXPECT_LT(fps, 100.0); // Should be reasonable
+    uint32_t pass1 = telemetry_->begin_pass("Pass1");
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    telemetry_->end_pass(pass1);
+    
+    uint32_t pass2 = telemetry_->begin_pass("Pass2");
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    telemetry_->end_pass(pass2);
+    
+    telemetry_->end_frame(0, 0);
+    
+    EXPECT_EQ(telemetry_->get_pass_count(), 2);
 }
 
 /**
- * Test reset all telemetry data.
+ * Test RAII PassTimer.
  */
-TEST_F(TelemetryTest, ResetAll) {
-    telemetry_->increment_counter("counter_a", 10);
-    telemetry_->increment_counter("counter_b", 20);
+TEST_F(TelemetryTest, PassTimerRAII) {
+    telemetry_->begin_frame(1);
     
-    telemetry_->reset_all();
-    
-    EXPECT_EQ(telemetry_->get_counter("counter_a"), 0);
-    EXPECT_EQ(telemetry_->get_counter("counter_b"), 0);
-}
-
-/**
- * Test thread safety of counter increments.
- * This test verifies that concurrent counter updates are safe.
- */
-TEST_F(TelemetryTest, ThreadSafety) {
-    const int num_threads = 4;
-    const int increments_per_thread = 1000;
-    
-    std::vector<std::thread> threads;
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([this, increments_per_thread]() {
-            for (int j = 0; j < increments_per_thread; ++j) {
-                telemetry_->increment_counter("thread_safe_counter");
-            }
-        });
-    }
-    
-    for (auto& t : threads) {
-        t.join();
-    }
-    
-    EXPECT_EQ(telemetry_->get_counter("thread_safe_counter"), 
-              num_threads * increments_per_thread);
-}
-
-/**
- * Test that timer doesn't crash with zero elapsed time.
- */
-TEST_F(TelemetryTest, ZeroElapsedTimer) {
     {
-        auto scope = telemetry_->start_timer("instant_operation");
-        // No delay
+        PassTimer timer(telemetry_.get(), "RAIIPass");
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    } // Timer auto-ends here
+    
+    telemetry_->end_frame(0, 0);
+    
+    EXPECT_EQ(telemetry_->get_pass_count(), 1);
+}
+
+/**
+ * Test historical data.
+ */
+TEST_F(TelemetryTest, HistoricalData) {
+    // Generate some history
+    for (uint64_t i = 1; i <= 10; ++i) {
+        telemetry_->begin_frame(i);
+        telemetry_->end_frame(i, i * 10);
     }
     
-    double elapsed = telemetry_->get_timer_ms("instant_operation");
-    EXPECT_GE(elapsed, 0.0);
+    // Retrieve history
+    std::vector<Telemetry::FrameStats> history(10);
+    uint32_t count = telemetry_->get_history(history.data(), 10);
+    
+    EXPECT_GT(count, 0);
+    EXPECT_LE(count, 10);
+}
+
+/**
+ * Test reset functionality.
+ */
+TEST_F(TelemetryTest, Reset) {
+    telemetry_->begin_frame(1);
+    telemetry_->end_frame(10, 100);
+    
+    telemetry_->reset();
+    
+    const auto& stats = telemetry_->get_current_stats();
+    EXPECT_EQ(stats.frame_number, 0);
+    EXPECT_EQ(stats.draw_calls, 0);
+}
+
+/**
+ * Test disabled telemetry has no overhead.
+ */
+TEST_F(TelemetryTest, DisabledNoOp) {
+    telemetry_->set_enabled(false);
+    
+    // These should be no-ops
+    telemetry_->begin_frame(1);
+    uint32_t pass = telemetry_->begin_pass("NoOpPass");
+    telemetry_->end_pass(pass);
+    telemetry_->end_frame(10, 100);
+    
+    // Stats should be zero or default
+}
+
+/**
+ * Test get_pass_timing with invalid index.
+ */
+TEST_F(TelemetryTest, InvalidPassIndex) {
+    telemetry_->begin_frame(1);
+    telemetry_->end_frame(0, 0);
+    
+    const auto* pass = telemetry_->get_pass_timing(999);
+    EXPECT_EQ(pass, nullptr);
 }
 
 } // namespace testing

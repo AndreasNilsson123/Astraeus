@@ -4,11 +4,6 @@
 namespace astraeus {
 namespace testing {
 
-struct TestEvent {
-    int value;
-    std::string message;
-};
-
 class EventBusTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -16,6 +11,8 @@ protected:
     }
     
     void TearDown() override {
+        // Clean up any remaining events
+        event_bus_->clear();
         event_bus_.reset();
     }
     
@@ -23,121 +20,178 @@ protected:
 };
 
 /**
- * Test basic event subscription and publishing.
+ * Test basic event posting and polling.
  */
-TEST_F(EventBusTest, SubscribeAndPublish) {
-    int received_count = 0;
-    TestEvent received_event{0, ""};
+TEST_F(EventBusTest, PostAndPoll) {
+    auto* event = new SelectionChangedEvent(42, 1.0f, 2.0f, 3.0f);
     
-    event_bus_->subscribe<TestEvent>([&](const TestEvent& event) {
-        received_count++;
-        received_event = event;
-    });
+    event_bus_->post(event);
     
-    TestEvent sent_event{42, "test message"};
-    event_bus_->publish(sent_event);
+    EXPECT_EQ(event_bus_->pending_count(), 1);
     
-    EXPECT_EQ(received_count, 1);
-    EXPECT_EQ(received_event.value, 42);
-    EXPECT_EQ(received_event.message, "test message");
+    Event* polled = event_bus_->poll();
+    ASSERT_NE(polled, nullptr);
+    EXPECT_EQ(polled->type, EventType::SelectionChanged);
+    
+    auto* selection = static_cast<SelectionChangedEvent*>(polled);
+    EXPECT_EQ(selection->entity_id, 42);
+    EXPECT_FLOAT_EQ(selection->world_x, 1.0f);
+    
+    delete polled;
 }
 
 /**
- * Test multiple subscribers for the same event type.
+ * Test multiple events in order.
  */
-TEST_F(EventBusTest, MultipleSubscribers) {
-    int count1 = 0, count2 = 0, count3 = 0;
+TEST_F(EventBusTest, MultipleEventsInOrder) {
+    event_bus_->post(new EntityCreatedEvent(1));
+    event_bus_->post(new EntityCreatedEvent(2));
+    event_bus_->post(new EntityCreatedEvent(3));
     
-    event_bus_->subscribe<TestEvent>([&](const TestEvent&) { count1++; });
-    event_bus_->subscribe<TestEvent>([&](const TestEvent&) { count2++; });
-    event_bus_->subscribe<TestEvent>([&](const TestEvent&) { count3++; });
+    EXPECT_EQ(event_bus_->pending_count(), 3);
     
-    event_bus_->publish(TestEvent{1, "test"});
+    Event* e1 = event_bus_->poll();
+    ASSERT_NE(e1, nullptr);
+    EXPECT_EQ(static_cast<EntityCreatedEvent*>(e1)->entity_id, 1);
+    delete e1;
     
-    EXPECT_EQ(count1, 1);
-    EXPECT_EQ(count2, 1);
-    EXPECT_EQ(count3, 1);
+    Event* e2 = event_bus_->poll();
+    ASSERT_NE(e2, nullptr);
+    EXPECT_EQ(static_cast<EntityCreatedEvent*>(e2)->entity_id, 2);
+    delete e2;
+    
+    Event* e3 = event_bus_->poll();
+    ASSERT_NE(e3, nullptr);
+    EXPECT_EQ(static_cast<EntityCreatedEvent*>(e3)->entity_id, 3);
+    delete e3;
 }
 
 /**
- * Test publishing multiple events.
+ * Test polling empty queue.
  */
-TEST_F(EventBusTest, MultipleEvents) {
-    int sum = 0;
-    
-    event_bus_->subscribe<TestEvent>([&](const TestEvent& event) {
-        sum += event.value;
-    });
-    
-    event_bus_->publish(TestEvent{10, "first"});
-    event_bus_->publish(TestEvent{20, "second"});
-    event_bus_->publish(TestEvent{30, "third"});
-    
-    EXPECT_EQ(sum, 60);
+TEST_F(EventBusTest, PollEmpty) {
+    Event* event = event_bus_->poll();
+    EXPECT_EQ(event, nullptr);
 }
 
 /**
- * Test unsubscribing from events.
+ * Test peek without removing.
  */
-TEST_F(EventBusTest, Unsubscribe) {
-    int count = 0;
+TEST_F(EventBusTest, Peek) {
+    event_bus_->post(new EntityCreatedEvent(100));
     
-    auto handle = event_bus_->subscribe<TestEvent>([&](const TestEvent&) {
-        count++;
-    });
+    const Event* peeked1 = event_bus_->peek();
+    ASSERT_NE(peeked1, nullptr);
+    EXPECT_EQ(peeked1->type, EventType::EntityCreated);
     
-    event_bus_->publish(TestEvent{1, "test1"});
-    EXPECT_EQ(count, 1);
+    // Peeking shouldn't remove it
+    EXPECT_EQ(event_bus_->pending_count(), 1);
     
-    event_bus_->unsubscribe(handle);
+    const Event* peeked2 = event_bus_->peek();
+    EXPECT_EQ(peeked1, peeked2); // Should be same event
     
-    event_bus_->publish(TestEvent{2, "test2"});
-    EXPECT_EQ(count, 1); // Should not increment
+    // Now poll it
+    Event* polled = event_bus_->poll();
+    ASSERT_NE(polled, nullptr);
+    delete polled;
+    
+    // Queue should be empty now
+    EXPECT_EQ(event_bus_->pending_count(), 0);
 }
 
 /**
- * Test that events are delivered in subscription order.
+ * Test clearing events.
  */
-TEST_F(EventBusTest, DeliveryOrder) {
-    std::vector<int> order;
+TEST_F(EventBusTest, Clear) {
+    event_bus_->post(new EntityCreatedEvent(1));
+    event_bus_->post(new EntityCreatedEvent(2));
+    event_bus_->post(new EntityCreatedEvent(3));
     
-    event_bus_->subscribe<TestEvent>([&](const TestEvent&) { order.push_back(1); });
-    event_bus_->subscribe<TestEvent>([&](const TestEvent&) { order.push_back(2); });
-    event_bus_->subscribe<TestEvent>([&](const TestEvent&) { order.push_back(3); });
-    
-    event_bus_->publish(TestEvent{0, "test"});
-    
-    ASSERT_EQ(order.size(), 3);
-    EXPECT_EQ(order[0], 1);
-    EXPECT_EQ(order[1], 2);
-    EXPECT_EQ(order[2], 3);
-}
-
-/**
- * Test publishing with no subscribers doesn't crash.
- */
-TEST_F(EventBusTest, PublishWithNoSubscribers) {
-    ASSERT_NO_THROW({
-        event_bus_->publish(TestEvent{42, "test"});
-    });
-}
-
-/**
- * Test clearing all subscribers.
- */
-TEST_F(EventBusTest, ClearAllSubscribers) {
-    int count = 0;
-    
-    event_bus_->subscribe<TestEvent>([&](const TestEvent&) { count++; });
-    event_bus_->subscribe<TestEvent>([&](const TestEvent&) { count++; });
-    
-    event_bus_->publish(TestEvent{1, "test1"});
-    EXPECT_EQ(count, 2);
+    EXPECT_EQ(event_bus_->pending_count(), 3);
     
     event_bus_->clear();
     
-    event_bus_->publish(TestEvent{2, "test2"});
-    EXPECT_EQ(count, 2); // Should not increment
+    EXPECT_EQ(event_bus_->pending_count(), 0);
+    EXPECT_EQ(event_bus_->poll(), nullptr);
+}
+
+/**
+ * Test different event types.
+ */
+TEST_F(EventBusTest, DifferentEventTypes) {
+    event_bus_->post(new SelectionChangedEvent(10, 1, 2, 3));
+    event_bus_->post(new EntityCreatedEvent(20));
+    event_bus_->post(new IngestStartedEvent(1, 1000));
+    
+    Event* e1 = event_bus_->poll();
+    EXPECT_EQ(e1->type, EventType::SelectionChanged);
+    delete e1;
+    
+    Event* e2 = event_bus_->poll();
+    EXPECT_EQ(e2->type, EventType::EntityCreated);
+    delete e2;
+    
+    Event* e3 = event_bus_->poll();
+    EXPECT_EQ(e3->type, EventType::IngestStarted);
+    delete e3;
+}
+
+/**
+ * Test AssetLoadedEvent.
+ */
+TEST_F(EventBusTest, AssetLoadedEvent) {
+    auto* event = new AssetLoadedEvent(123, 0, "test_mesh.obj");
+    event_bus_->post(event);
+    
+    Event* polled = event_bus_->poll();
+    ASSERT_NE(polled, nullptr);
+    EXPECT_EQ(polled->type, EventType::AssetLoaded);
+    
+    auto* asset_event = static_cast<AssetLoadedEvent*>(polled);
+    EXPECT_EQ(asset_event->asset_id, 123);
+    EXPECT_EQ(asset_event->asset_type, 0);
+    EXPECT_STREQ(asset_event->asset_name, "test_mesh.obj");
+    
+    delete polled;
+}
+
+/**
+ * Test IngestProgressEvent.
+ */
+TEST_F(EventBusTest, IngestProgressEvent) {
+    auto* event = new IngestProgressEvent(500, 1000);
+    event_bus_->post(event);
+    
+    Event* polled = event_bus_->poll();
+    ASSERT_NE(polled, nullptr);
+    
+    auto* progress = static_cast<IngestProgressEvent*>(polled);
+    EXPECT_EQ(progress->bytes_processed, 500);
+    EXPECT_EQ(progress->total_bytes, 1000);
+    EXPECT_FLOAT_EQ(progress->progress, 0.5f);
+    
+    delete polled;
+}
+
+/**
+ * Test pending count tracking.
+ */
+TEST_F(EventBusTest, PendingCount) {
+    EXPECT_EQ(event_bus_->pending_count(), 0);
+    
+    event_bus_->post(new EntityCreatedEvent(1));
+    EXPECT_EQ(event_bus_->pending_count(), 1);
+    
+    event_bus_->post(new EntityCreatedEvent(2));
+    EXPECT_EQ(event_bus_->pending_count(), 2);
+    
+    Event* e = event_bus_->poll();
+    delete e;
+    EXPECT_EQ(event_bus_->pending_count(), 1);
+    
+    e = event_bus_->poll();
+    delete e;
+    EXPECT_EQ(event_bus_->pending_count(), 0);
 }
 
 } // namespace testing
