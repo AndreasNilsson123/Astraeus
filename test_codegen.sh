@@ -42,8 +42,10 @@ fi
 # Test 2: CLI --list-targets
 echo -e "${YELLOW}Test 2: CLI --list-targets${NC}"
 cd "$PROJECT_ROOT"
-JAVA_BIN="/usr/lib/jvm/temurin-25-jdk-amd64/bin/java"
-if [ ! -f "$JAVA_BIN" ]; then
+# Use JAVA_HOME if set, otherwise fall back to java on PATH
+if [ -n "$JAVA_HOME" ] && [ -f "$JAVA_HOME/bin/java" ]; then
+    JAVA_BIN="$JAVA_HOME/bin/java"
+else
     JAVA_BIN="java"
 fi
 
