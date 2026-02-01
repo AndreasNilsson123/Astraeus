@@ -5,6 +5,7 @@ import com.astraeus.native_api.model.FrameStats;
 import com.astraeus.native_api.model.PickResult;
 import com.astraeus.native_api.model.PixelBufferView;
 import com.astraeus.tools.TelemetryOverlay;
+import com.astraeus.tools.TestPatternGenerator;
 import com.astraeus.ui.viewport.PickingCoordinateTransform;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
@@ -64,6 +65,11 @@ public class FxViewport extends StackPane {
     private PixelBuffer<ByteBuffer> pixelBuffer;
     private PixelBufferView colorBuffer;
     
+    // Stride handling: tightly-packed buffer for JavaFX
+    // JavaFX PixelBuffer does NOT support stride, so we need to repack the data
+    private ByteBuffer tightlyPackedBuffer;
+    private boolean useStrideCopy = false;  // Enable stride-aware copying (set during init)
+    
     // Viewport dimensions
     private final int maxWidth;
     private final int maxHeight;
@@ -86,12 +92,29 @@ public class FxViewport extends StackPane {
 
     private boolean warnedBufferState;
     
+    // Debug logging throttle
+    private long lastDebugLogTime = 0;
+    private static final long DEBUG_LOG_INTERVAL_MS = 1000; // Log once per second
+    
     // Input state flags
     private boolean inputEnabled = true;
     private boolean pickingEnabled = true;
 
     // Debugging
     private static final boolean ASSERT_BUF_STATE = Boolean.getBoolean("astraeus.debug.assertBufferState");
+    private static final boolean DEBUG_BUFFER_UPDATE = Boolean.getBoolean("astraeus.debug.bufferUpdate");
+    private static final boolean ENABLE_TEST_PATTERN = Boolean.getBoolean("astraeus.debug.testPattern");
+    
+    // Test pattern mode
+    public enum TestPattern {
+        NONE,
+        GRADIENT,
+        CHECKERBOARD,
+        GRID,
+        COLOR_BANDS,
+        QUADRANTS
+    }
+    private TestPattern currentTestPattern = ENABLE_TEST_PATTERN ? TestPattern.GRADIENT : TestPattern.NONE;
     
     /**
      * Create a new enhanced viewport with camera control and overlays.
@@ -126,8 +149,53 @@ public class FxViewport extends StackPane {
         PixelFormat<ByteBuffer> format = PixelFormat.getByteBgraPreInstance();
         int backingW = colorView.getMaxBackingWidth();
         int backingH = colorView.getMaxBackingHeight();
+        int stride = colorView.getStride();
+        int backingSize = colorView.getMaxBackingSize();
         
-        pixelBuffer = new PixelBuffer<>(backingW, backingH, backingBuffer, format);
+        // Log buffer configuration for diagnostics
+        System.out.println("[FxViewport] PixelBuffer Configuration:");
+        System.out.println("  Backing dimensions: " + backingW + "x" + backingH);
+        System.out.println("  Viewport dimensions: " + initialWidth + "x" + initialHeight);
+        System.out.println("  Stride: " + stride + " bytes/row");
+        System.out.println("  Expected stride: " + (backingW * 4) + " bytes/row");
+        System.out.println("  ByteBuffer capacity: " + backingBuffer.capacity() + " bytes");
+        System.out.println("  Max backing size: " + backingSize + " bytes");
+        System.out.println("  Expected backing size: " + (backingW * backingH * 4) + " bytes");
+        System.out.println("  Viewport size: " + (initialWidth * initialHeight * 4) + " bytes");
+        
+        // Check if stride copy is needed
+        boolean strideNeeded = (initialWidth < backingW) || (initialHeight < backingH);
+        if (strideNeeded) {
+            System.out.println("[FxViewport] Viewport smaller than backing buffer - using stride-aware copy");
+            useStrideCopy = true;
+            
+            // Create tightly-packed buffer for current viewport dimensions
+            int tightSize = initialWidth * initialHeight * 4;
+            tightlyPackedBuffer = ByteBuffer.allocateDirect(tightSize);
+            
+            // Create PixelBuffer with viewport dimensions (not backing dimensions)
+            pixelBuffer = new PixelBuffer<>(initialWidth, initialHeight, tightlyPackedBuffer, format);
+            System.out.println("[FxViewport] Created tightly-packed PixelBuffer: " + initialWidth + "x" + initialHeight);
+        } else {
+            System.out.println("[FxViewport] Viewport matches backing buffer - direct buffer usage");
+            useStrideCopy = false;
+            
+            // Validate stride alignment
+            if (stride != backingW * 4) {
+                System.err.println("[FxViewport] WARNING: Stride mismatch! stride=" + stride + 
+                                 " expected=" + (backingW * 4));
+            }
+            
+            // Validate buffer capacity
+            if (backingBuffer.capacity() < backingSize) {
+                System.err.println("[FxViewport] ERROR: Buffer capacity insufficient! " +
+                                 "capacity=" + backingBuffer.capacity() + " required=" + backingSize);
+            }
+            
+            // Use backing buffer directly
+            pixelBuffer = new PixelBuffer<>(backingW, backingH, backingBuffer, format);
+        }
+        
         writableImage = new WritableImage(pixelBuffer);
         
         // Create image view
@@ -371,10 +439,15 @@ public class FxViewport extends StackPane {
      * Update display with latest engine output.
      * Call this after rendering each frame.
      * 
-     * NOTE: Uses pre-allocated Rectangle2D to avoid per-frame allocations.
+     * NOTE: Implements stride-aware copying when viewport is smaller than backing buffer.
+     * JavaFX PixelBuffer does NOT support stride, so we must repack the data.
      */
     public void updateDisplay() {
         if (pixelBuffer == null) return;
+
+        // Always get the latest color buffer from engine
+        // This ensures we have the most up-to-date buffer reference after resize
+        colorBuffer = engine.getColorBuffer();
 
         // Optional dev assert — but do NOT run unconditionally per frame.
         if (ASSERT_BUF_STATE && colorBuffer != null) {
@@ -390,6 +463,125 @@ public class FxViewport extends StackPane {
             }
         }
 
+        if (useStrideCopy) {
+            // Stride-aware copy: repack from strided native buffer to tightly-packed JavaFX buffer
+            copyWithStride();
+        } else {
+            // Direct mode: native buffer is already tightly packed (viewport == backing size)
+            // Just mark the dirty region
+            markDirtyRegion();
+        }
+    }
+    
+    /**
+     * Copy pixel data from strided native buffer to tightly-packed JavaFX buffer.
+     * This is necessary because JavaFX PixelBuffer does not support row stride.
+     */
+    private void copyWithStride() {
+        if (colorBuffer == null || tightlyPackedBuffer == null) return;
+        
+        ByteBuffer nativeBuffer = colorBuffer.getByteBuffer();
+        if (nativeBuffer == null) return;
+        
+        int width = currentWidth;
+        int height = currentHeight;
+        int stride = colorBuffer.getStride();
+        int bytesPerPixel = 4; // BGRA8
+        int rowBytes = width * bytesPerPixel;
+        
+        // Debug logging (throttled to avoid spam)
+        if (DEBUG_BUFFER_UPDATE) {
+            long now = System.currentTimeMillis();
+            if (now - lastDebugLogTime >= DEBUG_LOG_INTERVAL_MS) {
+                lastDebugLogTime = now;
+                System.out.println("[FxViewport] copyWithStride:");
+                System.out.println("  Viewport: " + width + "x" + height);
+                System.out.println("  Stride: " + stride + " bytes/row");
+                System.out.println("  Row bytes: " + rowBytes);
+            }
+        }
+        
+        // Apply test pattern if enabled
+        if (currentTestPattern != TestPattern.NONE) {
+            applyTestPattern(nativeBuffer, width, height, stride);
+        }
+        
+        // Prepare buffers for copying
+        tightlyPackedBuffer.clear();
+        nativeBuffer.clear();
+        
+        // Copy row by row, handling stride
+        for (int y = 0; y < height; y++) {
+            int srcOffset = y * stride;
+            int dstOffset = y * rowBytes;
+            
+            // Set source position and limit for this row
+            nativeBuffer.position(srcOffset);
+            nativeBuffer.limit(srcOffset + rowBytes);
+            
+            // Set destination position
+            tightlyPackedBuffer.position(dstOffset);
+            
+            // Copy this row
+            tightlyPackedBuffer.put(nativeBuffer);
+        }
+        
+        // Reset buffer state
+        tightlyPackedBuffer.clear();
+        nativeBuffer.clear();
+        
+        // Mark entire viewport as dirty
+        dirtyRect = null; // null = full buffer dirty
+        pixelBuffer.updateBuffer(DIRTY_CB);
+    }
+    
+    /**
+     * Apply test pattern to the native buffer for debugging.
+     * This helps diagnose stride and alignment issues.
+     */
+    private void applyTestPattern(ByteBuffer buffer, int width, int height, int stride) {
+        switch (currentTestPattern) {
+            case GRADIENT:
+                TestPatternGenerator.fillGradient(buffer, width, height, stride);
+                break;
+            case CHECKERBOARD:
+                TestPatternGenerator.fillCheckerboard(buffer, width, height, stride, 32);
+                break;
+            case GRID:
+                TestPatternGenerator.fillGrid(buffer, width, height, stride, 64);
+                break;
+            case COLOR_BANDS:
+                TestPatternGenerator.fillColorBands(buffer, width, height, stride, 50);
+                break;
+            case QUADRANTS:
+                TestPatternGenerator.fillQuadrants(buffer, width, height, stride);
+                break;
+            default:
+                break;
+        }
+    }
+    
+    /**
+     * Set test pattern mode for debugging.
+     * @param pattern Test pattern to display
+     */
+    public void setTestPattern(TestPattern pattern) {
+        this.currentTestPattern = pattern;
+        System.out.println("[FxViewport] Test pattern set to: " + pattern);
+    }
+    
+    /**
+     * Get current test pattern.
+     * @return Current test pattern
+     */
+    public TestPattern getTestPattern() {
+        return currentTestPattern;
+    }
+    
+    /**
+     * Mark dirty region for direct buffer mode (no stride issues).
+     */
+    private void markDirtyRegion() {
         // Clamp dirty region to PixelBuffer content bounds to avoid Prism crash.
         final int bufW = pixelBuffer.getWidth();
         final int bufH = pixelBuffer.getHeight();
@@ -397,13 +589,29 @@ public class FxViewport extends StackPane {
         final int w = Math.max(0, Math.min(currentWidth,  bufW));
         final int h = Math.max(0, Math.min(currentHeight, bufH));
 
+        // Debug logging (throttled to avoid spam)
+        if (DEBUG_BUFFER_UPDATE) {
+            long now = System.currentTimeMillis();
+            if (now - lastDebugLogTime >= DEBUG_LOG_INTERVAL_MS) {
+                lastDebugLogTime = now;
+                System.out.println("[FxViewport] markDirtyRegion:");
+                System.out.println("  PixelBuffer size: " + bufW + "x" + bufH);
+                System.out.println("  Viewport size: " + currentWidth + "x" + currentHeight);
+                System.out.println("  Dirty region: " + w + "x" + h);
+                if (colorBuffer != null) {
+                    System.out.println("  Stride: " + colorBuffer.getStride() + " bytes/row");
+                    System.out.println("  Expected bytes: " + (w * h * 4));
+                }
+            }
+        }
+
         // Avoid empty rectangles (can also throw in Prism); fall back to full dirty.
         // Also avoid per-frame Rectangle2D allocations: only allocate on size change.
         if (w <= 0 || h <= 0) {
             dirtyRect = null; // full buffer dirty
             lastDirtyW = lastDirtyH = -1;
         } else if (w == bufW && h == bufH) {
-            dirtyRect = null; // full buffer dirty (and zero alloc) :contentReference[oaicite:0]{index=0}
+            dirtyRect = null; // full buffer dirty (and zero alloc)
             lastDirtyW = bufW;
             lastDirtyH = bufH;
         } else if (w != lastDirtyW || h != lastDirtyH) {
@@ -427,16 +635,67 @@ public class FxViewport extends StackPane {
             return;
         }
         
-        engine.resizeViewport(width, height);
-        imageView.setViewport(new javafx.geometry.Rectangle2D(0, 0, width, height));
+        System.out.println("[FxViewport] Resizing viewport: " + currentWidth + "x" + currentHeight + 
+                         " -> " + width + "x" + height);
         
+        engine.resizeViewport(width, height);
+        
+        // Update current dimensions
         currentWidth = width;
         currentHeight = height;
         
         // Update coordinate transform for picking
         coordinateTransform.setViewportDimensions(width, height);
         
+        // Get updated color buffer
         colorBuffer = engine.getColorBuffer();
+        
+        // Log updated buffer info
+        if (colorBuffer != null) {
+            System.out.println("[FxViewport] After resize:");
+            System.out.println("  Viewport: " + colorBuffer.getWidth() + "x" + colorBuffer.getHeight());
+            System.out.println("  Stride: " + colorBuffer.getStride() + " bytes/row");
+            System.out.println("  Backing: " + colorBuffer.getMaxBackingWidth() + "x" + 
+                             colorBuffer.getMaxBackingHeight());
+        }
+        
+        // Recreate PixelBuffer if using stride copy and size changed
+        if (useStrideCopy) {
+            recreatePixelBuffer(width, height);
+        } else {
+            // Direct mode: just update ImageView viewport
+            imageView.setViewport(new javafx.geometry.Rectangle2D(0, 0, width, height));
+        }
+    }
+    
+    /**
+     * Recreate PixelBuffer and WritableImage for new viewport dimensions.
+     * Only used when stride copy is enabled (viewport < backing size).
+     */
+    private void recreatePixelBuffer(int width, int height) {
+        System.out.println("[FxViewport] Recreating PixelBuffer for new viewport size: " + width + "x" + height);
+        
+        // Create new tightly-packed buffer
+        int tightSize = width * height * 4;
+        tightlyPackedBuffer = ByteBuffer.allocateDirect(tightSize);
+        
+        // Create new PixelBuffer with viewport dimensions
+        PixelFormat<ByteBuffer> format = PixelFormat.getByteBgraPreInstance();
+        pixelBuffer = new PixelBuffer<>(width, height, tightlyPackedBuffer, format);
+        
+        // Create new WritableImage
+        writableImage = new WritableImage(pixelBuffer);
+        
+        // Update ImageView
+        imageView.setImage(writableImage);
+        imageView.setViewport(new javafx.geometry.Rectangle2D(0, 0, width, height));
+        
+        // Reset dirty tracking
+        dirtyRect = null;
+        lastDirtyW = -1;
+        lastDirtyH = -1;
+        
+        System.out.println("[FxViewport] PixelBuffer recreated successfully");
     }
     
     /**

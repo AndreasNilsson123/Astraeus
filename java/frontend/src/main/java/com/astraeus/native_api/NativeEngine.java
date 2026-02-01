@@ -272,6 +272,9 @@ public class NativeEngine implements AutoCloseable {
 
         long addr = view.dataAddress();
         int backingSize = view.getMaxBackingSize();
+        int stride = view.getStride();
+        int maxWidth = view.getMaxBackingWidth();
+        int expectedStride = maxWidth * 4; // BGRA8 = 4 bytes per pixel
         
         // Calculate needed size with overflow detection
         int needed;
@@ -289,6 +292,14 @@ public class NativeEngine implements AutoCloseable {
             throw new IllegalStateException("Color view size mismatch: needed=" + needed + " backingSize=" + backingSize +
                     " stride=" + view.getStride() + " height=" + view.getHeight());
         }
+        
+        // Validate stride matches expected value
+        if (stride != expectedStride) {
+            System.err.println("[NativeEngine] WARNING: Stride mismatch in color buffer!");
+            System.err.println("  Expected stride: " + expectedStride + " bytes/row (max_width=" + maxWidth + ")");
+            System.err.println("  Actual stride: " + stride + " bytes/row");
+            System.err.println("  This may cause rendering artifacts!");
+        }
 
         // Rebuild only if address/size changed
         if (colorByteBufferStable == null || colorAddr != addr || colorBackingSize != backingSize) {
@@ -303,6 +314,11 @@ public class NativeEngine implements AutoCloseable {
             colorByteBufferStable = colorDataSeg.asByteBuffer();
             colorByteBufferStable.position(0);
             colorByteBufferStable.limit(colorByteBufferStable.capacity());
+            
+            System.out.println("[NativeEngine] Color buffer initialized:");
+            System.out.println("  Address: 0x" + Long.toHexString(addr));
+            System.out.println("  Capacity: " + colorByteBufferStable.capacity() + " bytes");
+            System.out.println("  Backing size: " + backingSize + " bytes");
         }
 
         // CRITICAL: Return the stable buffer that JavaFX owns
