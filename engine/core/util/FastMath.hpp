@@ -47,6 +47,8 @@ constexpr float PI = 3.14159265358979323846f;
 constexpr float TWO_PI = 6.28318530717958647692f;
 constexpr float HALF_PI = 1.57079632679489661923f;
 constexpr float INV_PI = 0.31830988618379067154f;
+constexpr float RAD_TO_DEG = 57.2957795130823208768f;  // 180/PI
+constexpr float DEG_TO_RAD = 0.01745329251994329577f;  // PI/180
 
 // =============================================================================
 // Fast Inverse Square Root
@@ -56,7 +58,7 @@ constexpr float INV_PI = 0.31830988618379067154f;
  * Fast inverse square root using the famous Quake algorithm with Newton refinement.
  * 
  * Domain: x > 0
- * Error: ~0.175% (level 1), ~0.001% (level 2+)
+ * Error: ~0.175% (level 1-2), ~0.01% (level 3)
  * Behavior:
  * - Returns +Inf for x = 0
  * - Returns NaN for x < 0 or x = NaN
@@ -108,7 +110,7 @@ inline float fastRSqrt(float x) noexcept {
  * Fast square root via inverse square root.
  * 
  * Domain: x >= 0
- * Error: ~0.175% (level 1), ~0.001% (level 2+)
+ * Error: ~0.175% (level 1-2), ~0.01% (level 3)
  * Behavior:
  * - Returns 0 for x = 0
  * - Returns NaN for x < 0
@@ -235,6 +237,10 @@ inline float fastCos(float x) noexcept {
 /**
  * Fast simultaneous sine and cosine computation.
  * More efficient than calling fastSin and fastCos separately.
+ * 
+ * Note: Currently implemented as separate function calls for code maintainability.
+ * A future optimization could compute both in a single pass to reduce redundant
+ * range reduction and polynomial evaluation.
  * 
  * Domain: [-PI, PI] for best accuracy; larger values use range reduction
  * Error: ~0.01 (level 1), ~0.001 (level 2+)

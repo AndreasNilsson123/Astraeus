@@ -116,7 +116,7 @@ void angle_calculation_example() {
     float angle = fastAtan2(target_z - pos_z, target_x - pos_x);
     
     std::cout << "Angle to target: " << angle << " radians (" 
-              << (angle * 180.0f / PI) << " degrees)" << std::endl;
+              << (angle * RAD_TO_DEG) << " degrees)" << std::endl;
 }
 
 int main() {

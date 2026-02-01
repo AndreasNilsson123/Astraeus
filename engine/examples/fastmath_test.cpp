@@ -73,13 +73,13 @@ void test_fast_inv_sqrt() {
             
             // Error tolerance based on quality level
 #if ASTRAEUS_FASTMATH_LEVEL == 0
-            const float max_error = 0.00001f;  // 0.001% for accurate fallback
+            const float max_error = 0.00001f;  // 0.001% relative error
 #elif ASTRAEUS_FASTMATH_LEVEL == 1
-            const float max_error = 0.002f;  // 0.2%
+            const float max_error = 0.002f;  // 0.2% relative error
 #elif ASTRAEUS_FASTMATH_LEVEL == 2
-            const float max_error = 0.002f;  // 0.2% (Quake + 1 Newton iteration)
+            const float max_error = 0.002f;  // 0.2% relative error (Quake + 1 Newton iteration)
 #else
-            const float max_error = 0.0001f;  // 0.01% (Quake + 2 Newton iterations)
+            const float max_error = 0.0001f;  // 0.01% relative error (Quake + 2 Newton iterations)
 #endif
             
             if (rel_err > max_error) {
@@ -362,6 +362,9 @@ void test_fast_cos() {
 void test_fast_sincos() {
     std::cout << "\n=== Fast SinCos Tests ===" << std::endl;
     
+    // Consistency tolerance for comparing fastSinCos with individual calls
+    constexpr float CONSISTENCY_EPSILON = 1e-6f;
+    
     // Test that fastSinCos matches individual calls
     {
         bool all_passed = true;
@@ -373,7 +376,8 @@ void test_fast_sincos() {
             float s_expected = fastSin(x);
             float c_expected = fastCos(x);
             
-            if (absolute_error(s, s_expected) > 1e-6f || absolute_error(c, c_expected) > 1e-6f) {
+            if (absolute_error(s, s_expected) > CONSISTENCY_EPSILON || 
+                absolute_error(c, c_expected) > CONSISTENCY_EPSILON) {
                 all_passed = false;
                 std::cout << "    Failed for x=" << x << std::endl;
             }
