@@ -80,6 +80,9 @@ public:
     /**
      * Frustum query: find all entities within view frustum.
      * 
+     * NOTE: Current implementation uses AABB approximation as a placeholder.
+     * Proper frustum-BVH traversal is deferred to future iteration.
+     * 
      * @param frustum View frustum (6 planes)
      * @param out_entities Output vector of entity IDs
      */

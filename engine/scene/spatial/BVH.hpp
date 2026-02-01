@@ -28,7 +28,7 @@ struct RayHit {
 
 /**
  * BVH (Bounding Volume Hierarchy) for spatial queries.
- * Uses binary tree structure with SAH-based construction.
+ * Uses binary tree structure with midpoint splitting along longest axis.
  */
 class BVH {
 public:
