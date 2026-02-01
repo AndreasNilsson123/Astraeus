@@ -66,6 +66,10 @@ public class ViewportPane extends Region {
                         int initialWidth, int initialHeight) {
         this.engine = engine;
         
+        // Set preferred size to match initial dimensions for proper layout
+        // This ensures consistent behavior across different container types
+        setPrefSize(initialWidth, initialHeight);
+        
         // Create viewport surface
         this.surface = new FxViewportSurface(engine, maxWidth, maxHeight, 
                                             initialWidth, initialHeight);
