@@ -46,4 +46,5 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     # Fast Math tests and benchmarks
     astraeus_add_example(fastmath_test examples/fastmath_test.cpp)
     astraeus_add_example(fastmath_benchmark examples/fastmath_benchmark.cpp)
+    astraeus_add_example(fastmath_usage_example examples/fastmath_usage_example.cpp)
 endif()
