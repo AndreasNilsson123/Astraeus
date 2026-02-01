@@ -17,14 +17,15 @@ javafx {
 
 // ---- Wire generated sources from :codegen into this project ----
 
-val codegenGeneratedDir = project(":codegen").layout.buildDirectory.dir("generated/sources/ffm/main")
+// Generated sources are placed in frontend's build directory by codegen
+val generatedSourcesDir = layout.buildDirectory.dir("generated/sources/astraeusAbi/main")
 
 sourceSets {
     named("main") {
-        java.srcDir(codegenGeneratedDir)
+        java.srcDir(generatedSourcesDir)
     }
 }
 
 tasks.named<JavaCompile>("compileJava") {
-    dependsOn(":codegen:generateBindings")
+    dependsOn(":codegen:generateAbi")
 }
