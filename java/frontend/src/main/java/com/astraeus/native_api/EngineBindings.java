@@ -1,6 +1,7 @@
 package com.astraeus.native_api;
 
 import com.astraeus.generated.StructLayouts;
+import com.astraeus.generated.StructLayouts;
 import com.astraeus.native_api.layout.Constants;
 import com.astraeus.native_api.layout.LayoutValidator;
 

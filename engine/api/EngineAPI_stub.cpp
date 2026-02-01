@@ -27,7 +27,7 @@ EngineHandle astraeus_create_engine(const EngineConfig* config) {
     if (!config) {
         return nullptr;
     }
-    std::cerr << "[Astraeus] Creating engine instance..." << std::endl;
+
     try {
         auto engine = new AstraeusEngine();
         
@@ -39,7 +39,7 @@ EngineHandle astraeus_create_engine(const EngineConfig* config) {
         if (config->log_file_path) {
             ctx_config.log_file_path = config->log_file_path;
         }
-        std::cerr << "[Astraeus] Creating engine instance... 2" << std::endl;
+
         engine->context = std::make_unique<astraeus::EngineContext>(ctx_config);
         engine->is_initialized = engine->context->initialize();
         
@@ -47,11 +47,10 @@ EngineHandle astraeus_create_engine(const EngineConfig* config) {
             delete engine;
             return nullptr;
         }
-        std::cerr << "[Astraeus] Creating engine instance... 3" << std::endl;
+
         engine->viewport.width = config->initial_width;
         engine->viewport.height = config->initial_height;
-        engine->viewport.aspect_ratio = static_cast<float>(config->initial_width) / 
-                                       static_cast<float>(config->initial_height);
+        engine->viewport.aspect_ratio = static_cast<float>(config->initial_width) / static_cast<float>(config->initial_height);
         
         return engine;
     } catch (...) {

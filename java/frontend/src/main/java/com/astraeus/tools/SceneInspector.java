@@ -1,6 +1,6 @@
 package com.astraeus.tools;
 
-import com.astraeus.native_api.PickingView;
+import com.astraeus.native_api.model.PickResult;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -74,7 +74,7 @@ public class SceneInspector extends VBox {
      * 
      * @param pickResult Result from picking operation
      */
-    public void updateSelection(PickingView pickResult) {
+    public void updateSelection(PickResult pickResult) {
         if (pickResult == null || !pickResult.hasValidEntity()) {
             clearSelection();
             return;

@@ -1,6 +1,6 @@
 package com.astraeus.tools;
 
-import com.astraeus.native_api.NativeEngine.FrameStats;
+import com.astraeus.native_api.model.FrameStats;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;

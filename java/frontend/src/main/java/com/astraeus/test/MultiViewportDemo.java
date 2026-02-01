@@ -1,7 +1,7 @@
 package com.astraeus.test;
 
 import com.astraeus.native_api.NativeEngine;
-import com.astraeus.native_api.PickingView;
+import com.astraeus.native_api.model.PickResult;
 import com.astraeus.rendering.FxViewport;
 import com.astraeus.rendering.ViewportController;
 import javafx.animation.AnimationTimer;
@@ -294,13 +294,13 @@ public class MultiViewportDemo extends Application {
         }
     }
     
-    private void handlePickViewport1(PickingView result) {
+    private void handlePickViewport1(PickResult result) {
         if (result.hasValidEntity()) {
             updateStatus("VP1: Selected entity #" + result.getEntityId());
         }
     }
     
-    private void handlePickViewport2(PickingView result) {
+    private void handlePickViewport2(PickResult result) {
         if (result.hasValidEntity()) {
             updateStatus("VP2: Selected entity #" + result.getEntityId());
         }

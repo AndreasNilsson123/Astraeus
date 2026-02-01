@@ -1,6 +1,7 @@
 package com.astraeus.tools;
 
 import com.astraeus.native_api.NativeEngine;
+import com.astraeus.native_api.model.FrameStats;
 import com.astraeus.util.MathUtils;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -244,7 +245,7 @@ public class TimelinePane extends BorderPane {
         
         // Get telemetry data if available
         if (engine.isTelemetryEnabled()) {
-            NativeEngine.FrameStats stats = engine.getTelemetryStats();
+            FrameStats stats = engine.getTelemetryStats();
             if (stats != null) {
                 currentFrame = stats.getFrameNumber();
                 

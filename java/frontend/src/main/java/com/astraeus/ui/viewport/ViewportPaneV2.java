@@ -218,8 +218,8 @@ public class ViewportPaneV2 extends Region implements AutoCloseable {
         int deviceH = (int) Math.round(h * dpiScale);
         
         // Clamp to maximum
-        deviceW = Math.min(deviceW, viewport.getMaxWidth());
-        deviceH = Math.min(deviceH, viewport.getMaxHeight());
+        deviceW = Math.min(deviceW, viewport.getMaxViewportHeight());
+        deviceH = Math.min(deviceH, viewport.getMaxViewportWidth());
         
         // Store pending resize
         pendingWidth = deviceW;

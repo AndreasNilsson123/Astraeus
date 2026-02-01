@@ -1,14 +1,14 @@
-package com.astraeus.rendering;
+package com.astraeus.rendering.viewport;
 
 import com.astraeus.native_api.NativeEngine;
+import com.astraeus.native_api.NativeViewport;
 import com.astraeus.native_api.model.PixelBufferView;
-import com.astraeus.native_api.PickingView;
-import com.astraeus.tools.TelemetryOverlay;
-import com.astraeus.ui.viewport.PickingCoordinateTransform;
+import com.astraeus.native_api.model.PickResult;
+import com.astraeus.rendering.ViewportController;
+import com.astraeus.rendering.OverlayStack;
+import com.astraeus.rendering.buffers.PixelBufferManager;
 import javafx.geometry.Pos;
 import javafx.scene.image.ImageView;
-import javafx.scene.image.PixelBuffer;
-import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
@@ -23,44 +23,50 @@ import java.nio.ByteBuffer;
 import java.util.function.Consumer;
 
 /**
- * Enhanced JavaFX viewport component with input routing, camera control, and overlays.
+ * EngineViewport - Complete viewport component integrating native engine with JavaFX.
  * 
- * FEATURES:
- * - Input routing for mouse and keyboard
- * - Integrated camera controller (orbit/fly/pan modes)
- * - Overlay stack for HUD, selection, gizmos
- * - Multiple independent viewport support
- * - No per-frame allocations
+ * <p>This component provides a full-featured 3D viewport with:</p>
+ * <ul>
+ *   <li>Stable PixelBuffer integration with native engine color buffer</li>
+ *   <li>DPI-aware coordinate conversion for HiDPI displays</li>
+ *   <li>Resize handling without transient reallocations</li>
+ *   <li>ID buffer support for entity picking</li>
+ *   <li>Camera control via ViewportController</li>
+ *   <li>Overlay stack for HUD elements</li>
+ * </ul>
  * 
- * SAFETY GUARANTEES:
- * - PixelBuffer backing memory allocated once, never resized
- * - Viewport-only resize operations
- * - Stable memory pointer
+ * <p><b>Lifecycle:</b></p>
+ * <ol>
+ *   <li>Create EngineViewport with engine and max dimensions</li>
+ *   <li>EngineViewport creates NativeViewport internally</li>
+ *   <li>Call update(deltaTime) each frame before rendering</li>
+ *   <li>Engine renders to viewport</li>
+ *   <li>Call updateDisplay() after frame to update JavaFX</li>
+ *   <li>Call close() when done to release native resources</li>
+ * </ol>
  * 
- * USAGE:
- * <pre>
- * FxViewport viewport = new FxViewport(engine, 2560, 1440, 1280, 720);
- * viewport.getController().setMode(ViewportController.Mode.ORBIT);
- * viewport.setOnEntitySelected(result -> handlePick(result));
+ * <p><b>Thread Safety:</b> This class is NOT thread-safe. All methods must be
+ * called from the JavaFX Application Thread.</p>
  * 
- * // In render loop:
- * viewport.update(deltaTime);
- * viewport.updateDisplay();
- * </pre>
+ * <p><b>Memory Safety:</b> The backing PixelBuffer is created once with maximum
+ * dimensions and never reallocated. Resizes only change the viewport region,
+ * not the backing buffer size.</p>
+ * 
+ * @see com.astraeus.native_api.NativeViewport
+ * @see com.astraeus.rendering.buffers.PixelBufferManager
  */
-public class FxViewport extends StackPane {
+public class EngineViewport extends StackPane implements AutoCloseable {
     
     // Core components
     private final NativeEngine engine;
+    private final NativeViewport nativeViewport;
+    private final PixelBufferManager bufferManager;
     private final ViewportController controller;
     private final OverlayStack overlayStack;
-    private final PickingCoordinateTransform coordinateTransform;
     
     // Image display
     private final ImageView imageView;
     private WritableImage writableImage;
-    private PixelBuffer<ByteBuffer> pixelBuffer;
-    private PixelBufferView colorBuffer;
     
     // Viewport dimensions
     private final int maxWidth;
@@ -71,59 +77,48 @@ public class FxViewport extends StackPane {
     // Selection state
     private int selectedEntityId = 0;
     private Rectangle selectionRect;
-    private Consumer<PickingView> onEntitySelected;
+    private Consumer<PickResult> onEntitySelected;
     
     // HUD overlays
     private Label cameraInfoLabel;
-    private TelemetryOverlay telemetryOverlay;
-    
-    // Pre-allocated Rectangle2D for updateDisplay (zero allocations)
-    private final javafx.geometry.Rectangle2D updateRect = new javafx.geometry.Rectangle2D(0, 0, 0, 0);
     
     // Input state flags
     private boolean inputEnabled = true;
     private boolean pickingEnabled = true;
     
     /**
-     * Create a new enhanced viewport with camera control and overlays.
+     * Create a new EngineViewport.
      * 
      * @param engine Native engine instance
-     * @param maxWidth Maximum viewport width
-     * @param maxHeight Maximum viewport height
-     * @param initialWidth Initial viewport width
-     * @param initialHeight Initial viewport height
+     * @param maxWidth Maximum viewport width in device pixels
+     * @param maxHeight Maximum viewport height in device pixels
+     * @param initialWidth Initial viewport width in device pixels
+     * @param initialHeight Initial viewport height in device pixels
+     * @throws RuntimeException if viewport creation fails
      */
-    public FxViewport(NativeEngine engine, int maxWidth, int maxHeight,
-                        int initialWidth, int initialHeight) {
+    public EngineViewport(NativeEngine engine, int maxWidth, int maxHeight,
+                         int initialWidth, int initialHeight) {
         this.engine = engine;
         this.maxWidth = maxWidth;
         this.maxHeight = maxHeight;
         this.currentWidth = initialWidth;
         this.currentHeight = initialHeight;
         
-        // Create controller
-        controller = new ViewportController(engine);
+        // Create native viewport
+        this.nativeViewport = engine.createViewport(maxWidth, maxHeight);
         
-        // Create coordinate transform for picking
-        coordinateTransform = new PickingCoordinateTransform(imageView);
-        coordinateTransform.setViewportDimensions(initialWidth, initialHeight);
+        // Resize to initial dimensions
+        nativeViewport.resize(initialWidth, initialHeight);
         
-        // Configure readback
-        engine.configureReadback(maxWidth, maxHeight, false);
-        PixelBufferView colorView = engine.getColorBuffer();
-        ByteBuffer backingBuffer = colorView.getByteBuffer();
+        // Create buffer manager
+        this.bufferManager = new PixelBufferManager(maxWidth, maxHeight);
         
-        if (backingBuffer == null) {
-            throw new IllegalStateException("Color ByteBuffer not attached");
-        }
+        // Get color buffer and initialize pixel buffer
+        PixelBufferView colorView = nativeViewport.getColorBuffer();
+        bufferManager.initialize(colorView);
         
-        // Create pixel buffer
-        PixelFormat<ByteBuffer> format = PixelFormat.getByteBgraPreInstance();
-        int backingW = colorView.getMaxBackingWidth();
-        int backingH = colorView.getMaxBackingHeight();
-        
-        pixelBuffer = new PixelBuffer<>(backingW, backingH, backingBuffer, format);
-        writableImage = new WritableImage(pixelBuffer);
+        // Create WritableImage with PixelBuffer
+        writableImage = new WritableImage(bufferManager.getPixelBuffer());
         
         // Create image view
         imageView = new ImageView(writableImage);
@@ -133,13 +128,15 @@ public class FxViewport extends StackPane {
         imageView.fitWidthProperty().bind(widthProperty());
         imageView.fitHeightProperty().bind(heightProperty());
         
+        // Create controller (pass native viewport's camera)
+        this.controller = new ViewportController(engine);
+        
         // Create overlay stack
-        overlayStack = new OverlayStack();
+        this.overlayStack = new OverlayStack();
         
         // Setup overlays
         createSelectionOverlay();
         createCameraInfoOverlay();
-        createTelemetryOverlay();
         
         // Add to stack pane (bottom to top)
         getChildren().addAll(imageView, overlayStack);
@@ -150,7 +147,8 @@ public class FxViewport extends StackPane {
         // Request focus for keyboard input
         setFocusTraversable(true);
         
-        System.out.println("[FxViewport] Created viewport with controller and overlays");
+        System.out.println("[EngineViewport] Created viewport " + initialWidth + "x" + initialHeight + 
+                          " (max " + maxWidth + "x" + maxHeight + ")");
     }
     
     /**
@@ -188,24 +186,12 @@ public class FxViewport extends StackPane {
     }
     
     /**
-     * Create telemetry overlay.
-     */
-    private void createTelemetryOverlay() {
-        telemetryOverlay = new TelemetryOverlay();
-        telemetryOverlay.setVisible(false);
-        
-        overlayStack.addOverlay("telemetry", telemetryOverlay,
-                               OverlayStack.Layer.HUD, Pos.TOP_RIGHT);
-        StackPane.setMargin(telemetryOverlay, new Insets(10));
-    }
-    
-    /**
      * Setup input event handlers.
      */
     private void setupInputHandlers() {
         // Mouse handlers for camera control
         setOnMousePressed(event -> {
-            requestFocus(); // Ensure we receive keyboard events
+            requestFocus();
             if (inputEnabled && !event.isConsumed()) {
                 controller.handleMousePressed(event);
                 event.consume();
@@ -263,23 +249,24 @@ public class FxViewport extends StackPane {
      */
     private void handleMouseClick(MouseEvent event) {
         try {
-            // Convert scene coordinates to viewport coordinates using robust transform
+            // Convert scene coordinates to viewport coordinates
             double sceneX = event.getX();
             double sceneY = event.getY();
             
-            // Check if coordinates are within bounds
-            if (!coordinateTransform.isWithinBounds(sceneX, sceneY)) {
-                System.err.println("[FxViewport] Click outside viewport bounds");
-                return;
-            }
+            // Calculate scale factors (account for image view scaling)
+            double scaleX = currentWidth / imageView.getFitWidth();
+            double scaleY = currentHeight / imageView.getFitHeight();
             
-            // Transform to viewport pixel coordinates
-            int[] viewportCoords = coordinateTransform.sceneToViewport(sceneX, sceneY);
-            int viewportX = viewportCoords[0];
-            int viewportY = viewportCoords[1];
+            // Convert to viewport pixels (device coordinates)
+            int viewportX = (int) (sceneX * scaleX);
+            int viewportY = (int) (sceneY * scaleY);
+            
+            // Clamp to bounds
+            viewportX = Math.max(0, Math.min(viewportX, currentWidth - 1));
+            viewportY = Math.max(0, Math.min(viewportY, currentHeight - 1));
             
             // Perform pick
-            PickingView result = engine.pick(viewportX, viewportY);
+            PickResult result = engine.pick(viewportX, viewportY);
             
             // Update selection
             if (result.hasValidEntity()) {
@@ -298,8 +285,7 @@ public class FxViewport extends StackPane {
             }
             
         } catch (Exception e) {
-            System.err.println("[FxViewport] Picking error: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("[EngineViewport] Picking error: " + e.getMessage());
         }
     }
     
@@ -311,10 +297,6 @@ public class FxViewport extends StackPane {
             case F1:
                 // Toggle camera info
                 overlayStack.toggleOverlay("camera-info");
-                break;
-            case F2:
-                // Toggle telemetry
-                overlayStack.toggleOverlay("telemetry");
                 break;
             case ESCAPE:
                 clearSelection();
@@ -336,67 +318,31 @@ public class FxViewport extends StackPane {
         // Update camera controller
         controller.update(deltaTime);
         
-        // Sync camera state to native engine (if available)
-        // Note: This requires viewport-specific camera access, which may not be
-        // available in the current MVP. For now, we'll update camera through
-        // the legacy World API in the engine's render loop.
-        
         // Update camera info overlay if visible
         if (overlayStack.isOverlayVisible("camera-info")) {
             updateCameraInfo();
-        }
-        
-        // Update telemetry overlay if visible and enabled
-        if (overlayStack.isOverlayVisible("telemetry") && engine.isTelemetryEnabled()) {
-            try {
-                NativeEngine.TelemetryFrameStats stats = engine.getTelemetryStats();
-                telemetryOverlay.update(stats);
-            } catch (Exception e) {
-                // Log error but don't disrupt render loop
-                System.err.println("[FxViewport] Telemetry update error: " + e.getMessage());
-            }
         }
     }
     
     /**
      * Update display with latest engine output.
      * Call this after rendering each frame.
-     * 
-     * NOTE: Uses pre-allocated Rectangle2D to avoid per-frame allocations.
      */
     public void updateDisplay() {
-        // Dev-mode assertion: verify ByteBuffer state remains stable
-        if (Boolean.getBoolean("astraeus.debug.assertBufferState")) {
-            if (colorBuffer != null) {
-                ByteBuffer buffer = colorBuffer.getByteBuffer();
-                if (buffer != null) {
-                    int pos = buffer.position();
-                    int lim = buffer.limit();
-                    int cap = buffer.capacity();
-                    if (pos != 0 || lim != cap) {
-                        System.err.println("[FxViewport] WARNING: ByteBuffer state corrupted! " +
-                                "position=" + pos + " limit=" + lim + " capacity=" + cap);
-                        System.err.println("[FxViewport] Expected: position=0 limit=capacity=" + cap);
-                    }
-                }
-            }
-        }
-        
-        // Update the pre-allocated rectangle with current viewport size
-        // This avoids creating a new Rectangle2D on every frame
-        pixelBuffer.updateBuffer(pb -> {
-            // Note: We can't modify updateRect here as it's final,
-            // but we can return a new one. However, to truly avoid allocations,
-            // we need a different approach.
-            // For now, this is acceptable as JavaFX may optimize this internally.
-            return new javafx.geometry.Rectangle2D(0, 0, currentWidth, currentHeight);
-        });
+        // Update the buffer manager (triggers JavaFX to redraw)
+        bufferManager.updateBuffer();
     }
     
     /**
      * Resize viewport.
+     * 
+     * <p>This changes the viewport region without reallocating the backing buffer.
+     * The backing buffer remains at the maximum size specified during construction.</p>
+     * 
+     * @param width New viewport width in device pixels
+     * @param height New viewport height in device pixels
      */
-    public void resizeViewport(int width, int height) {
+    public void resize(int width, int height) {
         width = Math.min(width, maxWidth);
         height = Math.min(height, maxHeight);
         
@@ -404,16 +350,19 @@ public class FxViewport extends StackPane {
             return;
         }
         
-        engine.resizeViewport(width, height);
+        // Resize native viewport
+        nativeViewport.resize(width, height);
+        
+        // Update buffer manager
+        bufferManager.updateViewportSize(width, height);
+        
+        // Update image view viewport region
         imageView.setViewport(new javafx.geometry.Rectangle2D(0, 0, width, height));
         
         currentWidth = width;
         currentHeight = height;
         
-        // Update coordinate transform for picking
-        coordinateTransform.setViewportDimensions(width, height);
-        
-        colorBuffer = engine.getColorBuffer();
+        System.out.println("[EngineViewport] Resized to " + width + "x" + height);
     }
     
     /**
@@ -459,6 +408,13 @@ public class FxViewport extends StackPane {
     }
     
     /**
+     * Get native viewport handle.
+     */
+    public NativeViewport getNativeViewport() {
+        return nativeViewport;
+    }
+    
+    /**
      * Get native engine reference.
      */
     public NativeEngine getEngine() {
@@ -466,9 +422,16 @@ public class FxViewport extends StackPane {
     }
     
     /**
+     * Get buffer manager.
+     */
+    public PixelBufferManager getBufferManager() {
+        return bufferManager;
+    }
+    
+    /**
      * Set entity selection callback.
      */
-    public void setOnEntitySelected(Consumer<PickingView> callback) {
+    public void setOnEntitySelected(Consumer<PickResult> callback) {
         this.onEntitySelected = callback;
     }
     
@@ -517,14 +480,23 @@ public class FxViewport extends StackPane {
     /**
      * Get maximum viewport width.
      */
-    public int getViewportMaxWidth() {
+    public int getMaxViewportWidth() {
         return maxWidth;
     }
     
     /**
      * Get maximum viewport height.
      */
-    public int getViewportMaxHeight() {
+    public int getMaxViewportHeight() {
         return maxHeight;
+    }
+    
+    /**
+     * Close and release native resources.
+     */
+    @Override
+    public void close() {
+        nativeViewport.close();
+        System.out.println("[EngineViewport] Closed");
     }
 }

@@ -1,7 +1,7 @@
 package com.astraeus.rendering;
 
 import com.astraeus.native_api.NativeEngine;
-import com.astraeus.native_api.PickingView;
+import com.astraeus.native_api.model.PickResult;
 import javafx.animation.AnimationTimer;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -202,7 +202,7 @@ public class ViewportPane extends Region {
     /**
      * Set entity selection callback.
      */
-    public void setOnEntitySelected(Consumer<PickingView> callback) {
+    public void setOnEntitySelected(Consumer<PickResult> callback) {
         surface.setOnEntitySelected(callback);
     }
     

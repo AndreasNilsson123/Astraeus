@@ -1,6 +1,7 @@
 package com.astraeus.examples;
 
 import com.astraeus.native_api.NativeEngine;
+import com.astraeus.native_api.model.FrameStats;
 import com.astraeus.tools.TelemetryOverlay;
 import com.astraeus.tools.TelemetryPane;
 import javafx.animation.AnimationTimer;
@@ -148,7 +149,7 @@ public class TelemetryIntegrationExample extends Application {
     private void updateTelemetryUI() {
         try {
             // Get current stats
-            NativeEngine.TelemetryFrameStats stats = engine.getTelemetryStats();
+            FrameStats stats = engine.getTelemetryStats();
             
             // Update overlay
             if (overlay.isVisible()) {

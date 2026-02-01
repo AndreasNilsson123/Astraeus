@@ -305,7 +305,7 @@ public final class ABICodeGenerator {
     // =============================================================================================
 
     private void generateJavaLayouts(String projectRoot) throws Exception {
-        String outputPath = projectRoot + "/java/src/main/java/com/astraeus/generated/StructLayouts.java";
+        String outputPath = projectRoot + "/java/frontend/src/main/java/com/astraeus/generated/StructLayouts.java";
         System.out.println("Generating Java layouts: " + outputPath);
 
         StringBuilder sb = new StringBuilder();

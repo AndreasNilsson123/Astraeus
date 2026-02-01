@@ -1,7 +1,7 @@
 package com.astraeus.rendering;
 
 import com.astraeus.native_api.NativeEngine;
-import com.astraeus.native_api.PickingView;
+import com.astraeus.native_api.model.PickResult;
 import javafx.scene.layout.StackPane;
 
 import java.util.function.Consumer;
@@ -86,7 +86,7 @@ public class FxViewportSurface extends StackPane {
     /**
      * Set entity selection callback.
      */
-    public void setOnEntitySelected(Consumer<PickingView> callback) {
+    public void setOnEntitySelected(Consumer<PickResult> callback) {
         viewport.setOnEntitySelected(callback);
     }
     

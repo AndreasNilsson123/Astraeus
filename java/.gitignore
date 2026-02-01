@@ -1,2 +1,4 @@
 /.gradle/
 *.iml
+/frontend/src/main/java/com/astraeus/generated/
+/codegen/src/main/java/com/astraeus/codegen/generated/

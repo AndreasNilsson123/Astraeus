@@ -1,56 +1,43 @@
-plugins {
-    java
-    application
-    id("org.openjfx.javafxplugin") version "0.1.0"
-}
+import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.JavaExec
 
-group = "com.astraeus"
-version = "0.1.0"
-description = "JavaFX frontend and FFM bindings for Astraeus 3D visualization engine"
+// (optional) you can remove the plugins{} block entirely in the root build.
+// If you keep it, it must ONLY contain plugin declarations, nothing else.
+plugins { }
 
-repositories {
-    mavenCentral()
-}
+allprojects {
+    group = "com.astraeus"
+    version = "0.1.0"
 
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(25))
+    repositories {
+        mavenCentral()
     }
 }
 
-// Match your Maven <sourceDirectory>java/src/main/java</sourceDirectory>
-sourceSets {
-    named("main") {
-        java.setSrcDirs(listOf("src/main/java"))
-        resources.setSrcDirs(listOf("src/main/resources"))
+subprojects {
+    // Only configure toolchain when the Java plugin is actually applied
+    pluginManager.withPlugin("java") {
+        extensions.configure<JavaPluginExtension> {
+            toolchain {
+                languageVersion.set(JavaLanguageVersion.of(25))
+            }
+        }
     }
-    named("test") {
-        java.setSrcDirs(listOf("src/test/java"))
-        resources.setSrcDirs(listOf("src/test/resources"))
+
+    // Preview flags (safe even if a project doesn't have these tasks)
+    tasks.withType<JavaCompile>().configureEach {
+        options.encoding = "UTF-8"
+        options.compilerArgs.add("--enable-preview")
     }
-}
 
-application {
-    mainClass.set("com.astraeus.ui.AstraeusApp")
-    applicationDefaultJvmArgs = listOf("--enable-preview")
-}
+    tasks.withType<Test>().configureEach {
+        jvmArgs("--enable-preview")
+    }
 
-javafx {
-    // For JDK 25, JavaFX 25.x is the typical pairing. :contentReference[oaicite:2]{index=2}
-    version = "25.0.1"
-    modules = listOf("javafx.controls", "javafx.graphics", "javafx.fxml")
-}
-
-// Enable preview features for compile + run (+ tests if you add them)
-tasks.withType<JavaCompile>().configureEach {
-    options.encoding = "UTF-8"
-    options.compilerArgs.add("--enable-preview")
-}
-
-tasks.withType<Test>().configureEach {
-    jvmArgs("--enable-preview")
-}
-
-tasks.withType<JavaExec>().configureEach {
-    jvmArgs("--enable-preview")
+    tasks.withType<JavaExec>().configureEach {
+        jvmArgs("--enable-preview")
+    }
 }

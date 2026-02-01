@@ -20,7 +20,7 @@ public final class ABICodegenRunner {
 
     private static final String CODEGEN_CLASS = "com.astraeus.tools.ABICodeGenerator";
 
-    private static final String CODEGEN_SRC_REL = "java/src/main/java/com/astraeus/tools/ABICodeGenerator.java";
+    private static final String CODEGEN_SRC_REL = "java/codegen/src/main/java/com/astraeus/codegen/ABICodeGenerator.java";
 
     private static final Path SCHEMA_REL = Path.of("engine", "api", "abi_structs_schema.yaml");
 

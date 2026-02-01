@@ -1,7 +1,7 @@
 package com.astraeus.test;
 
 import com.astraeus.native_api.NativeEngine;
-import com.astraeus.native_api.PickingView;
+import com.astraeus.native_api.model.PickResult;
 import com.astraeus.rendering.FxViewport;
 import com.astraeus.tools.SceneInspector;
 import javafx.animation.AnimationTimer;
@@ -196,7 +196,7 @@ public class PickingDemoApp extends Application {
         timer.start();
     }
     
-    private void handleEntitySelected(PickingView pickResult) {
+    private void handleEntitySelected(PickResult pickResult) {
         // Update inspector with pick result
         inspector.updateSelection(pickResult);
         
