@@ -756,6 +756,115 @@ ASTRAEUS_API uint32_t astraeus_plugin_count(EngineHandle engine);
 ASTRAEUS_API bool astraeus_plugin_get_name(EngineHandle engine, uint32_t index,
                               char* out_name_buffer, uint32_t name_buffer_size);
 
+// =============================================================================
+// DIAGNOSTICS & VALIDATION (VIS-GEN-001)
+// =============================================================================
+
+/**
+ * Test pattern types for visual validation.
+ * Used to isolate presentation issues from scene rendering.
+ */
+typedef enum {
+    ASTRAEUS_TEST_PATTERN_NONE = 0,
+    ASTRAEUS_TEST_PATTERN_QUADRANTS,     // TL=Red, TR=Green, BL=Blue, BR=Yellow
+    ASTRAEUS_TEST_PATTERN_CHECKERBOARD,  // Black/white alternating squares
+    ASTRAEUS_TEST_PATTERN_GRADIENT,      // Horizontal red-to-green gradient
+    ASTRAEUS_TEST_PATTERN_GRID,          // Red vertical, green horizontal lines
+    ASTRAEUS_TEST_PATTERN_COLOR_BANDS    // Horizontal color bands
+} AstraeusTestPattern;
+
+/**
+ * Validation flags (bitmask) for frame diagnostics.
+ */
+typedef enum {
+    ASTRAEUS_DIAG_FLAG_NONE                  = 0,
+    ASTRAEUS_DIAG_FLAG_SIZE_MISMATCH         = 1 << 0,   // Viewport != backing or inconsistent
+    ASTRAEUS_DIAG_FLAG_CAMERA_ASPECT_WRONG   = 1 << 1,   // Camera aspect != viewport aspect
+    ASTRAEUS_DIAG_FLAG_BUFFER_OVERFLOW       = 1 << 2,   // Readback exceeds backing buffer
+    ASTRAEUS_DIAG_FLAG_STRIDE_INVALID        = 1 << 3,   // Stride < width * bpp
+    ASTRAEUS_DIAG_FLAG_FORMAT_MISMATCH       = 1 << 4,   // Unexpected pixel format
+    ASTRAEUS_DIAG_FLAG_STALE_VIEWPORT        = 1 << 5,   // Viewport/scissor not updated
+    ASTRAEUS_DIAG_FLAG_ENTITY_COUNT_MISMATCH = 1 << 6,   // Entity counts inconsistent
+    ASTRAEUS_DIAG_FLAG_INVALID_TRANSFORM     = 1 << 7,   // NaN/Inf in transform
+    ASTRAEUS_DIAG_FLAG_TEST_PATTERN_ACTIVE   = 1 << 8,   // Test pattern mode enabled
+    ASTRAEUS_DIAG_FLAG_DOUBLE_BUFFER_SWAP    = 1 << 9,   // Double buffer swap occurred
+    ASTRAEUS_DIAG_FLAG_RESIZE_OCCURRED       = 1 << 10   // Viewport resized this frame
+} AstraeusValidationFlags;
+
+/**
+ * Enable or disable diagnostic mode.
+ * When enabled, detailed per-frame diagnostics are captured.
+ * @param engine Engine handle
+ * @param enable true to enable, false to disable
+ */
+ASTRAEUS_API void astraeus_set_diagnostic_mode(EngineHandle engine, bool enable);
+
+/**
+ * Get current diagnostic mode state.
+ * @param engine Engine handle
+ * @return true if enabled, false if disabled
+ */
+ASTRAEUS_API bool astraeus_get_diagnostic_mode(EngineHandle engine);
+
+/**
+ * Set validation level (0=none, 1=basic, 2=full, 3=paranoid).
+ * Higher levels perform more expensive checks.
+ * @param engine Engine handle
+ * @param level Validation level (0-3)
+ */
+ASTRAEUS_API void astraeus_set_validation_level(EngineHandle engine, uint32_t level);
+
+/**
+ * Get current validation level.
+ * @param engine Engine handle
+ * @return Validation level (0-3)
+ */
+ASTRAEUS_API uint32_t astraeus_get_validation_level(EngineHandle engine);
+
+/**
+ * Enable test pattern rendering instead of normal scene.
+ * Used to isolate presentation issues from scene rendering.
+ * @param engine Engine handle
+ * @param pattern Pattern type (ASTRAEUS_TEST_PATTERN_NONE to disable)
+ * @return true on success, false on failure
+ */
+ASTRAEUS_API bool astraeus_set_test_pattern(EngineHandle engine, AstraeusTestPattern pattern);
+
+/**
+ * Get current test pattern type.
+ * @param engine Engine handle
+ * @return Current test pattern type
+ */
+ASTRAEUS_API AstraeusTestPattern astraeus_get_test_pattern(EngineHandle engine);
+
+/**
+ * Get ABI version number for compatibility checking.
+ * Version format: (MAJOR << 16) | MINOR
+ * @return ABI version number
+ */
+ASTRAEUS_API uint32_t astraeus_abi_version(void);
+
+/**
+ * Update camera projection for a viewport.
+ * Uses current viewport dimensions to calculate aspect ratio.
+ * Should be called after viewport resize to ensure camera matches viewport.
+ * 
+ * @param viewport Viewport handle
+ * @param fov_degrees Field of view in degrees
+ * @param near_plane Near clipping plane distance
+ * @param far_plane Far clipping plane distance
+ * @return ASTRAEUS_SUCCESS or error code
+ */
+ASTRAEUS_API AstraeusResult astraeus_viewport_update_camera_projection(
+    ViewportHandle viewport,
+    float fov_degrees,
+    float near_plane,
+    float far_plane);
+
+// Note: FrameDiagnostics struct and astraeus_get_frame_diagnostics() will be
+// added to the schema and generated headers in Phase 3 implementation.
+// ABIInfo struct and astraeus_get_abi_info() will be added in Phase 2.
+
 #ifdef __cplusplus
 }
 #endif
