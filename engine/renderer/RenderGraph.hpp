@@ -96,7 +96,8 @@ protected:
 // Inline implementations
 // ============================================================================
 
-// Include post-processing passes for default initialization
+// Note: Post-processing includes placed here (not at top) to avoid circular
+// dependencies: PostChain -> PostProcessPass -> RenderPass -> RenderGraph
 #include "passes/post/PostChain.hpp"
 #include "passes/post/ToneMappingPass.hpp"
 #include "passes/post/GammaCorrectionPass.hpp"
@@ -169,6 +170,9 @@ inline void RenderGraph::execute() {
         ensure_post_chain_initialized();
         if (post_chain_ && post_chain_->is_enabled()) {
             // Get color texture and main FBO from device
+            // Note: dynamic_cast required because get_color_texture/get_main_fbo
+            // are OpenGL-specific methods not in base RenderDevice interface.
+            // PostChain requires OpenGL functionality (framebuffers, textures).
             GLRenderDevice* gl_device = dynamic_cast<GLRenderDevice*>(device_);
             if (gl_device) {
                 uint32_t color_texture = gl_device->get_color_texture();
@@ -243,6 +247,7 @@ inline void RenderGraph::ensure_post_chain_initialized() {
         
         // Tone mapping: pass-through by default (ToneMapOperator::None)
         // Can be changed to Reinhard, ACES, etc. for HDR content
+        // Note: 'None' means pass-through (identity operation), not an error state
         auto tone_map = std::make_unique<ToneMappingPass>();
         tone_map->set_operator(ToneMappingPass::ToneMapOperator::None);  // No tone mapping
         tone_map->set_exposure(1.0f);
