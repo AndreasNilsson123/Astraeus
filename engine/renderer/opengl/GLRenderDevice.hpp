@@ -244,17 +244,20 @@ inline bool GLRenderDevice::initialize() {
     create_readback_buffers();
 
     // Set initial OpenGL state for rendering
+    // These are default states that render passes may override as needed.
+    // Passes should save and restore state if they modify these settings.
+    
     // Ensure viewport covers full framebuffer
     glViewport(0, 0, width_, height_);
     
     // Disable scissor test (not needed for offscreen rendering)
     glDisable(GL_SCISSOR_TEST);
     
-    // Enable depth test for 3D rendering
+    // Enable depth test for 3D rendering (passes can override)
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     
-    // Enable blending for transparent objects
+    // Enable blending for transparent objects (passes can override)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -347,8 +350,10 @@ inline void GLRenderDevice::end_frame() {
     }
 
     // Readback: texture -> PBO
-    // Set pack alignment for proper row pitch handling
-    // For RGBA8 (4 bytes per pixel), alignment doesn't matter, but we set it for clarity
+    // Set pack alignment for proper row pitch handling.
+    // For RGBA8 (4 bytes per pixel), the default alignment (4) works correctly,
+    // but we set it explicitly for clarity and to prevent issues if texture
+    // formats or dimensions change in the future.
     glPixelStorei(GL_PACK_ALIGNMENT, 4);
     
     glBindBuffer(GL_PIXEL_PACK_BUFFER, color_pbo_);

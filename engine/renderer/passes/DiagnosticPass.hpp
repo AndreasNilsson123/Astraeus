@@ -33,8 +33,8 @@ public:
     inline const char* get_name() const override { return "Diagnostic"; }
 
     // Enable/disable the diagnostic overlay
-    void set_enabled(bool enabled) { enabled_ = enabled; }
-    bool is_enabled() const { return enabled_; }
+    inline void set_enabled(bool enabled) { enabled_ = enabled; }
+    inline bool is_enabled() const { return enabled_; }
 
 private:
     GLRenderDevice* gl_device_;
