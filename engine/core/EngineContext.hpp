@@ -20,6 +20,7 @@
 #include "renderer/passes/ClearPass.hpp"
 #include "renderer/passes/GridPass.hpp"
 #include "renderer/passes/AxesPass.hpp"
+#include "renderer/passes/PointSpritePass.hpp"
 #include "scene/World.hpp"
 #include "ingest/IngestManager.hpp"
 #include "assets/AssetManager.hpp"
@@ -361,6 +362,7 @@ inline bool EngineContext::initialize() {
         render_graph_->add_pass(std::make_unique<ClearPass>());
         render_graph_->add_pass(std::make_unique<GridPass>());
         render_graph_->add_pass(std::make_unique<AxesPass>());
+        render_graph_->add_pass(std::make_unique<PointSpritePass>());
 
         // Initialize ingest manager
         ingest_manager_ = std::make_unique<IngestManager>(world_.get());

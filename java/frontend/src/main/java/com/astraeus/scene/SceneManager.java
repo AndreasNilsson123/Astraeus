@@ -36,6 +36,9 @@ public class SceneManager {
         // Set default transform in engine
         syncTransformToEngine(data);
         
+        // Set default visibility in engine (entities are visible by default)
+        syncVisibilityToEngine(data);
+        
         return data;
     }
     

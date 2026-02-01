@@ -184,6 +184,13 @@ inline void PointSpritePass::update_instance_data(World* world) {
     // Get all renderable entities
     const auto& entities = world->get_renderable_entities();
     
+    // Diagnostic logging (only log occasionally to avoid spam)
+    static int log_counter = 0;
+    if (log_counter++ % 60 == 0) {  // Log every 60 frames (~1 second at 60 FPS)
+        std::cout << "[PointSpritePass] Total entities: " << world->get_entity_count()
+                  << ", Renderable entities: " << entities.size() << std::endl;
+    }
+    
     instance_positions_.clear();
     instance_colors_.clear();
     instance_count_ = 0;
