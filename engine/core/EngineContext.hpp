@@ -11,6 +11,9 @@
 
 // Include implementation headers for inline methods
 #include "core/Telemetry.hpp"
+#include "core/CommandBuffer.hpp"
+#include "core/EventBus.hpp"
+#include "core/PluginManager.hpp"
 #include "renderer/RenderDevice.hpp"
 #include "renderer/opengl/GLRenderDevice.hpp"
 #include "renderer/RenderGraph.hpp"
@@ -29,6 +32,9 @@ namespace astraeus {
     class IngestManager;
     class AssetManager;
     class Telemetry;
+    class CommandBuffer;
+    class EventBus;
+    class PluginManager;
 }
 
 namespace astraeus {
@@ -219,6 +225,33 @@ public:
      */
     const Telemetry::PassTiming* get_telemetry_pass_timing(uint32_t pass_index) const;
 
+    // Command/Event/Plugin system accessors
+    /**
+     * Get command buffer for submitting commands.
+     */
+    CommandBuffer* get_command_buffer() const { return command_buffer_.get(); }
+
+    /**
+     * Get event bus for polling events.
+     */
+    EventBus* get_event_bus() const { return event_bus_.get(); }
+
+    /**
+     * Get plugin manager.
+     */
+    PluginManager* get_plugin_manager() const { return plugin_manager_.get(); }
+
+    /**
+     * Execute pending commands.
+     * Called internally during tick.
+     */
+    void execute_commands();
+    
+    /**
+     * Execute a single command (called by CommandBuffer).
+     */
+    void execute_single_command(Command* cmd);
+
     // Accessors for subsystems (internal use)
     RenderDevice* get_render_device() const { return render_device_.get(); }
     RenderGraph* get_render_graph() const { return render_graph_.get(); }
@@ -237,6 +270,11 @@ private:
     std::unique_ptr<World> world_;
     std::unique_ptr<IngestManager> ingest_manager_;
     std::unique_ptr<AssetManager> asset_manager_;
+    
+    // Command/Event/Plugin systems
+    std::unique_ptr<CommandBuffer> command_buffer_;
+    std::unique_ptr<EventBus> event_bus_;
+    std::unique_ptr<PluginManager> plugin_manager_;
     
     // Frame timing
     double current_delta_time_;
@@ -272,6 +310,11 @@ inline bool EngineContext::initialize() {
         // Initialize telemetry system (enabled by default in constructor)
         telemetry_ = std::make_unique<Telemetry>();
         
+        // Initialize command/event/plugin systems early
+        command_buffer_ = std::make_unique<CommandBuffer>();
+        event_bus_ = std::make_unique<EventBus>();
+        plugin_manager_ = std::make_unique<PluginManager>();
+        
         // Initialize render device (use GL backend)
         RenderDevice::Config render_config;
         render_config.width = config_.initial_width;
@@ -306,6 +349,10 @@ inline bool EngineContext::initialize() {
         asset_manager_ = std::make_unique<AssetManager>(render_device_.get());
         asset_manager_->initialize();
 
+        // Initialize plugin manager (after material library and ingest manager exist)
+        // Note: MaterialLibrary integration pending; pass nullptr for now
+        plugin_manager_->initialize(nullptr, ingest_manager_.get());
+
         is_initialized_ = true;
         std::cout << "[Astraeus] Engine initialized successfully" << std::endl;
         return true;
@@ -324,11 +371,14 @@ inline void EngineContext::shutdown() {
     std::cout << "[Astraeus] Shutting down engine..." << std::endl;
 
     // Shutdown in reverse order
+    plugin_manager_.reset();
     asset_manager_.reset();
     ingest_manager_.reset();
     render_graph_.reset();
     world_.reset();
     render_device_.reset();
+    event_bus_.reset();
+    command_buffer_.reset();
     telemetry_.reset();
 
     is_initialized_ = false;
@@ -338,6 +388,9 @@ inline void EngineContext::shutdown() {
 inline void EngineContext::begin_frame(double delta_time) {
     current_delta_time_ = delta_time;
     total_time_ += delta_time;
+    
+    // Execute pending commands BEFORE frame processing
+    execute_commands();
     
     // Begin telemetry frame timing
     if (telemetry_) {
@@ -573,6 +626,105 @@ inline const Telemetry::PassTiming* EngineContext::get_telemetry_pass_timing(uin
     return telemetry_ ? telemetry_->get_pass_timing(pass_index) : nullptr;
 }
 
+inline void EngineContext::execute_commands() {
+    if (command_buffer_) {
+        command_buffer_->execute(this);
+    }
+}
+
+inline void EngineContext::execute_single_command(Command* cmd) {
+    if (!cmd) {
+        return;
+    }
+    
+    switch (cmd->type) {
+        case CommandType::CreateEntity: {
+            auto* create_cmd = static_cast<CreateEntityCommand*>(cmd);
+            uint32_t new_id = create_entity();
+            if (create_cmd->out_entity_id) {
+                *create_cmd->out_entity_id = new_id;
+            }
+            break;
+        }
+        
+        case CommandType::DestroyEntity: {
+            destroy_entity(cmd->entity_id);
+            break;
+        }
+        
+        case CommandType::SetTransform: {
+            auto* trans_cmd = static_cast<SetTransformCommand*>(cmd);
+            set_entity_transform(cmd->entity_id,
+                                trans_cmd->pos_x, trans_cmd->pos_y, trans_cmd->pos_z,
+                                trans_cmd->rot_x, trans_cmd->rot_y, trans_cmd->rot_z,
+                                trans_cmd->scale_x, trans_cmd->scale_y, trans_cmd->scale_z);
+            break;
+        }
+        
+        case CommandType::AssignMesh: {
+            // TODO: Implement mesh assignment when asset system supports it
+            break;
+        }
+        
+        case CommandType::AssignMaterial: {
+            // TODO: Implement material assignment when material system supports it
+            break;
+        }
+        
+        case CommandType::SetTrailParams: {
+            auto* trail_cmd = static_cast<SetTrailParamsCommand*>(cmd);
+            set_entity_trail(cmd->entity_id, trail_cmd->max_points);
+            break;
+        }
+        
+        case CommandType::SetEntityColor: {
+            auto* color_cmd = static_cast<SetEntityColorCommand*>(cmd);
+            set_entity_color(cmd->entity_id, color_cmd->r, color_cmd->g, color_cmd->b, color_cmd->a);
+            break;
+        }
+        
+        case CommandType::SetEntityVisible: {
+            auto* vis_cmd = static_cast<SetEntityVisibleCommand*>(cmd);
+            set_entity_renderable(cmd->entity_id, vis_cmd->visible);
+            break;
+        }
+        
+        case CommandType::ApplySnapshot: {
+            auto* snap_cmd = static_cast<ApplySnapshotCommand*>(cmd);
+            apply_entity_snapshot(cmd->entity_id, snap_cmd->pos_x, snap_cmd->pos_y, snap_cmd->pos_z);
+            break;
+        }
+    }
+}
+
+
+
+// ============================================================================= 
+// COMMAND BUFFER EXECUTE IMPLEMENTATION 
+// (Must be here after EngineContext is fully defined to avoid circular dependency) 
+// ============================================================================= 
+
+inline void CommandBuffer::execute(EngineContext* context) { 
+    if (!context) { 
+        return; 
+    } 
+    
+    // Swap queues under lock (fast) 
+    { 
+        std::lock_guard<std::mutex> lock(mutex_); 
+        std::swap(submit_queue_, execute_queue_); 
+    } 
+    
+    // Execute commands (lock-free) - delegate to context 
+    for (auto& cmd : execute_queue_) { 
+        if (cmd) { 
+            context->execute_single_command(cmd.get()); 
+        } 
+    } 
+    
+    // Clear executed commands 
+    execute_queue_.clear(); 
+}
 } // namespace astraeus
 
 #endif // ASTRAEUS_ENGINE_CONTEXT_HPP
