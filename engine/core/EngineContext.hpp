@@ -358,11 +358,11 @@ inline bool EngineContext::initialize() {
             render_graph_->set_post_chain_enabled(true);
         }
         
-        // Add render passes: Clear, Grid, Axes
+        // Add render passes: Clear, Grid, Axes, PointSprite (for entities)
         render_graph_->add_pass(std::make_unique<ClearPass>());
         render_graph_->add_pass(std::make_unique<GridPass>());
         render_graph_->add_pass(std::make_unique<AxesPass>());
-        render_graph_->add_pass(std::make_unique<PointSpritePass>());
+        render_graph_->add_pass(std::make_unique<PointSpritePass>());  // Renders entities as point sprites
 
         // Initialize ingest manager
         ingest_manager_ = std::make_unique<IngestManager>(world_.get());
