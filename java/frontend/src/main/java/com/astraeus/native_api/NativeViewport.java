@@ -48,6 +48,12 @@ public class NativeViewport implements AutoCloseable {
     
     /**
      * Resize the viewport.
+     * 
+     * <p><b>Note:</b> This method only updates viewport dimensions. For proper resize
+     * that also updates camera projection, use {@link #resizeWithProjection(int, int, float, float, float)}.</p>
+     * 
+     * @param width New viewport width
+     * @param height New viewport height
      */
     public void resize(int width, int height) {
         checkClosed();
@@ -59,6 +65,58 @@ public class NativeViewport implements AutoCloseable {
             }
         } catch (Throwable e) {
             throw new RuntimeException("Failed to resize viewport", e);
+        }
+    }
+    
+    /**
+     * Resize viewport and update camera projection in a single operation.
+     * 
+     * <p>This is the authoritative resize method that ensures the camera projection
+     * is updated with the correct aspect ratio from the new viewport dimensions.
+     * This prevents visual distortion and camera behavior issues after resize.</p>
+     * 
+     * <p><b>Resize Flow:</b></p>
+     * <ol>
+     *   <li>Update viewport dimensions</li>
+     *   <li>Get active camera</li>
+     *   <li>Update camera descriptor with new FOV/near/far</li>
+     * </ol>
+     * 
+     * @param width New viewport width in device pixels
+     * @param height New viewport height in device pixels
+     * @param fovDegrees Field of view in degrees
+     * @param nearPlane Near clipping plane distance
+     * @param farPlane Far clipping plane distance
+     */
+    public void resizeWithProjection(int width, int height, 
+                                      float fovDegrees, float nearPlane, float farPlane) {
+        checkClosed();
+        
+        // Step 1: Resize viewport
+        resize(width, height);
+        
+        // Step 2: Update camera projection
+        // The native engine will calculate the aspect ratio from the viewport dimensions
+        try {
+            NativeCamera camera = getActiveCamera();
+            NativeCamera.CameraDesc currentDesc = camera.getDesc();
+            
+            // Create updated descriptor with new projection parameters
+            NativeCamera.CameraDesc newDesc = new NativeCamera.CameraDesc(
+                currentDesc.posX(), currentDesc.posY(), currentDesc.posZ(),
+                currentDesc.targetX(), currentDesc.targetY(), currentDesc.targetZ(),
+                currentDesc.upX(), currentDesc.upY(), currentDesc.upZ(),
+                fovDegrees,  // Updated FOV
+                nearPlane,   // Updated near plane
+                farPlane,    // Updated far plane
+                currentDesc.mode()
+            );
+            
+            camera.setDesc(newDesc);
+            camera.close();
+            
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to update camera projection after resize", e);
         }
     }
     

@@ -74,6 +74,11 @@ public class EngineViewport extends StackPane implements AutoCloseable {
     private int currentWidth;
     private int currentHeight;
     
+    // Camera projection state
+    private float currentFovDegrees = 60.0f;
+    private float currentNearPlane = 0.1f;
+    private float currentFarPlane = 1000.0f;
+    
     // Selection state
     private int selectedEntityId = 0;
     private Rectangle selectionRect;
@@ -107,8 +112,9 @@ public class EngineViewport extends StackPane implements AutoCloseable {
         // Create native viewport
         this.nativeViewport = engine.createViewport(maxWidth, maxHeight);
         
-        // Resize to initial dimensions
-        nativeViewport.resize(initialWidth, initialHeight);
+        // Resize to initial dimensions with projection
+        nativeViewport.resizeWithProjection(initialWidth, initialHeight, 
+                                           currentFovDegrees, currentNearPlane, currentFarPlane);
         
         // Create buffer manager
         this.bufferManager = new PixelBufferManager(maxWidth, maxHeight);
@@ -350,8 +356,16 @@ public class EngineViewport extends StackPane implements AutoCloseable {
             return;
         }
         
-        // Resize native viewport
-        nativeViewport.resize(width, height);
+        // Use authoritative resize method that updates both viewport AND projection
+        nativeViewport.resizeWithProjection(width, height, 
+                                           currentFovDegrees, currentNearPlane, currentFarPlane);
+        
+        // Log frame info for debugging (VIS-003)
+        float aspectRatio = (float) width / (float) height;
+        System.out.println("[EngineViewport] FrameInfo after resize:");
+        System.out.println("  Requested: " + width + "x" + height);
+        System.out.println("  Aspect: " + aspectRatio);
+        System.out.println("  Camera FOV: " + currentFovDegrees);
         
         // Update buffer manager
         bufferManager.updateViewportSize(width, height);
