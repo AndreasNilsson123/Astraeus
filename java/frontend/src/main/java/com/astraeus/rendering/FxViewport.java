@@ -68,7 +68,7 @@ public class FxViewport extends StackPane {
     // Stride handling: tightly-packed buffer for JavaFX
     // JavaFX PixelBuffer does NOT support stride, so we need to repack the data
     private ByteBuffer tightlyPackedBuffer;
-    private boolean useStrideCopy = true;  // Enable stride-aware copying
+    private boolean useStrideCopy = false;  // Enable stride-aware copying (set during init)
     
     // Viewport dimensions
     private final int maxWidth;
@@ -91,6 +91,10 @@ public class FxViewport extends StackPane {
     private final Callback<PixelBuffer<ByteBuffer>, Rectangle2D> DIRTY_CB = pb -> dirtyRect;
 
     private boolean warnedBufferState;
+    
+    // Debug logging throttle
+    private long lastDebugLogTime = 0;
+    private static final long DEBUG_LOG_INTERVAL_MS = 1000; // Log once per second
     
     // Input state flags
     private boolean inputEnabled = true;
@@ -441,10 +445,9 @@ public class FxViewport extends StackPane {
     public void updateDisplay() {
         if (pixelBuffer == null) return;
 
-        // Get latest color buffer from engine
-        if (colorBuffer == null) {
-            colorBuffer = engine.getColorBuffer();
-        }
+        // Always get the latest color buffer from engine
+        // This ensures we have the most up-to-date buffer reference after resize
+        colorBuffer = engine.getColorBuffer();
 
         // Optional dev assert — but do NOT run unconditionally per frame.
         if (ASSERT_BUF_STATE && colorBuffer != null) {
@@ -487,11 +490,15 @@ public class FxViewport extends StackPane {
         int rowBytes = width * bytesPerPixel;
         
         // Debug logging (throttled to avoid spam)
-        if (DEBUG_BUFFER_UPDATE && System.currentTimeMillis() % 1000 < 50) {
-            System.out.println("[FxViewport] copyWithStride:");
-            System.out.println("  Viewport: " + width + "x" + height);
-            System.out.println("  Stride: " + stride + " bytes/row");
-            System.out.println("  Row bytes: " + rowBytes);
+        if (DEBUG_BUFFER_UPDATE) {
+            long now = System.currentTimeMillis();
+            if (now - lastDebugLogTime >= DEBUG_LOG_INTERVAL_MS) {
+                lastDebugLogTime = now;
+                System.out.println("[FxViewport] copyWithStride:");
+                System.out.println("  Viewport: " + width + "x" + height);
+                System.out.println("  Stride: " + stride + " bytes/row");
+                System.out.println("  Row bytes: " + rowBytes);
+            }
         }
         
         // Apply test pattern if enabled
@@ -583,14 +590,18 @@ public class FxViewport extends StackPane {
         final int h = Math.max(0, Math.min(currentHeight, bufH));
 
         // Debug logging (throttled to avoid spam)
-        if (DEBUG_BUFFER_UPDATE && System.currentTimeMillis() % 1000 < 50) {
-            System.out.println("[FxViewport] markDirtyRegion:");
-            System.out.println("  PixelBuffer size: " + bufW + "x" + bufH);
-            System.out.println("  Viewport size: " + currentWidth + "x" + currentHeight);
-            System.out.println("  Dirty region: " + w + "x" + h);
-            if (colorBuffer != null) {
-                System.out.println("  Stride: " + colorBuffer.getStride() + " bytes/row");
-                System.out.println("  Expected bytes: " + (w * h * 4));
+        if (DEBUG_BUFFER_UPDATE) {
+            long now = System.currentTimeMillis();
+            if (now - lastDebugLogTime >= DEBUG_LOG_INTERVAL_MS) {
+                lastDebugLogTime = now;
+                System.out.println("[FxViewport] markDirtyRegion:");
+                System.out.println("  PixelBuffer size: " + bufW + "x" + bufH);
+                System.out.println("  Viewport size: " + currentWidth + "x" + currentHeight);
+                System.out.println("  Dirty region: " + w + "x" + h);
+                if (colorBuffer != null) {
+                    System.out.println("  Stride: " + colorBuffer.getStride() + " bytes/row");
+                    System.out.println("  Expected bytes: " + (w * h * 4));
+                }
             }
         }
 
