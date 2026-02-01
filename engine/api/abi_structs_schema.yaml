@@ -264,3 +264,50 @@ structs:
         type: uint8
         array_size: 4
         description: "Alignment padding"
+
+  - name: ABIInfo
+    description: """ABI version and validation info for compatibility checking.
+      Used to verify that Java FFM layouts match native C struct layouts."""
+    fields:
+      - name: api_version
+        type: uint32
+        description: "API version (MAJOR << 16 | MINOR << 8 | PATCH)"
+      - name: abi_version
+        type: uint32
+        description: "ABI version (MAJOR << 16 | MINOR)"
+      - name: sizeof_PixelBufferView
+        type: uint32
+        description: "Native sizeof(PixelBufferView)"
+      - name: sizeof_FrameStats
+        type: uint32
+        description: "Native sizeof(FrameStats)"
+      - name: sizeof_CameraDesc
+        type: uint32
+        description: "Native sizeof(CameraDesc)"
+      - name: sizeof_MaterialDesc
+        type: uint32
+        description: "Native sizeof(MaterialDesc)"
+      - name: sizeof_PickResult
+        type: uint32
+        description: "Native sizeof(PickResult)"
+      - name: alignof_PixelBufferView
+        type: uint32
+        description: "Native alignof(PixelBufferView)"
+      - name: alignof_FrameStats
+        type: uint32
+        description: "Native alignof(FrameStats)"
+      - name: _padding1
+        type: uint8
+        array_size: 4
+        description: "Padding for alignment"
+      - name: platform_name
+        type: uint8
+        array_size: 32
+        description: "Platform name string (e.g., Linux-x64)"
+      - name: pointer_size
+        type: uint32
+        description: "sizeof(void*)"
+      - name: _padding2
+        type: uint8
+        array_size: 4
+        description: "Padding for alignment"
