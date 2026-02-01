@@ -11,6 +11,9 @@
 
 // Include implementation headers for inline methods
 #include "core/Telemetry.hpp"
+#include "core/CommandBuffer.hpp"
+#include "core/EventBus.hpp"
+#include "core/PluginManager.hpp"
 #include "renderer/RenderDevice.hpp"
 #include "renderer/opengl/GLRenderDevice.hpp"
 #include "renderer/RenderGraph.hpp"
@@ -29,6 +32,9 @@ namespace astraeus {
     class IngestManager;
     class AssetManager;
     class Telemetry;
+    class CommandBuffer;
+    class EventBus;
+    class PluginManager;
 }
 
 namespace astraeus {
@@ -203,6 +209,28 @@ public:
      */
     const Telemetry::PassTiming* get_telemetry_pass_timing(uint32_t pass_index) const;
 
+    // Command/Event/Plugin system accessors
+    /**
+     * Get command buffer for submitting commands.
+     */
+    CommandBuffer* get_command_buffer() const { return command_buffer_.get(); }
+
+    /**
+     * Get event bus for polling events.
+     */
+    EventBus* get_event_bus() const { return event_bus_.get(); }
+
+    /**
+     * Get plugin manager.
+     */
+    PluginManager* get_plugin_manager() const { return plugin_manager_.get(); }
+
+    /**
+     * Execute pending commands.
+     * Called internally during tick.
+     */
+    void execute_commands();
+
     // Accessors for subsystems (internal use)
     RenderDevice* get_render_device() const { return render_device_.get(); }
     RenderGraph* get_render_graph() const { return render_graph_.get(); }
@@ -221,6 +249,11 @@ private:
     std::unique_ptr<World> world_;
     std::unique_ptr<IngestManager> ingest_manager_;
     std::unique_ptr<AssetManager> asset_manager_;
+    
+    // Command/Event/Plugin systems
+    std::unique_ptr<CommandBuffer> command_buffer_;
+    std::unique_ptr<EventBus> event_bus_;
+    std::unique_ptr<PluginManager> plugin_manager_;
     
     // Frame timing
     double current_delta_time_;
@@ -256,6 +289,11 @@ inline bool EngineContext::initialize() {
         // Initialize telemetry system (enabled by default in constructor)
         telemetry_ = std::make_unique<Telemetry>();
         
+        // Initialize command/event/plugin systems early
+        command_buffer_ = std::make_unique<CommandBuffer>();
+        event_bus_ = std::make_unique<EventBus>();
+        plugin_manager_ = std::make_unique<PluginManager>();
+        
         // Initialize render device (use GL backend)
         RenderDevice::Config render_config;
         render_config.width = config_.initial_width;
@@ -290,6 +328,10 @@ inline bool EngineContext::initialize() {
         asset_manager_ = std::make_unique<AssetManager>(render_device_.get());
         asset_manager_->initialize();
 
+        // Initialize plugin manager (after material library and ingest manager exist)
+        // Note: MaterialLibrary integration pending; pass nullptr for now
+        plugin_manager_->initialize(nullptr, ingest_manager_.get());
+
         is_initialized_ = true;
         std::cout << "[Astraeus] Engine initialized successfully" << std::endl;
         return true;
@@ -308,11 +350,14 @@ inline void EngineContext::shutdown() {
     std::cout << "[Astraeus] Shutting down engine..." << std::endl;
 
     // Shutdown in reverse order
+    plugin_manager_.reset();
     asset_manager_.reset();
     ingest_manager_.reset();
     render_graph_.reset();
     world_.reset();
     render_device_.reset();
+    event_bus_.reset();
+    command_buffer_.reset();
     telemetry_.reset();
 
     is_initialized_ = false;
@@ -322,6 +367,9 @@ inline void EngineContext::shutdown() {
 inline void EngineContext::begin_frame(double delta_time) {
     current_delta_time_ = delta_time;
     total_time_ += delta_time;
+    
+    // Execute pending commands BEFORE frame processing
+    execute_commands();
     
     // Begin telemetry frame timing
     if (telemetry_) {
@@ -516,6 +564,12 @@ inline uint32_t EngineContext::get_telemetry_pass_count() const {
 
 inline const Telemetry::PassTiming* EngineContext::get_telemetry_pass_timing(uint32_t pass_index) const {
     return telemetry_ ? telemetry_->get_pass_timing(pass_index) : nullptr;
+}
+
+inline void EngineContext::execute_commands() {
+    if (command_buffer_) {
+        command_buffer_->execute(this);
+    }
 }
 
 } // namespace astraeus

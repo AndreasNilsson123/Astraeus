@@ -323,5 +323,259 @@ bool astraeus_get_pass_timing(EngineHandle engine, uint32_t pass_index,
     return true;
 }
 
+// =============================================================================
+// COMMAND BUFFER API IMPLEMENTATIONS
+// =============================================================================
+
+void astraeus_command_create_entity(EngineHandle engine, uint32_t* out_entity_id) {
+    if (!engine || !engine->context) {
+        return;
+    }
+    
+    auto cmd = std::make_unique<astraeus::CreateEntityCommand>();
+    cmd->out_entity_id = out_entity_id;
+    engine->context->get_command_buffer()->submit(std::move(cmd));
+}
+
+void astraeus_command_destroy_entity(EngineHandle engine, uint32_t entity_id) {
+    if (!engine || !engine->context) {
+        return;
+    }
+    
+    auto cmd = std::make_unique<astraeus::DestroyEntityCommand>(entity_id);
+    engine->context->get_command_buffer()->submit(std::move(cmd));
+}
+
+void astraeus_command_set_transform(EngineHandle engine, uint32_t entity_id,
+                                    float pos_x, float pos_y, float pos_z,
+                                    float rot_x, float rot_y, float rot_z,
+                                    float scale_x, float scale_y, float scale_z) {
+    if (!engine || !engine->context) {
+        return;
+    }
+    
+    auto cmd = std::make_unique<astraeus::SetTransformCommand>(
+        entity_id, pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, scale_x, scale_y, scale_z);
+    engine->context->get_command_buffer()->submit(std::move(cmd));
+}
+
+void astraeus_command_assign_mesh(EngineHandle engine, uint32_t entity_id, uint32_t mesh_id) {
+    if (!engine || !engine->context) {
+        return;
+    }
+    
+    auto cmd = std::make_unique<astraeus::AssignMeshCommand>(entity_id, mesh_id);
+    engine->context->get_command_buffer()->submit(std::move(cmd));
+}
+
+void astraeus_command_assign_material(EngineHandle engine, uint32_t entity_id, uint32_t material_id) {
+    if (!engine || !engine->context) {
+        return;
+    }
+    
+    auto cmd = std::make_unique<astraeus::AssignMaterialCommand>(entity_id, material_id);
+    engine->context->get_command_buffer()->submit(std::move(cmd));
+}
+
+void astraeus_command_set_trail(EngineHandle engine, uint32_t entity_id, uint32_t max_points) {
+    if (!engine || !engine->context) {
+        return;
+    }
+    
+    auto cmd = std::make_unique<astraeus::SetTrailParamsCommand>(entity_id, max_points);
+    engine->context->get_command_buffer()->submit(std::move(cmd));
+}
+
+void astraeus_command_set_color(EngineHandle engine, uint32_t entity_id,
+                                float r, float g, float b, float a) {
+    if (!engine || !engine->context) {
+        return;
+    }
+    
+    auto cmd = std::make_unique<astraeus::SetEntityColorCommand>(entity_id, r, g, b, a);
+    engine->context->get_command_buffer()->submit(std::move(cmd));
+}
+
+void astraeus_command_set_visible(EngineHandle engine, uint32_t entity_id, bool visible) {
+    if (!engine || !engine->context) {
+        return;
+    }
+    
+    auto cmd = std::make_unique<astraeus::SetEntityVisibleCommand>(entity_id, visible);
+    engine->context->get_command_buffer()->submit(std::move(cmd));
+}
+
+uint32_t astraeus_command_pending_count(EngineHandle engine) {
+    if (!engine || !engine->context) {
+        return 0;
+    }
+    
+    return static_cast<uint32_t>(engine->context->get_command_buffer()->pending_count());
+}
+
+// =============================================================================
+// EVENT BUS API IMPLEMENTATIONS
+// =============================================================================
+
+// Helper to convert internal event to C API event
+static AstraeusEvent* convert_event(astraeus::Event* internal_event) {
+    if (!internal_event) {
+        return nullptr;
+    }
+    
+    auto* event = new AstraeusEvent();
+    std::memset(event, 0, sizeof(AstraeusEvent));
+    
+    event->event_type = static_cast<uint32_t>(internal_event->type);
+    event->timestamp_ns = internal_event->timestamp_ns;
+    
+    // Convert based on event type
+    switch (internal_event->type) {
+        case astraeus::EventType::SelectionChanged: {
+            auto* sel_event = static_cast<astraeus::SelectionChangedEvent*>(internal_event);
+            event->entity_id = sel_event->entity_id;
+            event->world_x = sel_event->world_x;
+            event->world_y = sel_event->world_y;
+            event->world_z = sel_event->world_z;
+            break;
+        }
+        
+        case astraeus::EventType::AssetLoaded: {
+            auto* asset_event = static_cast<astraeus::AssetLoadedEvent*>(internal_event);
+            event->data1 = asset_event->asset_id;
+            event->data2 = asset_event->asset_type;
+            astraeus::util::str_copy(event->message, sizeof(event->message), asset_event->asset_name);
+            break;
+        }
+        
+        case astraeus::EventType::IngestStarted: {
+            auto* ingest_event = static_cast<astraeus::IngestStartedEvent*>(internal_event);
+            event->data1 = ingest_event->format;
+            event->data2 = ingest_event->total_bytes;
+            break;
+        }
+        
+        case astraeus::EventType::IngestProgress: {
+            auto* progress_event = static_cast<astraeus::IngestProgressEvent*>(internal_event);
+            event->data1 = progress_event->bytes_processed;
+            event->data2 = progress_event->total_bytes;
+            break;
+        }
+        
+        case astraeus::EventType::IngestCompleted: {
+            auto* completed_event = static_cast<astraeus::IngestCompletedEvent*>(internal_event);
+            event->data1 = completed_event->success ? 1 : 0;
+            event->data2 = completed_event->entities_created;
+            astraeus::util::str_copy(event->message, sizeof(event->message), completed_event->error_message);
+            break;
+        }
+        
+        case astraeus::EventType::EntityCreated:
+        case astraeus::EventType::EntityDestroyed: {
+            auto* entity_event = static_cast<astraeus::EntityCreatedEvent*>(internal_event);
+            event->entity_id = entity_event->entity_id;
+            break;
+        }
+    }
+    
+    return event;
+}
+
+AstraeusEvent* astraeus_event_poll(EngineHandle engine) {
+    if (!engine || !engine->context) {
+        return nullptr;
+    }
+    
+    astraeus::Event* internal_event = engine->context->get_event_bus()->poll();
+    if (!internal_event) {
+        return nullptr;
+    }
+    
+    AstraeusEvent* api_event = convert_event(internal_event);
+    delete internal_event;  // Free internal event
+    return api_event;
+}
+
+const AstraeusEvent* astraeus_event_peek(EngineHandle engine) {
+    if (!engine || !engine->context) {
+        return nullptr;
+    }
+    
+    const astraeus::Event* internal_event = engine->context->get_event_bus()->peek();
+    if (!internal_event) {
+        return nullptr;
+    }
+    
+    // NOTE: This is a simplified implementation
+    // In production, we might cache the converted event
+    // For now, return nullptr as peek requires special handling
+    return nullptr;
+}
+
+void astraeus_event_free(AstraeusEvent* event) {
+    delete event;
+}
+
+uint32_t astraeus_event_pending_count(EngineHandle engine) {
+    if (!engine || !engine->context) {
+        return 0;
+    }
+    
+    return static_cast<uint32_t>(engine->context->get_event_bus()->pending_count());
+}
+
+void astraeus_event_clear(EngineHandle engine) {
+    if (!engine || !engine->context) {
+        return;
+    }
+    
+    engine->context->get_event_bus()->clear();
+}
+
+// =============================================================================
+// PLUGIN API IMPLEMENTATIONS
+// =============================================================================
+
+AstraeusResult astraeus_plugin_load(EngineHandle engine, const char* plugin_path) {
+    if (!engine || !engine->context || !plugin_path) {
+        return ASTRAEUS_ERROR_INVALID_PARAMETER;
+    }
+    
+    bool success = engine->context->get_plugin_manager()->load_plugin(plugin_path);
+    return success ? ASTRAEUS_SUCCESS : ASTRAEUS_ERROR_UNKNOWN;
+}
+
+AstraeusResult astraeus_plugin_unload(EngineHandle engine, const char* plugin_name) {
+    if (!engine || !engine->context || !plugin_name) {
+        return ASTRAEUS_ERROR_INVALID_PARAMETER;
+    }
+    
+    bool success = engine->context->get_plugin_manager()->unload_plugin(plugin_name);
+    return success ? ASTRAEUS_SUCCESS : ASTRAEUS_ERROR_INVALID_PARAMETER;
+}
+
+uint32_t astraeus_plugin_count(EngineHandle engine) {
+    if (!engine || !engine->context) {
+        return 0;
+    }
+    
+    return static_cast<uint32_t>(engine->context->get_plugin_manager()->get_plugin_count());
+}
+
+bool astraeus_plugin_get_name(EngineHandle engine, uint32_t index,
+                              char* out_name_buffer, uint32_t name_buffer_size) {
+    if (!engine || !engine->context || !out_name_buffer || name_buffer_size == 0) {
+        return false;
+    }
+    
+    auto names = engine->context->get_plugin_manager()->get_plugin_names();
+    if (index >= names.size()) {
+        return false;
+    }
+    
+    astraeus::util::str_copy(out_name_buffer, name_buffer_size, names[index].c_str());
+    return true;
+}
+
 } // extern "C"
 

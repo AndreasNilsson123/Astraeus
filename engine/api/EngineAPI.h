@@ -520,6 +520,178 @@ ASTRAEUS_API bool astraeus_get_pass_timing(EngineHandle engine, uint32_t pass_in
                                char* out_name_buffer, uint32_t name_buffer_size, 
                                double* out_time_ms);
 
+// =============================================================================
+// COMMAND BUFFER API
+// =============================================================================
+
+/**
+ * Submit a create entity command.
+ * Returns immediately; command executed on next tick.
+ * @param engine Engine handle
+ * @param out_entity_id Pointer to receive new entity ID (can be NULL)
+ */
+ASTRAEUS_API void astraeus_command_create_entity(EngineHandle engine, uint32_t* out_entity_id);
+
+/**
+ * Submit a destroy entity command.
+ * @param engine Engine handle
+ * @param entity_id Entity to destroy
+ */
+ASTRAEUS_API void astraeus_command_destroy_entity(EngineHandle engine, uint32_t entity_id);
+
+/**
+ * Submit a set transform command.
+ * @param engine Engine handle
+ * @param entity_id Target entity
+ * @param pos_x, pos_y, pos_z Position
+ * @param rot_x, rot_y, rot_z Rotation (Euler angles)
+ * @param scale_x, scale_y, scale_z Scale
+ */
+ASTRAEUS_API void astraeus_command_set_transform(EngineHandle engine, uint32_t entity_id,
+                                    float pos_x, float pos_y, float pos_z,
+                                    float rot_x, float rot_y, float rot_z,
+                                    float scale_x, float scale_y, float scale_z);
+
+/**
+ * Submit an assign mesh command.
+ * @param engine Engine handle
+ * @param entity_id Target entity
+ * @param mesh_id Mesh to assign
+ */
+ASTRAEUS_API void astraeus_command_assign_mesh(EngineHandle engine, uint32_t entity_id, uint32_t mesh_id);
+
+/**
+ * Submit an assign material command.
+ * @param engine Engine handle
+ * @param entity_id Target entity
+ * @param material_id Material to assign
+ */
+ASTRAEUS_API void astraeus_command_assign_material(EngineHandle engine, uint32_t entity_id, uint32_t material_id);
+
+/**
+ * Submit a set trail parameters command.
+ * @param engine Engine handle
+ * @param entity_id Target entity
+ * @param max_points Maximum trail points
+ */
+ASTRAEUS_API void astraeus_command_set_trail(EngineHandle engine, uint32_t entity_id, uint32_t max_points);
+
+/**
+ * Submit a set entity color command.
+ * @param engine Engine handle
+ * @param entity_id Target entity
+ * @param r, g, b, a RGBA color components [0.0, 1.0]
+ */
+ASTRAEUS_API void astraeus_command_set_color(EngineHandle engine, uint32_t entity_id,
+                                float r, float g, float b, float a);
+
+/**
+ * Submit a set entity visible command.
+ * @param engine Engine handle
+ * @param entity_id Target entity
+ * @param visible Visibility flag
+ */
+ASTRAEUS_API void astraeus_command_set_visible(EngineHandle engine, uint32_t entity_id, bool visible);
+
+/**
+ * Get number of pending commands in queue.
+ * @param engine Engine handle
+ * @return Number of pending commands
+ */
+ASTRAEUS_API uint32_t astraeus_command_pending_count(EngineHandle engine);
+
+// =============================================================================
+// EVENT BUS API
+// =============================================================================
+
+/**
+ * Event structure for FFM polling.
+ * Events are allocated by engine and must be freed by caller.
+ */
+typedef struct {
+    uint32_t event_type;       // EventType enum value
+    uint64_t timestamp_ns;     // Event timestamp
+    uint32_t entity_id;        // Entity ID (for entity events)
+    float world_x, world_y, world_z;  // World position (for selection events)
+    uint32_t data1, data2;     // Generic data fields
+    char message[256];         // Message string
+} AstraeusEvent;
+
+/**
+ * Poll next event from event bus.
+ * Returns NULL if no events pending.
+ * Caller must free returned event with astraeus_event_free().
+ * @param engine Engine handle
+ * @return Event pointer or NULL
+ */
+ASTRAEUS_API AstraeusEvent* astraeus_event_poll(EngineHandle engine);
+
+/**
+ * Peek at next event without removing it.
+ * Returns NULL if no events pending.
+ * DO NOT free the returned pointer.
+ * @param engine Engine handle
+ * @return Event pointer or NULL
+ */
+ASTRAEUS_API const AstraeusEvent* astraeus_event_peek(EngineHandle engine);
+
+/**
+ * Free an event returned by astraeus_event_poll().
+ * @param event Event to free
+ */
+ASTRAEUS_API void astraeus_event_free(AstraeusEvent* event);
+
+/**
+ * Get number of pending events in queue.
+ * @param engine Engine handle
+ * @return Number of pending events
+ */
+ASTRAEUS_API uint32_t astraeus_event_pending_count(EngineHandle engine);
+
+/**
+ * Clear all pending events.
+ * @param engine Engine handle
+ */
+ASTRAEUS_API void astraeus_event_clear(EngineHandle engine);
+
+// =============================================================================
+// PLUGIN API
+// =============================================================================
+
+/**
+ * Load a plugin from shared library.
+ * @param engine Engine handle
+ * @param plugin_path Path to plugin shared library (.so, .dll, .dylib)
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_plugin_load(EngineHandle engine, const char* plugin_path);
+
+/**
+ * Unload a plugin by name.
+ * @param engine Engine handle
+ * @param plugin_name Name of plugin to unload
+ * @return ASTRAEUS_SUCCESS on success, error code otherwise
+ */
+ASTRAEUS_API AstraeusResult astraeus_plugin_unload(EngineHandle engine, const char* plugin_name);
+
+/**
+ * Get number of loaded plugins.
+ * @param engine Engine handle
+ * @return Number of loaded plugins
+ */
+ASTRAEUS_API uint32_t astraeus_plugin_count(EngineHandle engine);
+
+/**
+ * Get plugin name by index.
+ * @param engine Engine handle
+ * @param index Plugin index (0 to count-1)
+ * @param out_name_buffer Output buffer for plugin name
+ * @param name_buffer_size Size of name buffer in bytes
+ * @return true if plugin exists, false otherwise
+ */
+ASTRAEUS_API bool astraeus_plugin_get_name(EngineHandle engine, uint32_t index,
+                              char* out_name_buffer, uint32_t name_buffer_size);
+
 #ifdef __cplusplus
 }
 #endif
