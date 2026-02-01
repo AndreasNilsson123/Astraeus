@@ -3,6 +3,8 @@ include_guard(GLOBAL)
 set(ASTRAEUS_ENGINE_SOURCES
         ${ASTRAEUS_ROOT_DIR}/api/EngineAPI_stub.cpp
         ${ASTRAEUS_ROOT_DIR}/api/EngineAPI_RenderSession.cpp
+        ${ASTRAEUS_ROOT_DIR}/scene/spatial/BVH.cpp
+        ${ASTRAEUS_ROOT_DIR}/scene/spatial/SpatialIndex.cpp
 )
 
 if(ASTRAEUS_BUILD_SHARED)
