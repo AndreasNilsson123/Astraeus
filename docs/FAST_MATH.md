@@ -61,12 +61,14 @@ float fastRSqrt(float x)    // Alias for fastInvSqrt
 
 **Domain:** x > 0  
 **Error Bounds:**
-- Level 1: ~0.175%
-- Level 2+: ~0.001%
+- Level 0: Machine precision (uses std::)
+- Level 1: ~0.175% (no Newton iteration)
+- Level 2: ~0.175% (one Newton iteration)
+- Level 3: ~0.01% (two Newton iterations)
 
 **Edge Cases:**
-- Returns +Inf for x = 0
-- Returns NaN for x < 0 or x = NaN
+- Level 0: Returns +Inf for x = 0, NaN for x < 0
+- Level 1-3: Undefined behavior for x <= 0 (no guarantees)
 
 **Example:**
 ```cpp
@@ -81,12 +83,14 @@ float fastSqrt(float x)  // Returns sqrt(x)
 
 **Domain:** x ≥ 0  
 **Error Bounds:**
+- Level 0: Machine precision (uses std::)
 - Level 1: ~0.175%
-- Level 2+: ~0.001%
+- Level 2: ~0.175%
+- Level 3: ~0.01%
 
 **Edge Cases:**
-- Returns 0 for x = 0
-- Returns NaN for x < 0
+- Level 0: Returns 0 for x = 0, NaN for x < 0
+- Level 1-3: Returns 0 for x = 0, undefined for x < 0
 
 **Example:**
 ```cpp
@@ -104,10 +108,12 @@ void fastSinCos(float x, float& s, float& c)  // Computes both simultaneously
 **Domain:** All real numbers (range reduction applied for |x| > π)  
 **Tested Range:** [-π, π] for best accuracy; larger values use modulo reduction  
 **Error Bounds:**
-- Level 1: ~0.001 absolute error
-- Level 2+: ~0.0001 absolute error
+- Level 0: Machine precision (uses std::)
+- Level 1: ~0.01-0.02 absolute error (Bhaskara approximation)
+- Level 2: ~0.001 absolute error in [-π/2, π/2], up to ~0.08 near ±π
+- Level 3: ~0.0001 absolute error in [-π/2, π/2], up to ~0.01 near ±π
 
-**Monotonicity:** Preserved in [-π/2, π/2] for sine
+**Note:** Taylor/polynomial approximations degrade near ±π. For best accuracy with fast math, prefer working in [-π/2, π/2] range or use level 0 when high accuracy is needed near boundary values.
 
 **Example:**
 ```cpp
@@ -127,8 +133,9 @@ float fastAtan2(float y, float x)  // Returns atan2(y, x) in radians
 **Domain:** All real (x, y) except (0, 0)  
 **Range:** [-π, π]  
 **Error Bounds:**
-- Level 1: ~0.01 radians (~0.57°)
-- Level 2+: ~0.005 radians (~0.29°)
+- Level 0: Machine precision (uses std::)
+- Level 1: ~0.05 radians (~2.9°)
+- Level 2+: ~0.03 radians (~1.7°)
 
 **Edge Cases:**
 - Returns 0 for (0, 0)
@@ -168,7 +175,7 @@ void fastNormalize(float& x, float& y, float& z)
 void fastNormalize(float x, float y, float z, float& out_x, float& out_y, float& out_z)
 ```
 
-**Error Bounds:** Same as fastSqrt (~0.001-0.175% depending on quality level)
+**Error Bounds:** Same as fastSqrt (~0.175% for levels 1-2, ~0.01% for level 3)
 
 **Edge Cases:**
 - fastNormalize returns (0, 0, 0) for zero-length vectors

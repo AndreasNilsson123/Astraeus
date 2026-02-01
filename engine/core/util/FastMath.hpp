@@ -134,7 +134,7 @@ inline float fastSqrt(float x) noexcept {
  * Fast sine approximation using polynomial approximation.
  * 
  * Domain: [-PI, PI] for best accuracy; larger values use range reduction
- * Error: ~0.001 (level 1), ~0.0001 (level 2+)
+ * Error: ~0.01 (level 1), ~0.001 (level 2+)
  * Monotonicity: Preserved in [-PI/2, PI/2]
  * 
  * @param x Angle in radians
@@ -151,27 +151,30 @@ inline float fastSin(float x) noexcept {
     }
     
 #if ASTRAEUS_FASTMATH_LEVEL == 1
-    // Simple polynomial approximation (3rd order)
-    // sin(x) ≈ x - x³/6 for small x
-    // For larger x in [-PI, PI], use adjusted polynomial
-    float x2 = x * x;
-    return x * (1.0f - x2 * (1.0f/6.0f - x2 * 0.00833333333f));
+    // Bhaskara I's sine approximation for [-PI, PI]
+    // sin(x) ≈ 16x(PI - |x|) / (5*PI^2 - 4|x|(PI - |x|))
+    float abs_x = std::fabs(x);
+    float num = 16.0f * x * (PI - abs_x);
+    float den = 5.0f * PI * PI - 4.0f * abs_x * (PI - abs_x);
+    return num / den;
 #else
-    // Higher order polynomial (5th or 7th order)
-    // Minimax approximation for better accuracy
+    // Higher order Taylor series centered at 0
+    // Works well in [-PI, PI] with 5th or 7th order
     float x2 = x * x;
     
 #if ASTRAEUS_FASTMATH_LEVEL >= 3
+    // 9th order polynomial for better accuracy at edges
+    return x * (1.0f 
+        - x2 * (0.16666666666666666f    // -x³/6
+        - x2 * (0.00833333333333333f    // +x⁵/120
+        - x2 * (0.0001984126984126984f  // -x⁷/5040
+        - x2 * 0.000002755731922398589f)))); // +x⁹/362880
+#else
     // 7th order polynomial
     return x * (1.0f 
-        - x2 * (0.16666666666666666f    // x³/6
-        - x2 * (0.00833333333333333f    // x⁵/120
-        - x2 * 0.0001984126984126984f))); // x⁷/5040
-#else
-    // 5th order polynomial
-    return x * (1.0f 
-        - x2 * (0.16666666666666666f    // x³/6
-        - x2 * 0.00833333333333333f));  // x⁵/120
+        - x2 * (0.16666666666666666f    // -x³/6
+        - x2 * (0.00833333333333333f    // +x⁵/120
+        - x2 * 0.0001984126984126984f))); // -x⁷/5040
 #endif
     
 #endif
@@ -182,7 +185,7 @@ inline float fastSin(float x) noexcept {
  * Fast cosine approximation using polynomial approximation.
  * 
  * Domain: [-PI, PI] for best accuracy; larger values use range reduction
- * Error: ~0.001 (level 1), ~0.0001 (level 2+)
+ * Error: ~0.01 (level 1), ~0.001 (level 2+)
  * 
  * @param x Angle in radians
  * @return Approximate cos(x)
@@ -191,8 +194,41 @@ inline float fastCos(float x) noexcept {
 #if ASTRAEUS_FASTMATH_LEVEL == 0
     return std::cos(x);
 #else
+    // Range reduction to [-PI, PI]
+    if (x < -PI || x > PI) {
+        x = x - TWO_PI * std::floor((x + PI) / TWO_PI);
+    }
+    
+#if ASTRAEUS_FASTMATH_LEVEL == 1
+    // Use Bhaskara approximation with phase shift
     // cos(x) = sin(x + PI/2)
-    return fastSin(x + HALF_PI);
+    float y = x + HALF_PI;
+    // Wrap to [-PI, PI]
+    if (y > PI) y -= TWO_PI;
+    float abs_y = std::fabs(y);
+    float num = 16.0f * y * (PI - abs_y);
+    float den = 5.0f * PI * PI - 4.0f * abs_y * (PI - abs_y);
+    return num / den;
+#else
+    // Taylor series for cos centered at 0
+    float x2 = x * x;
+    
+#if ASTRAEUS_FASTMATH_LEVEL >= 3
+    // 8th order polynomial
+    return 1.0f 
+        - x2 * (0.5f                       // -x²/2
+        - x2 * (0.04166666666666667f       // +x⁴/24
+        - x2 * (0.0013888888888888889f     // -x⁶/720
+        - x2 * 0.000024801587301587302f))); // +x⁸/40320
+#else
+    // 6th order polynomial
+    return 1.0f 
+        - x2 * (0.5f                       // -x²/2
+        - x2 * (0.04166666666666667f       // +x⁴/24
+        - x2 * 0.0013888888888888889f));   // -x⁶/720
+#endif
+    
+#endif
 #endif
 }
 
@@ -201,7 +237,7 @@ inline float fastCos(float x) noexcept {
  * More efficient than calling fastSin and fastCos separately.
  * 
  * Domain: [-PI, PI] for best accuracy; larger values use range reduction
- * Error: ~0.001 (level 1), ~0.0001 (level 2+)
+ * Error: ~0.01 (level 1), ~0.001 (level 2+)
  * 
  * @param x Angle in radians
  * @param s Output sine value
@@ -212,37 +248,11 @@ inline void fastSinCos(float x, float& s, float& c) noexcept {
     s = std::sin(x);
     c = std::cos(x);
 #else
-    // Range reduction to [-PI, PI]
-    if (x < -PI || x > PI) {
-        x = x - TWO_PI * std::floor((x + PI) / TWO_PI);
-    }
-    
-    // Compute sin
-    float x2 = x * x;
-    
-#if ASTRAEUS_FASTMATH_LEVEL == 1
-    s = x * (1.0f - x2 * (1.0f/6.0f - x2 * 0.00833333333f));
-#elif ASTRAEUS_FASTMATH_LEVEL == 2
-    s = x * (1.0f 
-        - x2 * (0.16666666666666666f
-        - x2 * 0.00833333333333333f));
-#else
-    s = x * (1.0f 
-        - x2 * (0.16666666666666666f
-        - x2 * (0.00833333333333333f
-        - x2 * 0.0001984126984126984f)));
-#endif
-    
-    // Compute cos using identity: cos²(x) + sin²(x) = 1
-    // cos(x) = sqrt(1 - sin²(x)) with sign handling
-    float s2 = s * s;
-    c = fastSqrt(1.0f - s2);
-    
-    // Handle sign based on quadrant
-    // cos is negative in [PI/2, 3*PI/2]
-    if (x > HALF_PI && x < (PI + HALF_PI)) {
-        c = -c;
-    }
+    // Simply call both functions
+    // A truly optimized version would compute both in one pass,
+    // but for simplicity and maintainability, we call both
+    s = fastSin(x);
+    c = fastCos(x);
 #endif
 }
 
