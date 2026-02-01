@@ -9,6 +9,7 @@
 namespace astraeus {
 
 class RenderDevice;
+class GLRenderDevice;
 class World;
 class RenderPass;
 class Telemetry;
@@ -95,6 +96,16 @@ protected:
 // Inline implementations
 // ============================================================================
 
+// Note: Post-processing includes placed here (not at top) to avoid circular
+// dependency: PostChain.hpp includes PostProcessPass.hpp, which includes
+// RenderGraph.hpp for RenderPass base class. Forward declarations at the top
+// of RenderGraph.hpp (class PostChain) break the cycle for the interface,
+// but the implementation needs the full definition.
+#include "passes/post/PostChain.hpp"
+#include "passes/post/ToneMappingPass.hpp"
+#include "passes/post/GammaCorrectionPass.hpp"
+#include "opengl/GLRenderDevice.hpp"
+
 inline RenderGraph::RenderGraph(RenderDevice* device, World* world, Telemetry* telemetry)
     : device_(device)
     , world_(world)
@@ -156,21 +167,29 @@ inline void RenderGraph::execute() {
     }
     
     // Apply post-processing chain if enabled
-    // NOTE: Post-processing is currently a no-op by default
-    // To enable, call set_post_chain_enabled(true) and configure passes
-    // via get_post_chain()->add_pass(...)
+    // PostChain runs after main passes and before readback
+    // Input: main color texture, Output: main FBO (in-place processing)
     if (post_chain_enabled_) {
         ensure_post_chain_initialized();
         if (post_chain_ && post_chain_->is_enabled()) {
-            // Note: This is a placeholder for future integration
-            // The PostChain needs access to the framebuffer's color texture
-            // For now, PostChain is initialized but not automatically executed
-            // to maintain compatibility with existing rendering pipeline
-            // 
-            // Future integration point:
-            // 1. Get color texture from device
-            // 2. Apply post-chain: post_chain_->apply(color_texture, main_fbo)
-            // 3. Ensure readback compatibility
+            // Get color texture and main FBO from device
+            // Note: dynamic_cast required because get_color_texture/get_main_fbo
+            // are OpenGL-specific methods not in base RenderDevice interface.
+            // PostChain requires OpenGL functionality (framebuffers, textures).
+            GLRenderDevice* gl_device = dynamic_cast<GLRenderDevice*>(device_);
+            if (gl_device) {
+                uint32_t color_texture = gl_device->get_color_texture();
+                uint32_t main_fbo = gl_device->get_main_fbo();
+                
+                // Apply post-chain with per-pass timing if telemetry enabled
+                if (telemetry_ && telemetry_->is_enabled()) {
+                    uint32_t pass_index = telemetry_->begin_pass("PostChain");
+                    post_chain_->apply(color_texture, main_fbo);
+                    telemetry_->end_pass(pass_index);
+                } else {
+                    post_chain_->apply(color_texture, main_fbo);
+                }
+            }
         }
     }
 }
@@ -219,9 +238,32 @@ inline void RenderGraph::ensure_post_chain_initialized() {
             return;
         }
         
-        std::cout << "[RenderGraph] Initializing PostChain" << std::endl;
+        std::cout << "[RenderGraph] Initializing PostChain with default passes" << std::endl;
         post_chain_ = std::make_unique<PostChain>(device_);
         
+        // Add default passes in stable order: tone-map -> gamma correction
+        // This provides the output contract: linear HDR -> sRGB LDR
+        // 
+        // IMPORTANT: Passes are enabled by default. When PostChain itself is enabled,
+        // these passes will execute. To disable individual passes, call:
+        //   get_post_chain()->get_pass(index)->set_enabled(false)
+        
+        // Tone mapping: pass-through by default (ToneMapOperator::None)
+        // Can be changed to Reinhard, ACES, etc. for HDR content
+        // Note: 'None' means pass-through (identity operation), not an error state
+        auto tone_map = std::make_unique<ToneMappingPass>();
+        tone_map->set_operator(ToneMappingPass::ToneMapOperator::None);  // Pass-through mode
+        tone_map->set_exposure(1.0f);
+        post_chain_->add_pass(std::move(tone_map));
+        
+        // Gamma correction: converts linear to sRGB (gamma 2.2)
+        // CRITICAL: Framebuffer is linear (GL_RGBA8), this is the ONLY gamma correction
+        // to avoid double-sRGB issues. When PostChain is disabled, output is linear.
+        auto gamma = std::make_unique<GammaCorrectionPass>();
+        gamma->set_gamma(2.2f);  // Standard sRGB gamma
+        post_chain_->add_pass(std::move(gamma));
+        
+        // Initialize the chain (allocates intermediate framebuffers)
         if (!post_chain_->initialize(width, height)) {
             std::cerr << "[RenderGraph] Failed to initialize PostChain" << std::endl;
             post_chain_.reset();
