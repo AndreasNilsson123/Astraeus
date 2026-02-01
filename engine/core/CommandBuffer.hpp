@@ -167,7 +167,7 @@ public:
      * Called by EngineContext during tick().
      * Not thread-safe - must be called from engine thread only.
      */
-    void execute(EngineContext* context);
+    void execute(EngineContext* context);  // Implemented in EngineContext.hpp to avoid circular dependency
 
     /**
      * Clear all pending commands.
@@ -185,9 +185,6 @@ private:
     std::vector<std::unique_ptr<Command>> submit_queue_;
     std::vector<std::unique_ptr<Command>> execute_queue_;
     mutable std::mutex mutex_;
-    
-    // Helper to execute individual command
-    void execute_command(Command* cmd, EngineContext* context);
 };
 
 // =============================================================================
@@ -223,94 +220,7 @@ inline size_t CommandBuffer::pending_count() const {
     return submit_queue_.size() + execute_queue_.size();
 }
 
-inline void CommandBuffer::execute(EngineContext* context) {
-    if (!context) {
-        return;
-    }
-    
-    // Swap queues under lock (fast)
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        std::swap(submit_queue_, execute_queue_);
-    }
-    
-    // Execute commands (lock-free)
-    for (auto& cmd : execute_queue_) {
-        execute_command(cmd.get(), context);
-    }
-    
-    // Clear executed commands
-    execute_queue_.clear();
-}
 
-inline void CommandBuffer::execute_command(Command* cmd, EngineContext* context) {
-    if (!cmd || !context) {
-        return;
-    }
-    
-    switch (cmd->type) {
-        case CommandType::CreateEntity: {
-            auto* create_cmd = static_cast<CreateEntityCommand*>(cmd);
-            uint32_t new_id = context->create_entity();
-            if (create_cmd->out_entity_id) {
-                *create_cmd->out_entity_id = new_id;
-            }
-            break;
-        }
-        
-        case CommandType::DestroyEntity: {
-            context->destroy_entity(cmd->entity_id);
-            break;
-        }
-        
-        case CommandType::SetTransform: {
-            auto* trans_cmd = static_cast<SetTransformCommand*>(cmd);
-            context->set_entity_transform(cmd->entity_id,
-                                         trans_cmd->pos_x, trans_cmd->pos_y, trans_cmd->pos_z,
-                                         trans_cmd->rot_x, trans_cmd->rot_y, trans_cmd->rot_z,
-                                         trans_cmd->scale_x, trans_cmd->scale_y, trans_cmd->scale_z);
-            break;
-        }
-        
-        case CommandType::AssignMesh: {
-            // TODO: Implement mesh assignment when asset system supports it
-            // auto* mesh_cmd = static_cast<AssignMeshCommand*>(cmd);
-            // context->set_entity_mesh(cmd->entity_id, mesh_cmd->mesh_id);
-            break;
-        }
-        
-        case CommandType::AssignMaterial: {
-            // TODO: Implement material assignment when material system supports it
-            // auto* mat_cmd = static_cast<AssignMaterialCommand*>(cmd);
-            // context->set_entity_material(cmd->entity_id, mat_cmd->material_id);
-            break;
-        }
-        
-        case CommandType::SetTrailParams: {
-            auto* trail_cmd = static_cast<SetTrailParamsCommand*>(cmd);
-            context->set_entity_trail(cmd->entity_id, trail_cmd->max_points);
-            break;
-        }
-        
-        case CommandType::SetEntityColor: {
-            auto* color_cmd = static_cast<SetEntityColorCommand*>(cmd);
-            context->set_entity_color(cmd->entity_id, color_cmd->r, color_cmd->g, color_cmd->b, color_cmd->a);
-            break;
-        }
-        
-        case CommandType::SetEntityVisible: {
-            auto* vis_cmd = static_cast<SetEntityVisibleCommand*>(cmd);
-            context->set_entity_renderable(cmd->entity_id, vis_cmd->visible);
-            break;
-        }
-        
-        case CommandType::ApplySnapshot: {
-            auto* snap_cmd = static_cast<ApplySnapshotCommand*>(cmd);
-            context->apply_entity_snapshot(cmd->entity_id, snap_cmd->pos_x, snap_cmd->pos_y, snap_cmd->pos_z);
-            break;
-        }
-    }
-}
 
 } // namespace astraeus
 

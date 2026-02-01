@@ -376,26 +376,25 @@ inline bool PluginManager::validate_plugin_info(const PluginInfo* info) {
 // C API IMPLEMENTATIONS
 // =============================================================================
 
-extern "C" {
-
-RegisterMaterialFunc plugin_context_get_material_registrar(PluginContextHandle ctx) {
+inline RegisterMaterialFunc plugin_context_get_material_registrar(PluginContextHandle ctx) {
     // TODO: Return actual material registration function
     // This will be implemented when material system supports dynamic registration
+    (void)ctx;  // Unused parameter
     return nullptr;
 }
 
-RegisterIngestDecoderFunc plugin_context_get_ingest_registrar(PluginContextHandle ctx) {
+inline RegisterIngestDecoderFunc plugin_context_get_ingest_registrar(PluginContextHandle ctx) {
     // TODO: Return actual ingest decoder registration function
     // This will be implemented when ingest system supports dynamic registration
+    (void)ctx;  // Unused parameter
     return nullptr;
 }
 
-void plugin_context_log(PluginContextHandle ctx, const char* message) {
+inline void plugin_context_log(PluginContextHandle ctx, const char* message) {
+    (void)ctx;  // Unused parameter
     if (message) {
         std::cout << "[Plugin] " << message << std::endl;
     }
 }
-
-} // extern "C"
 
 #endif // ASTRAEUS_PLUGIN_MANAGER_HPP

@@ -230,6 +230,11 @@ public:
      * Called internally during tick.
      */
     void execute_commands();
+    
+    /**
+     * Execute a single command (called by CommandBuffer).
+     */
+    void execute_single_command(Command* cmd);
 
     // Accessors for subsystems (internal use)
     RenderDevice* get_render_device() const { return render_device_.get(); }
@@ -572,6 +577,99 @@ inline void EngineContext::execute_commands() {
     }
 }
 
+inline void EngineContext::execute_single_command(Command* cmd) {
+    if (!cmd) {
+        return;
+    }
+    
+    switch (cmd->type) {
+        case CommandType::CreateEntity: {
+            auto* create_cmd = static_cast<CreateEntityCommand*>(cmd);
+            uint32_t new_id = create_entity();
+            if (create_cmd->out_entity_id) {
+                *create_cmd->out_entity_id = new_id;
+            }
+            break;
+        }
+        
+        case CommandType::DestroyEntity: {
+            destroy_entity(cmd->entity_id);
+            break;
+        }
+        
+        case CommandType::SetTransform: {
+            auto* trans_cmd = static_cast<SetTransformCommand*>(cmd);
+            set_entity_transform(cmd->entity_id,
+                                trans_cmd->pos_x, trans_cmd->pos_y, trans_cmd->pos_z,
+                                trans_cmd->rot_x, trans_cmd->rot_y, trans_cmd->rot_z,
+                                trans_cmd->scale_x, trans_cmd->scale_y, trans_cmd->scale_z);
+            break;
+        }
+        
+        case CommandType::AssignMesh: {
+            // TODO: Implement mesh assignment when asset system supports it
+            break;
+        }
+        
+        case CommandType::AssignMaterial: {
+            // TODO: Implement material assignment when material system supports it
+            break;
+        }
+        
+        case CommandType::SetTrailParams: {
+            auto* trail_cmd = static_cast<SetTrailParamsCommand*>(cmd);
+            set_entity_trail(cmd->entity_id, trail_cmd->max_points);
+            break;
+        }
+        
+        case CommandType::SetEntityColor: {
+            auto* color_cmd = static_cast<SetEntityColorCommand*>(cmd);
+            set_entity_color(cmd->entity_id, color_cmd->r, color_cmd->g, color_cmd->b, color_cmd->a);
+            break;
+        }
+        
+        case CommandType::SetEntityVisible: {
+            auto* vis_cmd = static_cast<SetEntityVisibleCommand*>(cmd);
+            set_entity_renderable(cmd->entity_id, vis_cmd->visible);
+            break;
+        }
+        
+        case CommandType::ApplySnapshot: {
+            auto* snap_cmd = static_cast<ApplySnapshotCommand*>(cmd);
+            apply_entity_snapshot(cmd->entity_id, snap_cmd->pos_x, snap_cmd->pos_y, snap_cmd->pos_z);
+            break;
+        }
+    }
+}
+
+
+
+// ============================================================================= 
+// COMMAND BUFFER EXECUTE IMPLEMENTATION 
+// (Must be here after EngineContext is fully defined to avoid circular dependency) 
+// ============================================================================= 
+
+inline void CommandBuffer::execute(EngineContext* context) { 
+    if (!context) { 
+        return; 
+    } 
+    
+    // Swap queues under lock (fast) 
+    { 
+        std::lock_guard<std::mutex> lock(mutex_); 
+        std::swap(submit_queue_, execute_queue_); 
+    } 
+    
+    // Execute commands (lock-free) - delegate to context 
+    for (auto& cmd : execute_queue_) { 
+        if (cmd) { 
+            context->execute_single_command(cmd.get()); 
+        } 
+    } 
+    
+    // Clear executed commands 
+    execute_queue_.clear(); 
+}
 } // namespace astraeus
 
 #endif // ASTRAEUS_ENGINE_CONTEXT_HPP
