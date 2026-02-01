@@ -42,4 +42,9 @@ if(ASTRAEUS_BUILD_EXAMPLES)
     
     # Compile-only test to verify RenderGraph.hpp is self-contained
     astraeus_add_example(render_graph_header_test examples/render_graph_header_test.cpp)
+    
+    # Fast Math tests and benchmarks
+    astraeus_add_example(fastmath_test examples/fastmath_test.cpp)
+    astraeus_add_example(fastmath_benchmark examples/fastmath_benchmark.cpp)
+    astraeus_add_example(fastmath_usage_example examples/fastmath_usage_example.cpp)
 endif()
