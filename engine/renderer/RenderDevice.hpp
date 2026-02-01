@@ -46,6 +46,12 @@ public:
     virtual bool configure_readback(const ReadbackConfig* color_config, 
                                      const ReadbackConfig* id_config);
 
+    /**
+     * Update camera view-projection matrix for picking unprojection.
+     * @param view_projection 4x4 view-projection matrix (column-major)
+     */
+    virtual void set_view_projection_matrix(const float* view_projection);
+
     virtual void get_color_buffer_view(PixelBufferView& out_view) const;
     virtual void get_id_buffer_view(PixelBufferView& out_view) const;
     virtual void pick(uint32_t screen_x, uint32_t screen_y, PickResult& out_result) const;
@@ -288,15 +294,22 @@ inline void RenderDevice::get_id_buffer_view(PixelBufferView& out_view) const {
 }
 
 inline void RenderDevice::pick(uint32_t screen_x, uint32_t screen_y, PickResult& out_result) const {
-    // TODO: Implement actual picking from ID buffer
-    (void)screen_x;  // Unused for now
-    (void)screen_y;  // Unused for now
+    // Default implementation (no picking support)
+    (void)screen_x;
+    (void)screen_y;
     out_result.entity_id = 0;
     out_result.depth = 1.0f;
     out_result.world_x = 0.0f;
     out_result.world_y = 0.0f;
     out_result.world_z = 0.0f;
     out_result.hit = false;
+}
+
+inline void RenderDevice::set_view_projection_matrix(const float* view_projection) {
+    // Default implementation (no-op)
+    // Derived classes that support picking with world position reconstruction
+    // should override this method to cache camera matrices
+    (void)view_projection;
 }
 
 } // namespace astraeus
