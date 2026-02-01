@@ -11,6 +11,7 @@
 #include "Camera.hpp"
 #include "CameraComponent.hpp"
 #include "CameraSystem.hpp"
+#include "spatial/SpatialIndex.hpp"
 
 namespace astraeus {
 
@@ -397,6 +398,42 @@ public:
      */
     void get_ambient_light(float& out_r, float& out_g, float& out_b) const;
 
+    // ========================================================================
+    // Spatial Query API (CPU-side)
+    // ========================================================================
+    
+    /**
+     * Rebuild spatial index from current entity positions.
+     * Call this after entities move or are added/removed, before queries.
+     */
+    void rebuild_spatial_index();
+    
+    /**
+     * Raycast query: find all entities intersecting a ray.
+     * Results are sorted by distance (closest first).
+     * Returns true if any hits found.
+     */
+    bool raycast(float origin_x, float origin_y, float origin_z,
+                 float dir_x, float dir_y, float dir_z,
+                 float max_distance,
+                 std::vector<spatial::RayHit>& out_hits) const;
+    
+    /**
+     * Nearest query: find closest entity to a point.
+     * Returns true if entity found within max_distance.
+     */
+    bool nearest_entity(float px, float py, float pz,
+                        float max_distance,
+                        uint32_t& out_entity_id,
+                        float& out_distance) const;
+    
+    /**
+     * Frustum query: find all entities within view frustum.
+     * Frustum is defined by 6 planes (see spatial::Frustum).
+     */
+    void frustum_query(const spatial::Frustum& frustum,
+                       std::vector<uint32_t>& out_entities) const;
+
 private:
     // Handle-based entity storage
     uint32_t next_entity_id_;
@@ -421,6 +458,10 @@ private:
     float light_intensity_;        // Light intensity multiplier
     float ambient_light_[3];       // Ambient light color (RGB)
     
+    // Spatial indexing
+    spatial::SpatialIndex spatial_index_;
+    bool spatial_index_dirty_;
+    
     // Helper methods for transform propagation
     void update_entity_world_transform(uint32_t entity_id);
     void mark_descendants_dirty(uint32_t entity_id);
@@ -442,6 +483,8 @@ inline World::World()
     , light_color_{1.0f, 1.0f, 1.0f}        // Default: white
     , light_intensity_(1.0f)
     , ambient_light_{0.2f, 0.2f, 0.2f}      // Default: 20% ambient
+    , spatial_index_()
+    , spatial_index_dirty_(true)
 {
 }
 
@@ -1320,6 +1363,67 @@ inline void World::get_ambient_light(float& out_r, float& out_g, float& out_b) c
     out_r = ambient_light_[0];
     out_g = ambient_light_[1];
     out_b = ambient_light_[2];
+}
+
+// ============================================================================
+// Spatial Query Implementation
+// ============================================================================
+
+inline void World::rebuild_spatial_index() {
+    std::vector<spatial::BVH::Entry> entries;
+    entries.reserve(transforms_.size());
+    
+    for (const auto& pair : transforms_) {
+        uint32_t entity_id = pair.first;
+        const Transform& transform = pair.second;
+        
+        // Compute AABB for entity (simple point + radius for now)
+        // In a full implementation, this would use mesh bounds
+        float radius = 1.0f; // Default entity radius
+        spatial::AABB bounds(
+            transform.pos_x - radius, transform.pos_y - radius, transform.pos_z - radius,
+            transform.pos_x + radius, transform.pos_y + radius, transform.pos_z + radius
+        );
+        
+        entries.emplace_back(entity_id, bounds);
+    }
+    
+    spatial_index_.rebuild(entries);
+    spatial_index_dirty_ = false;
+}
+
+inline bool World::raycast(float origin_x, float origin_y, float origin_z,
+                           float dir_x, float dir_y, float dir_z,
+                           float max_distance,
+                           std::vector<spatial::RayHit>& out_hits) const {
+    if (!spatial_index_.is_ready()) {
+        out_hits.clear();
+        return false;
+    }
+    
+    spatial_index_.raycast(origin_x, origin_y, origin_z, dir_x, dir_y, dir_z, max_distance, out_hits);
+    return !out_hits.empty();
+}
+
+inline bool World::nearest_entity(float px, float py, float pz,
+                                  float max_distance,
+                                  uint32_t& out_entity_id,
+                                  float& out_distance) const {
+    if (!spatial_index_.is_ready()) {
+        return false;
+    }
+    
+    return spatial_index_.nearest(px, py, pz, max_distance, out_entity_id, out_distance);
+}
+
+inline void World::frustum_query(const spatial::Frustum& frustum,
+                                 std::vector<uint32_t>& out_entities) const {
+    if (!spatial_index_.is_ready()) {
+        out_entities.clear();
+        return;
+    }
+    
+    spatial_index_.frustum_query(frustum, out_entities);
 }
 
 } // namespace astraeus
