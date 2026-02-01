@@ -17,6 +17,10 @@
 #include "platform/GL/GLHeaders.hpp"
 namespace astraeus {
 
+// Numerical precision constants for unprojection
+constexpr float MATRIX_SINGULARITY_EPSILON = 1e-12f;  // For matrix inversion
+constexpr float PERSPECTIVE_DIVIDE_EPSILON = 1e-12f;  // For w-coordinate guard
+
 /**
  * OpenGL render device implementation.
  * Uses offscreen context for headless rendering with readback support.
@@ -194,12 +198,10 @@ inline GLRenderDevice::GLRenderDevice(const Config& config)
     , depth_fence_(nullptr)
     , has_khr_debug_(false)
     , debug_output_enabled_(false)
+    , cached_view_projection_matrix_{0}      // Zero-initialize
+    , cached_inv_view_projection_{0}          // Zero-initialize
 {
-    // Initialize cached matrices to identity
-    for (int i = 0; i < 16; ++i) {
-        cached_view_projection_matrix_[i] = 0.0f;
-        cached_inv_view_projection_[i] = 0.0f;
-    }
+    // Set identity matrix diagonal elements
     cached_view_projection_matrix_[0] = cached_view_projection_matrix_[5] = 
         cached_view_projection_matrix_[10] = cached_view_projection_matrix_[15] = 1.0f;
     cached_inv_view_projection_[0] = cached_inv_view_projection_[5] = 
@@ -1072,7 +1074,7 @@ inline bool GLRenderDevice::invert_matrix_4x4(const float* m, float* out_inv) co
         }
         
         // Check for singularity
-        if (max_val < 1e-12f) {
+        if (max_val < MATRIX_SINGULARITY_EPSILON) {
             return false;  // Matrix is singular
         }
         
@@ -1148,7 +1150,7 @@ inline void GLRenderDevice::unproject(float screen_x, float screen_y, float dept
     float world_w = inv_vp[3] * clip_x + inv_vp[7] * clip_y + inv_vp[11] * clip_z + inv_vp[15] * clip_w;
     
     // Perspective divide
-    if (math::abs(world_w) > 1e-12f) {
+    if (math::abs(world_w) > PERSPECTIVE_DIVIDE_EPSILON) {
         out_world_x = world_x / world_w;
         out_world_y = world_y / world_w;
         out_world_z = world_z / world_w;

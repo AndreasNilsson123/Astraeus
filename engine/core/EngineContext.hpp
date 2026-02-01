@@ -334,9 +334,9 @@ inline void EngineContext::begin_frame(double delta_time) {
         const float* vp_matrix = camera.get_view_projection_matrix();
         
         // Update render device with current camera matrices
-        GLRenderDevice* gl_device = dynamic_cast<GLRenderDevice*>(render_device_.get());
-        if (gl_device && vp_matrix) {
-            gl_device->set_view_projection_matrix(vp_matrix);
+        // Uses virtual method (no dynamic_cast needed)
+        if (vp_matrix) {
+            render_device_->set_view_projection_matrix(vp_matrix);
         }
     }
     
