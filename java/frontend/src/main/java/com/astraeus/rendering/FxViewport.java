@@ -5,6 +5,7 @@ import com.astraeus.native_api.model.FrameStats;
 import com.astraeus.native_api.model.PickResult;
 import com.astraeus.native_api.model.PixelBufferView;
 import com.astraeus.tools.TelemetryOverlay;
+import com.astraeus.tools.TestPatternGenerator;
 import com.astraeus.ui.viewport.PickingCoordinateTransform;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
@@ -98,6 +99,18 @@ public class FxViewport extends StackPane {
     // Debugging
     private static final boolean ASSERT_BUF_STATE = Boolean.getBoolean("astraeus.debug.assertBufferState");
     private static final boolean DEBUG_BUFFER_UPDATE = Boolean.getBoolean("astraeus.debug.bufferUpdate");
+    private static final boolean ENABLE_TEST_PATTERN = Boolean.getBoolean("astraeus.debug.testPattern");
+    
+    // Test pattern mode
+    public enum TestPattern {
+        NONE,
+        GRADIENT,
+        CHECKERBOARD,
+        GRID,
+        COLOR_BANDS,
+        QUADRANTS
+    }
+    private TestPattern currentTestPattern = ENABLE_TEST_PATTERN ? TestPattern.GRADIENT : TestPattern.NONE;
     
     /**
      * Create a new enhanced viewport with camera control and overlays.
@@ -481,6 +494,11 @@ public class FxViewport extends StackPane {
             System.out.println("  Row bytes: " + rowBytes);
         }
         
+        // Apply test pattern if enabled
+        if (currentTestPattern != TestPattern.NONE) {
+            applyTestPattern(nativeBuffer, width, height, stride);
+        }
+        
         // Prepare buffers for copying
         tightlyPackedBuffer.clear();
         nativeBuffer.clear();
@@ -508,6 +526,49 @@ public class FxViewport extends StackPane {
         // Mark entire viewport as dirty
         dirtyRect = null; // null = full buffer dirty
         pixelBuffer.updateBuffer(DIRTY_CB);
+    }
+    
+    /**
+     * Apply test pattern to the native buffer for debugging.
+     * This helps diagnose stride and alignment issues.
+     */
+    private void applyTestPattern(ByteBuffer buffer, int width, int height, int stride) {
+        switch (currentTestPattern) {
+            case GRADIENT:
+                TestPatternGenerator.fillGradient(buffer, width, height, stride);
+                break;
+            case CHECKERBOARD:
+                TestPatternGenerator.fillCheckerboard(buffer, width, height, stride, 32);
+                break;
+            case GRID:
+                TestPatternGenerator.fillGrid(buffer, width, height, stride, 64);
+                break;
+            case COLOR_BANDS:
+                TestPatternGenerator.fillColorBands(buffer, width, height, stride, 50);
+                break;
+            case QUADRANTS:
+                TestPatternGenerator.fillQuadrants(buffer, width, height, stride);
+                break;
+            default:
+                break;
+        }
+    }
+    
+    /**
+     * Set test pattern mode for debugging.
+     * @param pattern Test pattern to display
+     */
+    public void setTestPattern(TestPattern pattern) {
+        this.currentTestPattern = pattern;
+        System.out.println("[FxViewport] Test pattern set to: " + pattern);
+    }
+    
+    /**
+     * Get current test pattern.
+     * @return Current test pattern
+     */
+    public TestPattern getTestPattern() {
+        return currentTestPattern;
     }
     
     /**
